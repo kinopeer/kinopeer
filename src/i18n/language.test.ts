@@ -7,6 +7,8 @@ import { failRussianLoads, russianUnreachable, withoutTexts } from '../test/lang
 import { saying } from '../test/render'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
+import webuiEn from './locales/webui/en.json'
+import webuiRu from './locales/webui/ru.json'
 import {
   LANGUAGE_STORAGE_KEY,
   initLanguage,
@@ -105,6 +107,21 @@ describe('showLanguage', () => {
     expect(i18n.language).toBe(language)
     expect(i18n.hasResourceBundle(language, 'translation')).toBe(true)
     expect(i18n.t('theme.label')).toBe(texts.theme.label)
+  })
+
+  it.each([
+    ['en', webuiEn],
+    ['ru', webuiRu],
+  ] as const)("adds the WebUI build's own texts to the language's in that build, and only there: %s", async (language, webui) => {
+    withoutTexts(language)
+    await act(() => showLanguage(language))
+    expect(i18n.exists('webui.signInTitle', { lng: language, fallbackLng: false })).toBe(false)
+
+    vi.stubGlobal('__WEBUI__', true)
+    withoutTexts(language)
+    await act(() => showLanguage(language))
+    expect(i18n.t('webui.signInTitle', { lng: language })).toBe(webui.webui.signInTitle)
+    expect(i18n.t('theme.label', { lng: language })).toBe((language === 'en' ? en : ru).theme.label)
   })
 
   it('renders the texts once they arrive in the language already set, as the page does at startup', async () => {

@@ -20,6 +20,16 @@ const TEXTS: Record<Language, () => Promise<{ default: object }>> = {
   ru: () => import('./locales/ru.json'),
 }
 
+/**
+ * The WebUI build's own texts (`__WEBUI__`), added to the language's when it loads: kept apart, so
+ * the server build, which never shows them, doesn't carry them. Their top-level keys are their own
+ * (`webui`), so neither file's hides the other's (src/i18n/locales.test.ts).
+ */
+const WEBUI_TEXTS: Record<Language, () => Promise<{ default: object }>> = {
+  en: () => import('./locales/webui/en.json'),
+  ru: () => import('./locales/webui/ru.json'),
+}
+
 /** The language the page was last asked to show: a load that finishes after another was asked for shows nothing. */
 let wanted: Language | undefined
 let onUnavailable: () => void = () => {}
@@ -43,7 +53,7 @@ export async function showLanguage(language: Language): Promise<boolean> {
   if (!i18n.hasResourceBundle(language, 'translation')) {
     try {
       const { default: texts } = await TEXTS[language]()
-      i18n.addResourceBundle(language, 'translation', texts)
+      i18n.addResourceBundle(language, 'translation', __WEBUI__ ? { ...texts, ...(await WEBUI_TEXTS[language]()).default } : texts)
     } catch {
       if (wanted !== language) return true
       onUnavailable()

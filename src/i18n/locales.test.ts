@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import en from './locales/en.json'
 import ru from './locales/ru.json'
+import webuiEn from './locales/webui/en.json'
+import webuiRu from './locales/webui/ru.json'
 
 function keys(obj: object, prefix = ''): string[] {
   return Object.entries(obj).flatMap(([key, value]) =>
@@ -22,6 +24,14 @@ function valueOf(locale: object, key: string): unknown {
 describe('locales', () => {
   it('have the same keys in every language', () => {
     expect(baseKeys(ru)).toEqual(baseKeys(en))
+    expect(baseKeys(webuiRu)).toEqual(baseKeys(webuiEn))
+  })
+
+  it("keep the WebUI build's own texts under top-level keys of their own, so adding them to a language's hides none", () => {
+    // The loader spreads them over the language's texts (src/i18n/language.ts).
+    for (const [shared, webui] of [[en, webuiEn], [ru, webuiRu]] as const) {
+      expect(Object.keys(webui).filter((key) => key in shared)).toEqual([])
+    }
   })
 
   it("give every plural all of its language's forms", () => {
@@ -39,7 +49,7 @@ describe('locales', () => {
   })
 
   it('have no empty strings', () => {
-    for (const locale of [en, ru]) {
+    for (const locale of [en, ru, webuiEn, webuiRu]) {
       for (const key of keys(locale)) {
         expect(valueOf(locale, key), key).not.toBe('')
       }
@@ -47,7 +57,8 @@ describe('locales', () => {
   })
 
   it('nest only keys that exist, so a renamed key never shows as its own name', () => {
-    for (const locale of [en, ru]) {
+    // The WebUI build's texts, which may nest the language's, as that build has them.
+    for (const locale of [en, ru, { ...en, ...webuiEn }, { ...ru, ...webuiRu }]) {
       // A plural is nested by its base key, `$t(key, {"count": n})`, which picks the form.
       const nestable = new Set([...keys(locale), ...baseKeys(locale)])
       for (const key of keys(locale)) {

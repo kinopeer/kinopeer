@@ -22,6 +22,7 @@ import { RELEASES_PATH, TITLE_PATH, TitleRoute } from './screens/TitleScreen'
 import { TmdbKeyScreen } from './screens/TmdbKeyScreen'
 import { TorrentDrawerOverPage } from './screens/TorrentDrawer'
 import { TorrentScreen } from './screens/TorrentScreen'
+import { WebuiConnectScreen } from './screens/WebuiConnectScreen'
 import { useAltSpeedSwitch } from './screens/useAltSpeedSwitch'
 import { useQbitSession } from './session/useQbitSession'
 import { useSetupSteps } from './session/useSetupSteps'
@@ -40,8 +41,8 @@ import './App.css'
 function App() {
   const need = useSyncExternalStore(onSignInNeed, signInNeed)
   // Toasts for every screen, the sign-in and the connect screen included: their language switch
-  // says when a language can't be loaded.
-  return <ToastProvider>{need ? <SignInScreen need={need} /> : <SignedIn />}</ToastProvider>
+  // says when a language can't be loaded. The WebUI build has no Kinopeer server, so no login of its own.
+  return <ToastProvider>{need && !__WEBUI__ ? <SignInScreen need={need} /> : <SignedIn />}</ToastProvider>
 }
 
 /** The app once Kinopeer's server answers it: qBittorrent's connection first, then the screens. */
@@ -126,6 +127,17 @@ function SignedIn() {
       )
     }
     default:
+      // Served by qBittorrent itself: its own login, with no address to set.
+      if (__WEBUI__) {
+        return (
+          <WebuiConnectScreen
+            unreachable={session.status === 'unreachable' ? session.who : undefined}
+            failure={session.status === 'unreachable' ? session.failure : undefined}
+            unsupported={session.status === 'unsupported' ? session.version : undefined}
+            onRetry={() => void recheck()}
+          />
+        )
+      }
       return (
         <ConnectScreen
           unreachable={session.status === 'unreachable' ? session.who : undefined}

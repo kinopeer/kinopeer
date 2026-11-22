@@ -8,6 +8,7 @@ import { useRequest } from '../lib/useRequest'
  * device shows after a reload. Asked only when the page has no answer yet.
  */
 export function useNotificationsAvailable(): boolean {
-  const { data } = useRequest(SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: Infinity })
-  return data?.notifications === true
+  // The WebUI build has no Kinopeer server to notify: nothing to ask.
+  const { data } = useRequest(__WEBUI__ ? null : SERVER_SETTINGS_KEY, (signal) => getServerSettings(signal), { freshFor: Infinity })
+  return !__WEBUI__ && data?.notifications === true
 }

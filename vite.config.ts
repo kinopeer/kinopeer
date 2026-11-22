@@ -193,7 +193,8 @@ export default defineConfig(({ mode }) => {
   return {
     // Shown in Settings → About (src/version.d.ts). Edge builds of main (.github/workflows/edge.yml)
     // pass the commit, so the version says which one is running: 0.6.0+abc1234.
-    define: { __APP_VERSION__: JSON.stringify(appVersion) },
+    // The WebUI build (`--mode webui`, src/version.d.ts) is the one qBittorrent serves itself.
+    define: { __APP_VERSION__: JSON.stringify(appVersion), __WEBUI__: JSON.stringify(mode === 'webui') },
     // Vite answers CORS preflights from any localhost origin before server/ middleware runs, which
     // would let a page on another local port send /qbt the X-Kinopeer header (server/qbittorrent.ts).
     // The app calls only its own origin. `vite preview` takes this too (vite.config.test.ts).

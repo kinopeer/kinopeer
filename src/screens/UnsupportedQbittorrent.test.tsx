@@ -16,4 +16,10 @@ describe('UnsupportedQbittorrent', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(onRetry).toHaveBeenCalledOnce()
   })
+
+  it('names 5.2.0 as the oldest in the WebUI build', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    render(<UnsupportedQbittorrent version="5.1.4" onRetry={() => {}} />)
+    expect(screen.getByText('Kinopeer works with qBittorrent 5.2.0 or later. Update qBittorrent, then try again.')).toBeInTheDocument()
+  })
 })

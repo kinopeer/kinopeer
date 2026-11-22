@@ -7,6 +7,7 @@ import { SignInRequiredError } from './api/fetchKinopeer'
 import * as matchesApi from './api/matches'
 import * as prowlarr from './api/prowlarr'
 import * as api from './api/qbittorrent'
+import * as webui from './api/qbittorrent/webui'
 import * as serverSettings from './api/settings'
 import * as tmdb from './api/tmdb'
 import App from './App'
@@ -31,6 +32,8 @@ vi.mock('./api/qbittorrent', async (importOriginal) => {
     stopTorrents: vi.fn(),
   }
 })
+
+vi.mock('./api/qbittorrent/webui', () => ({ logIn: vi.fn() }))
 
 vi.mock('./api/auth', async (importOriginal) => ({
   ...(await importOriginal<typeof authApi>()),
@@ -691,6 +694,31 @@ describe('App', () => {
     getAppVersion.mockRejectedValue(new api.UnauthorizedError({ address: '172.18.0.5', subnet: '172.18.0.0/16' }))
     renderApp()
     expect(await screen.findByRole('status', { name: saying(/qBittorrent sees Kinopeer at 172\.18\.0\.5/) })).toBeInTheDocument()
+  })
+
+  it('shows qBittorrent’s own login in the WebUI build when its session expires while polling, and comes back after signing in', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(webui.logIn).mockResolvedValue('ok')
+    getAppVersion.mockReset().mockResolvedValueOnce('5.3.0').mockRejectedValueOnce(new api.UnauthorizedError()).mockResolvedValue('5.3.0')
+    getMainData.mockRejectedValueOnce(new api.UnauthorizedError())
+    renderApp()
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to qBittorrent' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('qBittorrent address')).not.toBeInTheDocument()
+    await userEvent.type(screen.getByRole('textbox', { name: 'Username' }), 'admin')
+    await userEvent.type(screen.getByLabelText('Password'), 'secret')
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(webui.logIn).toHaveBeenCalledWith('admin', 'secret')
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('never shows Kinopeer’s own login in the WebUI build, which has no Kinopeer server', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderApp()
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+    act(() => authApi.setSignInNeed('sign-in'))
+    expect(screen.getByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Sign in to Kinopeer' })).not.toBeInTheDocument()
   })
 
   it('shows the sign-in form without a session', async () => {
