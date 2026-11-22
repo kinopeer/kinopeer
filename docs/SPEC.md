@@ -52,7 +52,7 @@ In the WebUI build, which has no Kinopeer server, qBittorrent keeps the TMDB key
 
 The browser's preferences follow other tabs: a change saved in one tab applies to the tabs already open, as the interface language does, so a tab's next change doesn't undo it.
 
-A torrent's match is forgotten when the torrent is deleted from Kinopeer. For torrents deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its torrent has been missing for a week, so a qBittorrent that answers with an empty list after a restart, or a torrent added back, loses nothing. In the WebUI build the page makes that check, from the list Downloads' refresh gets, at most once an hour, so only while Downloads, a torrent's page or, on desktop, the sidebar is open, and once a screen that shows titles (Downloads, a torrent's page, Search, a title page) has loaded the matches on that page: a page that has opened only Settings checks nothing.
+A torrent's match is forgotten when the torrent is deleted from Kinopeer. For torrents deleted elsewhere, the server checks qBittorrent's list every hour and forgets a match once its torrent has been missing for a week, so a qBittorrent that answers with an empty list after a restart, or a torrent added back, loses nothing. In the WebUI build the page makes that check, from the list Downloads' refresh gets, at most once an hour, so only while Downloads, a torrent's page or, on desktop, the sidebar is open, and once a screen that shows titles (Downloads, a torrent's page, Search, a title page) has loaded the matches on that page and that load succeeded: a page that has opened only Settings checks nothing, and neither does one whose last load failed, until a screen that shows titles loads them again.
 
 ## Screens
 

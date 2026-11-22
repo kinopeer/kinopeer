@@ -65,8 +65,9 @@ describe('merged', () => {
     expect(merged(current, { [A]: { ...GUESS, version: 1 }, [B]: { ...GUESS, id: 3, version: 1 }, [C]: { type: 'tv', id: 3, source: 'guess' } })).toBe(current)
   })
 
-  it('forgets matches set to null, the user’s choice too', () => {
-    expect(merged({ [A]: USER, [B]: GUESS }, { [A]: null, [V2]: null })).toEqual({ [B]: GUESS })
+  it('forgets matches set to null, the user’s choice and a guess that found no title too', () => {
+    const C = 'd'.repeat(40)
+    expect(merged({ [A]: USER, [B]: GUESS, [C]: MISS }, { [A]: null, [C]: null, [V2]: null })).toEqual({ [B]: GUESS })
   })
 
   it('drops the note that a torrent went missing when a new match is saved for it', () => {

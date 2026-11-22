@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { isStoreFull } from '../qbittorrent/webui'
 import { clearGuesses, getMatches, saveMatches } from './client'
 import { MATCH_KEY_PREFIX, clearWebuiGuesses, loadWebuiMatches, pruneWebuiMatches, saveWebuiMatches } from './webui'
@@ -24,22 +24,33 @@ const stored = () =>
     .filter(([url]) => String(url).endsWith('/clientdata/store'))
     .map(([, init]) => JSON.parse(new URLSearchParams(String(init!.body)).get('data')!) as Record<string, unknown>)
 
-/** Stores the fake holds, in order, each until its promise settles. */
-let holds: Promise<void>[]
-
-/** Holds the next store until the test releases it. */
-function holdNextStore(): () => void {
-  let release = () => {}
-  holds.push(new Promise((resolve) => (release = resolve)))
-  return release
+interface Hold {
+  /** Settles once the held store has reached the fake. */
+  reached: Promise<void>
+  /** Lets the held store through. */
+  release: () => void
 }
 
-/** Lets every request already sent run as far as it can. */
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
+/** Stores the fake holds, in order: each reaches it, then waits until the test releases it. */
+let holds: { reach: () => void; released: Promise<void> }[]
+/** Every hold's release, so one a failed test left held doesn't hold the next test's changes. */
+let releases: (() => void)[]
+
+/** Holds the next store until the test releases it. */
+function holdNextStore(): Hold {
+  let reach = () => {}
+  let release = () => {}
+  const reached = new Promise<void>((resolve) => (reach = resolve))
+  const released = new Promise<void>((resolve) => (release = resolve))
+  holds.push({ reach, released })
+  releases.push(release)
+  return { reached, release }
+}
 
 beforeEach(() => {
   kept = {}
   holds = []
+  releases = []
   fetchMock = vi.fn<typeof fetch>(async (url, init) => {
     const target = new URL(String(url), 'http://192.168.1.20:8080/')
     if (target.pathname === '/api/v2/clientdata/load') {
@@ -51,7 +62,10 @@ beforeEach(() => {
       const data = JSON.parse(new URLSearchParams(String(init!.body)).get('data')!) as Record<string, unknown>
       // A store the test holds reaches qBittorrent when it lets it through.
       const hold = holds.shift()
-      if (hold) await hold
+      if (hold) {
+        hold.reach()
+        await hold.released
+      }
       for (const [name, value] of Object.entries(data)) {
         if (value === null) delete kept[name]
         else kept[name] = value
@@ -62,6 +76,12 @@ beforeEach(() => {
   })
   vi.stubGlobal('fetch', fetchMock)
   vi.stubGlobal('__WEBUI__', true)
+})
+
+afterEach(async () => {
+  // The page's changes wait for each other (changeMatches), so one a test left held would hold the rest.
+  for (const release of releases) release()
+  vi.useRealTimers()
 })
 
 describe('loadWebuiMatches', () => {
@@ -129,25 +149,29 @@ describe('saveWebuiMatches', () => {
 
 describe('one page’s changes', () => {
   it('go one at a time, so a choice picked while a guess batch is being stored stays', async () => {
-    const release = holdNextStore()
+    vi.useFakeTimers()
+    const hold = holdNextStore()
     const guess = saveWebuiMatches({ [A]: GUESS })
-    await settle()
+    await hold.reached
     const choice = saveWebuiMatches({ [A]: USER })
-    await settle()
-    release()
+    // The choice goes as far as it can while the guess batch's store is held.
+    await vi.runAllTimersAsync()
+    hold.release()
     await expect(guess).resolves.toEqual({ [A]: GUESS })
     await expect(choice).resolves.toEqual({ [A]: USER })
     expect(kept[key(A)]).toEqual(USER)
   })
 
   it('go one at a time, so a torrent forgotten while a prune is being stored stays forgotten', async () => {
+    vi.useFakeTimers()
     kept = { [key(A)]: GUESS }
-    const release = holdNextStore()
+    const hold = holdNextStore()
     const prune = pruneWebuiMatches(() => false, 100, 1000)
-    await settle()
+    await hold.reached
     const forget = saveWebuiMatches({ [A]: null })
-    await settle()
-    release()
+    // The forget goes as far as it can while the prune's store is held.
+    await vi.runAllTimersAsync()
+    hold.release()
     await expect(prune).resolves.toEqual({ [A]: { ...GUESS, missingSince: 1000 } })
     await expect(forget).resolves.toEqual({})
     expect(kept).toEqual({})
