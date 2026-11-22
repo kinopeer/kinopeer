@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { SERVER_SETTINGS_KEY, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveProwlarrKey, saveTmdbKey } from './client'
 import { UnauthorizedError } from '../qbittorrent/errors'
+import { KEY_CHECK_TIMEOUT_MS } from '../tmdb/direct'
 import { SettingsError } from './errors'
 import type { ServerSettings } from './types'
 import {
@@ -44,12 +45,26 @@ beforeEach(() => {
       }
       return new Response(null, { status: 204 })
     }
+    // TMDB's check of a key (`checkTmdbKey`), which takes any key unless a test says otherwise.
+    if (target.origin === 'https://api.themoviedb.org' && target.pathname === '/3/authentication') return tmdbAccepts()
     return new Response('Not Found', { status: 404 })
   })
   vi.stubGlobal('fetch', fetchMock)
   vi.stubGlobal('__WEBUI__', true)
+  vi.stubGlobal('__TMDB_PROXY__', 'https://tmdb.example.test/3')
   // jsdom's page is on localhost, which the proxy answers; a test on a public origin says so.
   vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
+})
+
+/** TMDB's answer to a key it takes. */
+const tmdbAccepts = () => Response.json({ success: true, status_code: 1, status_message: 'Success.' })
+
+/** The path of each call sent, TMDB's and qBittorrent's alike. */
+const paths = () => fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://192.168.1.20:8080/').pathname)
+
+// The key's time limit runs on fake timers.
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 const onPublicOrigin = () => vi.stubGlobal('location', new URL('https://qbt.example.com/'))
@@ -119,6 +134,11 @@ describe('sharedTmdbAvailable', () => {
   it("follows the page's origin, as the proxy reads it", () => {
     expect(sharedTmdbAvailable()).toBe(true)
     onPublicOrigin()
+    expect(sharedTmdbAvailable()).toBe(false)
+  })
+
+  it('is off on any origin in a build with no proxy', () => {
+    vi.stubGlobal('__TMDB_PROXY__', '')
     expect(sharedTmdbAvailable()).toBe(false)
   })
 })
@@ -218,19 +238,20 @@ describe('the settings in qBittorrent', () => {
     expect(answer.downloads).toEqual({ sequential: true })
     expect(sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data).toEqual(answer)
     await expect(getWebuiSettings()).resolves.toMatchObject({ tmdbKey: 'own-key' })
-    // Taken from the save, not asked again.
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    // Taken from the save, not asked again: the load, TMDB's check of the key and the store.
+    expect(paths()).toEqual(['/api/v2/clientdata/load', '/3/authentication', '/api/v2/clientdata/store'])
   })
 
   it('asks qBittorrent what it keeps before a save when the page has nothing from it yet, and stores nothing when that fails', async () => {
     kept['kinopeer.downloads.sequential'] = true
     await expect(saveWebuiTmdbKey('own-key')).resolves.toMatchObject({ tmdb: { source: 'saved' }, downloads: { sequential: true } })
-    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://192.168.1.20:8080/').pathname)).toEqual(['/api/v2/clientdata/load', '/api/v2/clientdata/store'])
+    expect(paths()).toEqual(['/3/authentication', '/api/v2/clientdata/load', '/api/v2/clientdata/store'])
     expect(sharedRequests.peek(WEBUI_SETTINGS_KEY, Infinity)?.data).toEqual({ 'kinopeer.tmdbKey': 'own-key', 'kinopeer.downloads.sequential': true })
 
     // A save that would succeed isn't failed by a read after it: the read comes first, and fails it before anything is stored.
     sharedRequests.clear()
-    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    // TMDB takes the key; qBittorrent doesn't answer the read.
+    fetchMock.mockResolvedValueOnce(tmdbAccepts()).mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await expect(saveWebuiTmdbKey('other-key')).rejects.toBeInstanceOf(TypeError)
     expect(stored()).toHaveLength(1)
     expect(kept['kinopeer.tmdbKey']).toBe('own-key')
@@ -249,8 +270,51 @@ describe('the settings in qBittorrent', () => {
     expect(stored()).toHaveLength(1)
   })
 
+  it('checks the TMDB key with TMDB before it stores it, trimmed, and a v4 token as a bearer token', async () => {
+    await saveTmdbKey('  own-key \n')
+    const [checked, init] = fetchMock.mock.calls[0]!
+    expect(String(checked)).toBe('https://api.themoviedb.org/3/authentication?api_key=own-key')
+    expect(new Headers(init?.headers).get('Accept')).toBe('application/json')
+    expect(stored()).toEqual([{ [SETTING_KEYS.tmdbKey]: 'own-key' }])
+
+    fetchMock.mockClear()
+    await saveTmdbKey('eyJ.token')
+    const [url, sent] = fetchMock.mock.calls[0]!
+    expect(String(url)).toBe('https://api.themoviedb.org/3/authentication')
+    expect(new Headers(sent?.headers).get('Authorization')).toBe('Bearer eyJ.token')
+  })
+
+  it.each([
+    ['TMDB refuses the key', 'invalid-key', 422, () => Promise.resolve(Response.json({ success: false }, { status: 401 }))],
+    ['TMDB answers with an error', 'unreachable', 502, () => Promise.resolve(new Response('Bad Gateway', { status: 502 }))],
+    ['nothing answers', 'unreachable', 502, () => Promise.reject(new TypeError('Failed to fetch'))],
+  ] as const)('stores no TMDB key when %s, and says so as the server does', async (_case, code, status, check) => {
+    fetchMock.mockImplementationOnce(check)
+    const error = await saveTmdbKey('own-key').catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(SettingsError)
+    expect(error).toMatchObject({ status, code })
+    expect(stored()).toEqual([])
+  })
+
+  it("gives up the key's check when TMDB doesn't answer in time", async () => {
+    vi.useFakeTimers()
+    fetchMock.mockImplementationOnce(
+      (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
+    )
+    const error = saveTmdbKey('own-key').catch((caught: unknown) => caught)
+    await vi.advanceTimersByTimeAsync(KEY_CHECK_TIMEOUT_MS)
+    await expect(error).resolves.toMatchObject({ code: 'unreachable' })
+    expect(stored()).toEqual([])
+  })
+
+  it('refuses a TMDB key with a space inside without asking TMDB, as the server does', async () => {
+    await expect(saveTmdbKey('own key')).rejects.toMatchObject({ code: 'bad-request' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('refuses an empty key without storing it, as the server does', async () => {
     await expect(saveTmdbKey('')).rejects.toMatchObject({ code: 'bad-request' })
+    await expect(saveTmdbKey('   ')).rejects.toMatchObject({ code: 'bad-request' })
     await expect(saveProwlarrKey('', 'http://192.168.1.20:9696')).rejects.toMatchObject({ code: 'bad-request' })
     expect(stored()).toEqual([])
   })
@@ -275,7 +339,9 @@ describe('the settings in qBittorrent', () => {
   it("says qBittorrent's store had no room, and keeps the page's settings as they were", async () => {
     kept['kinopeer.tmdbKey'] = 'old'
     await getServerSettings()
-    fetchMock.mockResolvedValueOnce(new Response('Total web client data must not be larger than 1048576 bytes', { status: 409 }))
+    fetchMock
+      .mockResolvedValueOnce(tmdbAccepts())
+      .mockResolvedValueOnce(new Response('Total web client data must not be larger than 1048576 bytes', { status: 409 }))
     const error = await saveTmdbKey('new').catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(SettingsError)
     expect(error).toMatchObject({ code: 'store-full' })

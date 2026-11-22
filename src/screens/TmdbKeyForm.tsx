@@ -86,7 +86,7 @@ export function TmdbKeyForm({ onSaved, forget, secondary }: TmdbKeyFormProps) {
           if (error === 'invalid') setError(null)
         }}
         error={error === 'invalid' && t('tmdbKey.invalid')}
-        // The WebUI build keeps it in qBittorrent, without checking it with TMDB yet (#559).
+        // The WebUI build checks it with TMDB, then keeps it in qBittorrent.
         help={t(__WEBUI__ ? 'webui.tmdbKeyFieldHelp' : 'tmdbKey.fieldHelp')}
       />
 

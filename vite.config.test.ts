@@ -4,8 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createServer, preview, resolveConfig } from 'vite'
+import { createServer, loadEnv, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
+import { tmdbProxy } from './server/main.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
 import { BaseSequencer, type TestSequencerConstructor, type TestSpecification, type Vitest } from 'vitest/node'
@@ -142,6 +143,24 @@ describe('vite.config.ts', () => {
     const [server, webui] = await Promise.all([resolveConfig(options, 'build', modeOf('build')), resolveConfig(options, 'build', modeOf('build:webui'))])
     expect([server.build.outDir, server.define?.__WEBUI__]).toStrictEqual(['dist', 'false'])
     expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui/public', 'true'])
+  })
+
+  // The WebUI build calls Kinopeer's TMDB proxy from the page, so the build bakes in the one the image would use.
+  // Where a case doesn't set TMDB_PROXY_URL, which wins over a .env.local's, it compares with what tmdbProxy makes of
+  // the build's environment, .env files included: the release worker wherever none names a proxy, as in CI.
+  it('gives the build the TMDB proxy the image would use: the release worker unless the environment names another', async () => {
+    const proxyOf = async () => (await resolveConfig(options, 'build', 'webui')).define?.__TMDB_PROXY__
+    const asTheImage = () => JSON.stringify(tmdbProxy(loadEnv('webui', process.cwd(), '')) ?? '')
+    vi.stubEnv('TMDB_PROXY_URL', undefined)
+    vi.stubEnv('KINOPEER_TMDB_PROXY', undefined)
+    expect(await proxyOf()).toBe(asTheImage())
+    vi.stubEnv('KINOPEER_TMDB_PROXY', 'https://built-for.example.test/3')
+    expect(await proxyOf()).toBe(asTheImage())
+    vi.stubEnv('TMDB_PROXY_URL', 'https://proxy.example.test/3')
+    expect(await proxyOf()).toBe(JSON.stringify('https://proxy.example.test/3'))
+    // An empty TMDB_PROXY_URL turns the proxy off, as for the image.
+    vi.stubEnv('TMDB_PROXY_URL', '')
+    expect(await proxyOf()).toBe('""')
   })
 
   // qBittorrent serves the WebUI with no policy but frame-ancestors; Kinopeer's server sends its own as a header.

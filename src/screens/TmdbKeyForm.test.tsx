@@ -173,10 +173,10 @@ describe('TmdbKeyForm', () => {
 })
 
 describe('TmdbKeyForm in the WebUI build', () => {
-  it('says qBittorrent keeps the key, not a server that checks it', () => {
+  it('says Kinopeer checks the key with TMDB and qBittorrent keeps it, not a server', () => {
     vi.stubGlobal('__WEBUI__', true)
     const { field } = renderForm()
-    expect(field).toHaveAccessibleDescription('Kept in qBittorrent, for every device that signs in to it.')
+    expect(field).toHaveAccessibleDescription('Kinopeer checks it with TMDB, then keeps it in qBittorrent for every device that signs in to it.')
   })
 
   it("says qBittorrent's store had no room for the key in a banner, leaving the key as it is", async () => {

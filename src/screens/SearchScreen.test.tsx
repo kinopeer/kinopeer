@@ -303,6 +303,44 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
   })
 
+  // In the WebUI build each TMDB call reads the key from qBittorrent, which a next page may find gone.
+  it('says qBittorrent didn’t answer, not TMDB, when the next page can’t read the key in the WebUI build, and tries that page again', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(() => new Promise(() => {})))
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbKeyReadError(new TypeError('Failed to fetch')))
+    searchTitles.mockResolvedValueOnce(page([ALIEN], { page: 2, totalPages: 2 }))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    expect(await screen.findByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying('Couldn’t load more') })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByRole('heading', { name: 'Alien: Romulus' })).toBeInTheDocument()
+    expect(searchTitles).toHaveBeenLastCalledWith('dune', expect.objectContaining({ page: 2 }))
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Dune: Part Two', 'Alien: Romulus'])
+  })
+
+  it('searches again on Try again when the first page couldn’t read the key in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(() => new Promise(() => {})))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbKeyReadError(new TypeError('Failed to fetch')))
+    searchTitles.mockResolvedValueOnce(page([DUNE, ANDOR]))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
+    expect(await screen.findByText('About 2 results')).toBeInTheDocument()
+    expect(searchTitles).toHaveBeenLastCalledWith('dune', expect.objectContaining({ page: 1 }))
+  })
+
+  it('keeps TMDB’s own failure of a next page under the results in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t load more') })).toBeInTheDocument()
+  })
+
   it('says when a search fails, and tries again', async () => {
     let answer = () => {}
     searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
