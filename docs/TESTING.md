@@ -1091,13 +1091,14 @@ has the budgets' rule.
   against 0.0888 with motion on). Both are set in the test, not taken from the configs it builds
   on: the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
-  runs in a row locally (macOS) and in CI (Linux). Where they part is the font coming in: the
-  "Connecting" text, before any answer, moves sideways as the web font replaces the fallback, in
-  one shift or two, which adds 0.000179 or 0.000183 to a phone's reading on a Mac. CI reads in the
-  Playwright image since #502, where it doesn't move: the phone's screens without a shift of their
-  own read 0 there, and desktop's read up to 0.00007 less than on the plain runner before (the
-  table in #533). Until then CI read on that runner, which added 0.000183 on a phone and up to
-  0.0002 on desktop (#402's head). The budgets come from CI's readings. A reading that varies by more is a race in the test (an answer whose content wasn't
+  runs in a row on a Mac and on the plain runner CI used until #502 (#395), and since #502 CI reads
+  in the Playwright image, whose runs on #533 read the same as each other to the last digit.
+  On a phone the image reads what a Mac reads where #395's table and #533's both have the screen:
+  0 on browse, search, search-year and settings, which the runner read as 0.0002, the "Connecting"
+  text before any answer moving sideways there as the web font came in. Where a screen moves of its
+  own they still part at the fourth digit: Downloads reads 0.0028 on a Mac (#395) and 0.0031 in
+  the image (#533). On desktop a Mac and the image haven't been read side by side; the image reads
+  up to 0.0001 less than the runner did (#533's table). The budgets come from CI's readings. A reading that varies by more is a race in the test (an answer whose content wasn't
   waited for) to find, not noise to budget, but for a jump planted among the titles in Downloads,
   which can read one of two numbers (What it leaves out).
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
@@ -1156,7 +1157,7 @@ On desktop each screen has the same chain, with what the desktop layout adds or 
   link become common. The states between the titles' answers in Downloads: the app shows the
   titles that came in a batch every `SHOW_EVERY_MS` (250 ms, `src/torrents/useTitleMatches.ts`), and
   the next title's lookup is asked without waiting for it, so whether two titles show in one frame
-  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0030 in CI) doesn't depend on
+  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0031 in CI) doesn't depend on
   it; a jump planted in a row reads one of two numbers by how the batches fall, in the order where
   the first asked lands first (#395's review: a 30px block read 0.0507 or 0.0395 there, and 0.0450
   in the other order, all over the budget), so the jump is still caught, but its number may differ
