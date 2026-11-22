@@ -57,8 +57,8 @@ export function ReleasesScreen() {
     )
   } else if (details.error) {
     body = (
-      <EmptyState icon="wifi-off" tone="error" title={t('noAnswer.prowlarr')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
-        {t('releases.errorBody')}
+      <EmptyState icon="wifi-off" tone="error" title={t('search.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
+        {t('search.errorBody')}
       </EmptyState>
     )
   } else {
