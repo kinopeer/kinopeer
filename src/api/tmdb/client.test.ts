@@ -174,6 +174,9 @@ describe('errors', () => {
   it('reports a missing proxy route as a key problem', async () => {
     respond('Not Found', 404, 'text/plain')
     await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
+    // An answer that says no type at all is no JSON either.
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 404, headers: { [BRIDGE_HEADER]: '1' } }))
+    await expect(getMovie(1)).rejects.toBeInstanceOf(TmdbKeyError)
   })
 
   it('says how long a 429 asks to wait', async () => {
