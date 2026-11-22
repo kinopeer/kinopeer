@@ -39,6 +39,12 @@ const BOT = 'bot'
 
 type Request = 'token' | 'find' | 'chat' | 'test' | 'off'
 
+/** What's on its way, which the sheet opened again starts from: the chat being saved with it. */
+interface Sent {
+  kind: Request
+  chat?: TelegramFoundChat
+}
+
 const KNOWN_ERRORS = new Set<string>(['no-chat', 'bot-in-use', 'token-rejected', 'chat-rejected', 'unreachable', 'storage'])
 
 function formError(e: unknown, kind: Request): FormError {
@@ -59,16 +65,17 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
   const { t, i18n } = useTranslation()
   const toast = useToast()
   const settingsStep: Step = !telegram.bot ? 'token' : !telegram.chat ? 'chat' : 'connected'
-  // A step the user went back to; otherwise the one the settings are at. Opened while a request is on
-  // its way, the sheet is at the step that sent it, which shows its outcome.
+  // Opened while a request is on its way, the sheet starts at the step that sent it, which shows its outcome.
+  const [opened] = useState(() => saves.getSnapshot().get(saveKey(TELEGRAM_SAVES, BOT)) as Sent | undefined)
+  // A step the user went back to; otherwise the one the settings are at.
   const [editing, setEditing] = useState<Step | null>(() => {
-    const sent = saves.getSnapshot().get(saveKey(TELEGRAM_SAVES, BOT))
-    const from = sent === 'token' ? 'token' : sent === 'find' || sent === 'chat' ? 'chat' : settingsStep
+    const kind = opened?.kind
+    const from = kind === 'token' ? 'token' : kind === 'find' || kind === 'chat' ? 'chat' : settingsStep
     return from === settingsStep ? null : from
   })
   const step = editing ?? settingsStep
   const [token, setToken] = useState('')
-  const [found, setFound] = useState<TelegramFoundChat | null>(null)
+  const [found, setFound] = useState(opened?.chat ?? null)
   const [error, setError] = useState<FormError>(null)
   const language = notifyLanguage(i18n.resolvedLanguage)
 
@@ -92,7 +99,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
   }
 
   // Open, the sheet takes every outcome: what it moves to, or why it failed.
-  const saving = useSaves<Request>(TELEGRAM_SAVES, (outcome, kind) => {
+  const saving = useSaves<Sent>(TELEGRAM_SAVES, (outcome, { kind }) => {
     apply(kind, outcome)
     if (!outcome.ok) setError(formError(outcome.error, kind))
     else if (kind === 'find') setFound(outcome.result as TelegramFoundChat)
@@ -106,11 +113,11 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
     return true
   })
   // One request at a time, from this sheet or one opened before it.
-  const busy = saving.pending(BOT) ?? null
+  const busy = saving.pending(BOT)?.kind ?? null
 
-  const run = async (kind: Request, request: () => Promise<unknown>) => {
+  const run = async (kind: Request, request: () => Promise<unknown>, chat?: TelegramFoundChat) => {
     setError(null)
-    const settled = await saving.send(BOT, kind, request)
+    const settled = await saving.send(BOT, { kind, chat }, request)
     // Closed meanwhile: Settings learns it, and a toast says it; a chat found then is forgotten.
     if (!settled || settled.taken || kind === 'find') return
     apply(kind, settled)
@@ -207,7 +214,7 @@ export function TelegramForm({ telegram, onChanged, onTurnedOff, onRefused }: Te
                 block
                 loading={busy === 'chat'}
                 disabled={busy !== null && busy !== 'chat'}
-                onClick={() => void run('chat', () => saveTelegramChat(found.id, language))}
+                onClick={() => void run('chat', () => saveTelegramChat(found.id, language), found)}
               >
                 {t('telegram.useChat')}
               </Button>

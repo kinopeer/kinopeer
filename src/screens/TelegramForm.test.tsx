@@ -547,6 +547,24 @@ describe('TelegramForm: a request that settles after the sheet closed', () => {
     expect(within(screen.getByRole('group', { name: 'Is this the chat?' })).getByText('Family')).toBeInTheDocument()
   })
 
+  it('opens again at the step of another chat being saved, showing it', async () => {
+    vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 2, name: 'Family', type: 'group' })
+    const save = held<ServerSettings>()
+    vi.mocked(serverSettings.saveTelegramChat).mockReturnValue(save.promise)
+    const { onChanged, toggle } = renderClosable(CONNECTED)
+    await userEvent.click(screen.getByRole('button', { name: 'Choose another chat' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Find chat' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Use this chat' }))
+    await toggle()
+    await toggle()
+    expect(within(screen.getByRole('group', { name: 'Is this the chat?' })).getByText('Family')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Use this chat' })).toHaveAttribute('aria-busy', 'true')
+    await act(async () => save.reject(error(502, 'unreachable')))
+    expect(screen.getByRole('alert', { name: saying(UNREACHABLE) })).toBeInTheDocument()
+    expect(within(screen.getByRole('group', { name: 'Is this the chat?' })).getByText('Family')).toBeInTheDocument()
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+
   it('opens again at the step the settings are at for a request sent from it, with no way back to offer', async () => {
     const save = held<ServerSettings>()
     vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(save.promise)

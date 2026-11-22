@@ -602,6 +602,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               // The page's settings as they are now, not as this render had them: another save may
               // have come in while the test was on its way.
               const latest = sharedRequests.peek<ServerSettings>(SERVER_SETTINGS_KEY, Infinity)?.data ?? server
+              // Always there: the sheet is open only with Telegram's status, which every answer since has too.
               if (latest?.telegram) {
                 const changed = { ...latest, telegram: { ...latest.telegram, refused } }
                 setServerChanged(changed)
