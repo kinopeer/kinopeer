@@ -38,7 +38,8 @@ describe('locales', () => {
     // i18next 27.1 fills a missing form in from the same language's `_other`, which in Russian is
     // the wrong grammar for that count, so a missing form would show with no error.
     const forms = { en: ['one', 'other'], ru: ['few', 'many', 'one', 'other'] }
-    for (const [language, locale] of [['en', en], ['ru', ru]] as const) {
+    // With the WebUI build's own texts, as that build has them.
+    for (const [language, locale] of [['en', { ...en, ...webuiEn }], ['ru', { ...ru, ...webuiRu }]] as const) {
       const all = new Set(keys(locale))
       const plurals = new Set(keys(locale).filter((k) => PLURAL_SUFFIX.test(k)).map((k) => k.replace(PLURAL_SUFFIX, '')))
       expect(plurals.size, language).toBeGreaterThan(0)

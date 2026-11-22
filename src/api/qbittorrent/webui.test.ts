@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { QbittorrentError } from './errors'
-import { logIn } from './webui'
+import { LOGIN_TIMEOUT_MS, logIn } from './webui'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -43,5 +43,23 @@ describe('logIn', () => {
 
     fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     await expect(logIn('admin', 'secret')).rejects.toBeInstanceOf(TypeError)
+  })
+
+  it('gives up a login qBittorrent hasn’t answered in its time limit, so the form can be sent again', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementationOnce(
+        (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
+      )
+      const login = logIn('admin', 'secret').catch((caught: unknown) => caught)
+      await vi.advanceTimersByTimeAsync(LOGIN_TIMEOUT_MS - 1)
+      expect(fetchMock.mock.calls[0][1]!.signal!.aborted).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      const error = await login
+      expect(error).toBeInstanceOf(DOMException)
+      expect(error).not.toBeInstanceOf(QbittorrentError)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

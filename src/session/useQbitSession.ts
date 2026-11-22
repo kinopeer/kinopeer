@@ -13,7 +13,7 @@ export type QbitSession =
    * the WebUI build, the browser's own session with qBittorrent, or its auth bypass for the browser.
    */
   | { status: 'connected'; version: string }
-  /** qBittorrent answered, but it's older than Kinopeer works with (`MIN_QBITTORRENT_VERSION`). */
+  /** qBittorrent answered, but it's older than this build works with (`requiredQbittorrentVersion()`). */
   | { status: 'unsupported'; version: string }
   /** The server has no working qBittorrent login, or in the WebUI build the browser has no session: the app asks for one. */
   | { status: 'signed-out'; source?: SourceAddress }

@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Unreachable } from '../api/qbittorrent'
+import { QbittorrentError, type Unreachable } from '../api/qbittorrent'
 import { logIn } from '../api/qbittorrent/webui'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
@@ -66,8 +66,8 @@ function QbittorrentSignInForm({ onSignedIn }: { onSignedIn: () => void }) {
       if (result === 'ok') return onSignedIn()
       setError(result)
     } catch (e) {
-      // fetch's TypeError: nothing answered. Anything else is qBittorrent refusing in some other way.
-      setError(e instanceof TypeError ? 'unreachable' : 'failed')
+      // qBittorrent refusing in some other way, else nothing answered (fetch's TypeError, or the login's time limit).
+      setError(e instanceof QbittorrentError ? 'failed' : 'unreachable')
     }
     setSubmitting(false)
   }

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as webui from '../api/qbittorrent/webui'
 import { QbittorrentError } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
+import { saying } from '../test/render'
 import { WebuiConnectScreen } from './WebuiConnectScreen'
 
 vi.mock('../api/qbittorrent/webui', () => ({ logIn: vi.fn() }))
@@ -40,9 +41,9 @@ describe('WebuiConnectScreen', () => {
     expect(screen.queryByRole('button', { name: /find/i })).not.toBeInTheDocument()
     // No error before a login is sent.
     expect(username).not.toHaveAttribute('aria-invalid')
-    expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
-    expect(screen.queryByText(/Too many failed attempts/)).not.toBeInTheDocument()
-    expect(screen.queryByText('qBittorrent didn’t sign you in. Try again.')).not.toBeInTheDocument()
+    expect(password).not.toHaveAttribute('aria-invalid')
+    expect(password).not.toHaveAccessibleDescription()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('signs in and checks the session again, which brings the app', async () => {
@@ -69,7 +70,7 @@ describe('WebuiConnectScreen', () => {
     await fillAndSubmit()
 
     const password = screen.getByLabelText('Password')
-    expect(await screen.findByText('Wrong username or password')).toBeInTheDocument()
+    await waitFor(() => expect(password).toHaveAccessibleDescription('Wrong username or password'))
     expect(password).toHaveAttribute('aria-invalid', 'true')
     expect(screen.getByRole('textbox', { name: 'Username' })).toHaveAttribute('aria-invalid', 'true')
     expect(onRetry).not.toHaveBeenCalled()
@@ -77,44 +78,54 @@ describe('WebuiConnectScreen', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).not.toHaveAttribute('aria-busy', 'true')
 
     await userEvent.type(password, 'x')
-    expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
+    expect(password).not.toHaveAccessibleDescription()
+    expect(password).not.toHaveAttribute('aria-invalid')
 
     // The username clears it too.
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('Wrong username or password')).toBeInTheDocument()
+    await waitFor(() => expect(password).toHaveAccessibleDescription('Wrong username or password'))
     await userEvent.type(screen.getByRole('textbox', { name: 'Username' }), 'x')
-    expect(screen.queryByText('Wrong username or password')).not.toBeInTheDocument()
+    expect(password).not.toHaveAccessibleDescription()
   })
 
   it('explains a ban', async () => {
     logIn.mockResolvedValue('banned')
     render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
     await fillAndSubmit()
-    expect(await screen.findByText('Too many failed attempts. qBittorrent has blocked this address for a while.')).toBeInTheDocument()
+    const ban = saying('Too many failed attempts. qBittorrent has blocked this address for a while.')
+    expect(await screen.findByRole('alert', { name: ban })).toBeInTheDocument()
     // Typing doesn't lift a ban: only a login does.
     await userEvent.type(screen.getByLabelText('Password'), 'x')
-    expect(screen.getByText('Too many failed attempts. qBittorrent has blocked this address for a while.')).toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: ban })).toBeInTheDocument()
   })
 
   it('takes the last failure back while the next login is on its way', async () => {
     logIn.mockResolvedValueOnce('banned').mockReturnValueOnce(new Promise(() => {}))
     render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
     await fillAndSubmit()
-    expect(await screen.findByText(/Too many failed attempts/)).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying(/Too many failed attempts/) })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(screen.queryByText(/Too many failed attempts/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(/Too many failed attempts/) })).not.toBeInTheDocument()
   })
 
-  it('says qBittorrent didn’t answer when nothing did, and that it refused otherwise', async () => {
-    logIn.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockRejectedValueOnce(new QbittorrentError('qBittorrent responded 500', 500))
+  it('says qBittorrent didn’t answer when nothing did or the login’s time ran out, and that it refused otherwise', async () => {
+    logIn
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      // The login's time limit aborts it.
+      .mockRejectedValueOnce(new DOMException('Aborted', 'AbortError'))
+      .mockRejectedValueOnce(new QbittorrentError('qBittorrent responded 500', 500))
     render(<WebuiConnectScreen onRetry={() => {}} />, { wrapper: ToastProvider })
     await fillAndSubmit()
-    expect(await screen.findByText('qBittorrent isn’t answering')).toBeInTheDocument()
-    expect(screen.getByText('Check that qBittorrent is running and its Web UI is on.')).toBeInTheDocument()
+    const noAnswer = await screen.findByRole('alert', { name: saying('qBittorrent isn’t answering') })
+    expect(noAnswer).toHaveTextContent('Check that qBittorrent is running and its Web UI is on.')
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
-    expect(await screen.findByText('qBittorrent didn’t sign you in. Try again.')).toBeInTheDocument()
-    expect(screen.queryByText('qBittorrent isn’t answering')).not.toBeInTheDocument()
+    await waitFor(() => expect(logIn).toHaveBeenCalledTimes(2))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+    expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t sign you in. Try again.') })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying('qBittorrent isn’t answering') })).not.toBeInTheDocument()
   })
 
   it('sends one login at a time', async () => {
@@ -125,7 +136,7 @@ describe('WebuiConnectScreen', () => {
     await userEvent.type(screen.getByLabelText('Password'), '{Enter}')
     expect(logIn).toHaveBeenCalledOnce()
     answer('invalid')
-    await waitFor(() => expect(screen.getByText('Wrong username or password')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByLabelText('Password')).toHaveAccessibleDescription('Wrong username or password'))
   })
 
   it('shows who didn’t answer the session check, or a qBittorrent too old, in place of the form', async () => {
