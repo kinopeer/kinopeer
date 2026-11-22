@@ -7,8 +7,9 @@ import type { Matches, MatchesPatch } from './types'
  * qBittorrent's `clientdata`, a key per torrent (`kinopeer.match.<info hash>`), so every device
  * signed in to that qBittorrent shows the same (#561). The store's rules are the server's
  * (src/logic/titleMatches.ts), applied here: each change reads the matches qBittorrent keeps, applies
- * them, and stores only the keys that changed, so a change another device stored meanwhile stays,
- * unless it stored the same torrent's in the moment between this read and this store. About 80 bytes
+ * them, and stores only the keys that changed, one change of the page at a time, so a change another
+ * device stored meanwhile stays, unless it stored the same torrent's in the moment between this read
+ * and this store. About 80 bytes
  * a torrent, of the 1 MiB every interface's keys share.
  */
 export const MATCH_KEY_PREFIX = 'kinopeer.match.'
@@ -25,8 +26,22 @@ export async function loadWebuiMatches(signal?: AbortSignal): Promise<Matches> {
   return matches
 }
 
-/** Applies `change` to the matches qBittorrent keeps, stores what changed, and answers the result. */
-async function changeMatches(change: (current: Matches) => Matches): Promise<Matches> {
+// The page's last change, which the next one waits for, as the server's JsonFile runs its changes.
+let changing: Promise<unknown> = Promise.resolve()
+
+/**
+ * Applies `change` to the matches qBittorrent keeps, stores what changed, and answers the result,
+ * after the page's change before it has settled, so its read sees what that one stored and its answer
+ * comes after that one's: otherwise a guess batch read before the user's choice was stored would
+ * store the guess over it, and a prune read before a torrent was forgotten would bring its match back.
+ */
+function changeMatches(change: (current: Matches) => Matches): Promise<Matches> {
+  const run = changing.then(() => applyChange(change))
+  changing = run.catch(() => {})
+  return run
+}
+
+async function applyChange(change: (current: Matches) => Matches): Promise<Matches> {
   const current = await loadWebuiMatches()
   const next = change(current)
   const changes: ClientData = {}

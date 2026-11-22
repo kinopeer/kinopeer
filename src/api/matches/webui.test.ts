@@ -24,8 +24,22 @@ const stored = () =>
     .filter(([url]) => String(url).endsWith('/clientdata/store'))
     .map(([, init]) => JSON.parse(new URLSearchParams(String(init!.body)).get('data')!) as Record<string, unknown>)
 
+/** Stores the fake holds, in order, each until its promise settles. */
+let holds: Promise<void>[]
+
+/** Holds the next store until the test releases it. */
+function holdNextStore(): () => void {
+  let release = () => {}
+  holds.push(new Promise((resolve) => (release = resolve)))
+  return release
+}
+
+/** Lets every request already sent run as far as it can. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20))
+
 beforeEach(() => {
   kept = {}
+  holds = []
   fetchMock = vi.fn<typeof fetch>(async (url, init) => {
     const target = new URL(String(url), 'http://192.168.1.20:8080/')
     if (target.pathname === '/api/v2/clientdata/load') {
@@ -35,6 +49,9 @@ beforeEach(() => {
     }
     if (target.pathname === '/api/v2/clientdata/store') {
       const data = JSON.parse(new URLSearchParams(String(init!.body)).get('data')!) as Record<string, unknown>
+      // A store the test holds reaches qBittorrent when it lets it through.
+      const hold = holds.shift()
+      if (hold) await hold
       for (const [name, value] of Object.entries(data)) {
         if (value === null) delete kept[name]
         else kept[name] = value
@@ -107,6 +124,41 @@ describe('saveWebuiMatches', () => {
     )
     const error = await saveWebuiMatches({ [A]: USER }).catch((reason: unknown) => reason)
     expect(isStoreFull(error)).toBe(true)
+  })
+})
+
+describe('one page’s changes', () => {
+  it('go one at a time, so a choice picked while a guess batch is being stored stays', async () => {
+    const release = holdNextStore()
+    const guess = saveWebuiMatches({ [A]: GUESS })
+    await settle()
+    const choice = saveWebuiMatches({ [A]: USER })
+    await settle()
+    release()
+    await expect(guess).resolves.toEqual({ [A]: GUESS })
+    await expect(choice).resolves.toEqual({ [A]: USER })
+    expect(kept[key(A)]).toEqual(USER)
+  })
+
+  it('go one at a time, so a torrent forgotten while a prune is being stored stays forgotten', async () => {
+    kept = { [key(A)]: GUESS }
+    const release = holdNextStore()
+    const prune = pruneWebuiMatches(() => false, 100, 1000)
+    await settle()
+    const forget = saveWebuiMatches({ [A]: null })
+    await settle()
+    release()
+    await expect(prune).resolves.toEqual({ [A]: { ...GUESS, missingSince: 1000 } })
+    await expect(forget).resolves.toEqual({})
+    expect(kept).toEqual({})
+  })
+
+  it('go on after one fails', async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }))
+    const failed = saveWebuiMatches({ [A]: USER })
+    const next = saveWebuiMatches({ [B]: GUESS })
+    await expect(failed).rejects.toMatchObject({ status: 502 })
+    await expect(next).resolves.toEqual({ [B]: GUESS })
   })
 })
 
