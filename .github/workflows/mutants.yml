@@ -24,6 +24,7 @@ on:
       - 'scripts/actuals/**'
       - 'scripts/edge/**'
       - 'scripts/test-order/**'
+      - 'scripts/webui/**'
       # The tests at the root, which the folders above don't take: a PR that adds or changes only
       # one of them gets the dry run of the whole suite, so a test that can't run in Stryker's
       # sandbox fails on it, unless checks.json's mutants.testsLeftOut leaves it out (#467).

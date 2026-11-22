@@ -6,10 +6,11 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
-import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS } from './server/securityHeaders.ts'
+import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
 import { BaseSequencer, type TestSequencerConstructor, type TestSpecification, type Vitest } from 'vitest/node'
-import { chunkFileName, inlineTouchIconPlugin } from './vite.config.ts'
+import { KINOPEER_PAGE_MARK } from './src/pwa/swWebui.ts'
+import { chunkFileName, inlineTouchIconPlugin, webuiPolicyPlugin } from './vite.config.ts'
 
 /**
  * `npm run dev` and `npm run preview` from this config. loadEnv lets process.env win over
@@ -143,6 +144,15 @@ describe('vite.config.ts', () => {
     expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui/public', 'true'])
   })
 
+  // qBittorrent serves the WebUI with no policy but frame-ancestors; Kinopeer's server sends its own as a header.
+  it('puts the WebUI’s Content-Security-Policy into the WebUI build’s index.html only', async () => {
+    const policyIn = async (mode: string) => (await resolveConfig(options, 'build', mode)).plugins.some(({ name }) => name === 'kinopeer-webui-policy')
+    expect([await policyIn('production'), await policyIn('webui')]).toStrictEqual([false, true])
+    const transform = webuiPolicyPlugin().transformIndexHtml as () => unknown
+    expect(transform()).toStrictEqual([{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: WEBUI_CONTENT_SECURITY_POLICY }, injectTo: 'head-prepend' }])
+    expect(webuiPolicyPlugin().apply).toBe('build')
+  })
+
   it('answers no cross-origin preflight on the preview server either', async () => {
     const answer = await preflight(await startPreview())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)
@@ -155,6 +165,12 @@ describe('vite.config.ts', () => {
     const href = /<link rel="apple-touch-icon" href="([^"]+)"/.exec(page)?.[1]
     const png = await readFile('public/icons/apple-touch-icon.png')
     expect(href).toBe(`data:image/png;base64,${png.toString('base64')}`)
+  })
+
+  // The WebUI's service worker forgets itself when a page hasn't it: qBittorrent's own interface took Kinopeer's place.
+  it('keeps the mark that tells the WebUI’s service worker the page is Kinopeer’s', async () => {
+    const page = await (await fetch(`http://127.0.0.1:${await startDev()}/`)).text()
+    expect(page).toContain(KINOPEER_PAGE_MARK)
   })
 
   // Vite prefixes public paths with the base when it processes the HTML; the icon is read before that.

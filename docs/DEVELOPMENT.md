@@ -17,7 +17,7 @@ npm run test:coverage  # the same with a coverage report
 npm run lint       # linter (oxlint)
 npm run typecheck  # type check
 npm run build      # production build into dist/
-npm run build:webui  # the Alternative WebUI build into dist-webui/public/: point qBittorrent's Alternative WebUI at dist-webui/ (docs/ARCHITECTURE.md → The two builds)
+npm run build:webui  # the Alternative WebUI build into dist-webui/public/, failing on a string qBittorrent would replace: point qBittorrent's Alternative WebUI at dist-webui/ (docs/ARCHITECTURE.md → The two builds)
 npm run size       # the build's size against its budgets (docs/QUALITY.md)
 npm run test:requests  # each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone and on desktop, after a build (docs/QUALITY.md, docs/TESTING.md)
 npm start          # production server over dist/
@@ -81,7 +81,7 @@ First go through [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) → Before every r
 
 1. In a PR, set `version` in `package.json` and `package-lock.json` (`npm version 0.2.0 --no-git-tag-version`) and add a `## 0.2.0 - YYYY-MM-DD` section to `CHANGELOG.md`. Update the "as of version" line at the top of `docs/SPEC.md` too.
 2. After it merges, tag `main` and push the tag: `git tag v0.2.0 && git push origin v0.2.0`.
-3. The `Release` workflow builds `ghcr.io/kinopeer/kinopeer` for `linux/amd64` and `linux/arm64` (for 1.1.0 the tags `1.1.0`, `1.1`, `1` and `latest`), without the GitHub Actions cache (any job on `main` can write to it, and the release image goes to every install) and without QEMU, since the `Dockerfile`'s runtime stage runs nothing on the target platform, and creates a GitHub Release with that version's changelog section, the image digest and `docker-compose.yml`, which the README's Compose install downloads from the latest release. Then it deploys the `kinopeer-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
+3. The `Release` workflow builds `ghcr.io/kinopeer/kinopeer` for `linux/amd64` and `linux/arm64` (for 1.1.0 the tags `1.1.0`, `1.1`, `1` and `latest`), without the GitHub Actions cache (any job on `main` can write to it, and the release image goes to every install) and without QEMU, since the `Dockerfile`'s runtime stage runs nothing on the target platform, and creates a GitHub Release with that version's changelog section, the image digest and `docker-compose.yml`, which the README's Compose install downloads from the latest release, and `kinopeer-webui.zip`, the Alternative WebUI, built in a read-only job of its own (`docs/ARCHITECTURE.md` → Shipping it). Then it deploys the `kinopeer-tmdb` worker from the tag (The TMDB proxy, below). It fails if the tag doesn't match `package.json` or the changelog has no section for the version.
 4. Wait for the `Release` workflow's `proxy` job to pass and for `https://tmdb.kinopeer.com/3/configuration` to answer 200 (the release image calls that worker, and nothing before the tag tries it: Kinopeer Edge calls the edge worker). Then update the Umbrel package (below).
 5. Close the version's [milestone](https://github.com/kinopeer/kinopeer/milestones). An issue still open in it moves to the next milestone or is closed as not planned, with the reason.
 

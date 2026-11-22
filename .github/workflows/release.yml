@@ -1,7 +1,8 @@
 name: Release
 
 # Pushing a tag like v0.1.0 builds the multi-arch image into GitHub Container Registry and
-# creates a GitHub Release with that version's CHANGELOG.md section and docker-compose.yml.
+# creates a GitHub Release with that version's CHANGELOG.md section, docker-compose.yml and the
+# Alternative WebUI's zip.
 on:
   push:
     tags: ['v*']
@@ -14,7 +15,39 @@ env:
   IMAGE: ghcr.io/kinopeer/kinopeer
 
 jobs:
+  # The Alternative WebUI (#360), which qBittorrent serves itself from the folder its Web UI settings
+  # name: kinopeer-webui.zip holds that folder, kinopeer-webui/, with the build in its public/, where
+  # qBittorrent looks (docs/ARCHITECTURE.md → The two builds). A job of its own, read-only like the
+  # workflow, since npm ci runs the dev dependencies' install scripts, which the release job, with its
+  # write permissions and the registry's login, never runs; nothing from the Actions cache, as for the
+  # image. The build fails on a string qBittorrent would replace (scripts/webui/substitutions.ts).
+  webui:
+    runs-on: ubuntu-latest
+    # For a hang: a healthy run takes about a minute.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:webui
+      # -X leaves out the files' owner and other extra attributes, which the unpacked folder doesn't need.
+      - name: Zip the WebUI
+        run: |
+          mv dist-webui kinopeer-webui
+          zip -qrX kinopeer-webui.zip kinopeer-webui
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: kinopeer-webui
+          path: kinopeer-webui.zip
+          if-no-files-found: error
+          retention-days: 1
+
   release:
+    needs: webui
     permissions:
       contents: write
       packages: write
@@ -86,6 +119,11 @@ jobs:
           # dependency there), so a layer planted in it would ship to every install. The image is
           # built only from the Dockerfile and the tag's code.
 
+      - name: Get the WebUI's zip
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kinopeer-webui
+
       - name: Create the GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,8 +136,9 @@ jobs:
             echo "**Digest:** \`$IMAGE@$DIGEST\`"
           } >> release-notes.md
           # docker-compose.yml goes with the release, so an install gets the file its image was released with
-          # (README → Install with Docker Compose), not main's, which may be ahead of it.
-          gh release create "$GITHUB_REF_NAME" --title "Kinopeer $VERSION" --notes-file release-notes.md --verify-tag docker-compose.yml
+          # (README → Install with Docker Compose), not main's, which may be ahead of it. The WebUI's zip
+          # keeps one name in every release, so releases/latest/download/kinopeer-webui.zip is the newest.
+          gh release create "$GITHUB_REF_NAME" --title "Kinopeer $VERSION" --notes-file release-notes.md --verify-tag docker-compose.yml kinopeer-webui.zip
 
   # kinopeer-tmdb, which released versions call. After the image and the GitHub Release, which come
   # out only for a tag that matches package.json and the changelog; installs get the version only
