@@ -162,15 +162,8 @@ describe('qBittorrent client through /qbt', () => {
     expect(qbittorrent.torrents[0].save_path).toBe('/media/movies')
   })
 
-  it('tells a folder qBittorrent can’t write to or create from a lost session', async () => {
-    const { qbittorrent } = await startKinopeer()
-    const denied = await setTorrentLocation([TORRENTS[0].hash], '/readonly/movies').catch((error: unknown) => error)
-    expect(denied).toBeInstanceOf(QbittorrentError)
-    expect(denied).not.toBeInstanceOf(UnauthorizedError)
-    expect(denied).toMatchObject({ status: 403 })
-    // The server takes qBittorrent's 403 for an expired session and logs in again once before
-    // passing it on; the browser's session check then tells it's the folder.
-    expect(qbittorrent.logins()).toBe(2)
+  it('passes on qBittorrent’s refusal of a folder it can’t create', async () => {
+    await startKinopeer()
     await expect(setTorrentLocation([TORRENTS[0].hash], '/unmakeable/movies')).rejects.toMatchObject({ status: 409 })
   })
 

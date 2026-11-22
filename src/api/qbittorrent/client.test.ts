@@ -375,20 +375,10 @@ describe('setTorrentLocation', () => {
     expect(String(lastCall().init.body)).toBe('hashes=a%7Cb&location=%2Fdownloads%2FMovies')
   })
 
-  it('reports a folder qBittorrent cannot write to as an error, not a lost session', async () => {
-    respond('', 403)
-    respond('v5.0.4')
-    const error = await setTorrentLocation(['a'], '/root').catch((caught: unknown) => caught)
-    expect(lastCall().url).toBe('/qbt/api/v2/app/version')
-    expect(error).toBeInstanceOf(QbittorrentError)
-    expect(error).not.toBeInstanceOf(UnauthorizedError)
-    expect(error).toMatchObject({ status: 403 })
-  })
-
-  it('reports a lost session when qBittorrent refuses everything', async () => {
-    respond('', 403)
+  it('reports a 403 as a lost session, with no second request', async () => {
     respond('', 403)
     await expect(setTorrentLocation(['a'], '/root')).rejects.toBeInstanceOf(UnauthorizedError)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
 

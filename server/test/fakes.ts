@@ -272,8 +272,8 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * torrents' state as it is (qBittorrent 5.1 reports the new one only at its next refresh, 1.5 s
  * by default, so polls sent before then still have the old one),
  * /torrents/delete takes the torrents off the list and records the call in `deleted`,
- * /torrents/setLocation moves torrents to `location`, every one for `all` (403 for a folder under
- * /readonly, which qBittorrent can't write to, and 409 under /unmakeable, a folder it can't create),
+ * /torrents/setLocation moves torrents to `location`, every one for `all` (409 under /unmakeable, a
+ * folder it can't create; from 4.5.2 qBittorrent takes an existing folder it can't write to),
  * /app/setPreferences takes a new `save_path`, which /app/defaultSavePath and /app/preferences then
  * answer (a key qBittorrent doesn't know it ignores, as qBittorrent does), /torrents/editCategory sets
  * a category's `savePath` (404 for one it doesn't have; qBittorrent before 5.3 also drops a download
@@ -472,9 +472,9 @@ export async function fakeQbittorrent({
         return text(response, '')
       }
       case '/api/v2/torrents/setLocation': {
-        // qBittorrent 5.x: "Cannot write to directory" and "Cannot make save path" in the body.
+        // qBittorrent 4.5.2+: "Cannot make save path" for a folder it can't create, and 200 for one
+        // it can't write to (the torrent fails later), so nothing here answers 403.
         const location = params.get('location') ?? ''
-        if (location.startsWith('/readonly')) return text(response, 'Cannot write to directory', 403)
         if (location.startsWith('/unmakeable')) return text(response, 'Cannot make save path', 409)
         const hashes = new Set((params.get('hashes') ?? '').split('|'))
         for (const [index, torrent] of listing.entries())
