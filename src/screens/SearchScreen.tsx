@@ -8,6 +8,7 @@ import {
   type MediaType,
   type Title,
 } from '../api/tmdb'
+import { unreachable } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -16,8 +17,10 @@ import { Input } from '../components/Input'
 import { PosterCard, PosterCardSkeleton } from '../components/PosterCard'
 import { cx } from '../lib/cx'
 import { useDebouncedValue } from '../lib/useDebouncedValue'
+import { unreachableText, useMayOpenAgain } from '../lib/unreachable'
 import { useRequest } from '../lib/useRequest'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
+import { loadPastTheShell } from '../pwa/proxySignIn'
 import { browseRowQueries, type BrowseRowQuery } from '../search/browseRows'
 import { isYearOutOfRange, parseYear } from '../search/year'
 import { useTmdbLanguage } from '../settings/settings'
@@ -112,6 +115,10 @@ export function SearchScreen() {
   // Nothing left because the type's rows failed, not because TMDB had nothing: their error, not "nothing to suggest".
   // A wrong key found by a next page shows the key screen too: Try again under the results would only fail again.
   const moreKeyError = search.moreError instanceof TmdbKeyError ? search.moreError : undefined
+  // Whether Kinopeer's server didn't answer for the next page (#553): `qbittorrent` here is TMDB.
+  const moreWho = unreachable(search.moreError)
+  const moreKinopeer = unreachableText(moreWho)
+  const moreOpenAgain = useMayOpenAgain(moreWho)
   const error =
     request.error ??
     moreKeyError ??
@@ -223,8 +230,10 @@ export function SearchScreen() {
                     title={t('search.moreErrorTitle')}
                     actionLabel={t('common.retry')}
                     onAction={search.showMore}
+                    secondaryActionLabel={moreOpenAgain ? t('common.openAgain') : undefined}
+                    onSecondaryAction={() => loadPastTheShell()}
                   >
-                    {t('search.errorBody')}
+                    {moreKinopeer ? t('connect.unreachableBody', { context: moreOpenAgain ? 'openAgain' : moreKinopeer }) : t('search.errorBody')}
                   </Banner>
                 ) : (
                   <Button

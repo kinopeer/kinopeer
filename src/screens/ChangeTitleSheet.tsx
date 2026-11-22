@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Torrent } from '../api/qbittorrent'
-import { TmdbKeyError, posterUrl, searchTitles, type MediaType, type Title } from '../api/tmdb'
+import { posterUrl, searchTitles, type MediaType, type Title } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { EmptyState } from '../components/EmptyState'
 import { Icon } from '../components/Icon'
@@ -16,6 +16,7 @@ import { useTmdbLanguage } from '../settings/settings'
 import { parseName } from '../torrents/parseName'
 import { sameTitle, type TitleMatch } from '../torrents/titleLookup'
 import { SEARCH_DEBOUNCE_MS } from './SearchScreen'
+import { TmdbFailedState } from './TmdbFailedState'
 import './ChangeTitleSheet.css'
 
 type TypeFilter = 'all' | MediaType
@@ -105,15 +106,7 @@ export function ChangeTitleSheet({ torrent, current, saving, failed, onPick, onC
 
       <div className="retitle-results" aria-busy={loading}>
         {!query.trim() ? null : search.error ? (
-          <EmptyState
-            icon={search.error instanceof TmdbKeyError ? 'key' : 'wifi-off'}
-            tone="error"
-            title={t('search.errorTitle')}
-            actionLabel={t('common.retry')}
-            onAction={search.retry}
-          >
-            {search.error instanceof TmdbKeyError ? t('search.keyBody') : t('search.errorBody')}
-          </EmptyState>
+          <TmdbFailedState error={search.error} onRetry={search.retry} />
         ) : loading ? (
           <div role="status" className="retitle-loading">
             <span className="sr-only">{t('search.loading')}</span>

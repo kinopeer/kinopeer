@@ -1,10 +1,10 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
 import { searchPage, title } from '../test/fixtures'
 import { ChangeTitleSheet, type ChangeTitleSheetProps } from './ChangeTitleSheet'
-import { saying } from '../test/render'
+import { renderWithRouter, saying } from '../test/render'
 
 vi.mock('../api/tmdb', async (importOriginal) => ({
   ...(await importOriginal<typeof tmdb>()),
@@ -21,7 +21,8 @@ const SERIES_MATCH = { type: 'tv' as const, id: 94605, title: 'Мастер и �
 
 function renderSheet(current: ChangeTitleSheetProps['current'] = null, props: Partial<ChangeTitleSheetProps> = {}) {
   const handlers = { onPick: vi.fn(), onClose: vi.fn() }
-  render(<ChangeTitleSheet torrent={TORRENT} current={current} failed={false} {...handlers} {...props} />)
+  // In a router: its TMDB failure's Enter key goes to Settings.
+  renderWithRouter(<ChangeTitleSheet torrent={TORRENT} current={current} failed={false} {...handlers} {...props} />)
   return handlers
 }
 
@@ -92,8 +93,23 @@ describe('ChangeTitleSheet', () => {
     expect(searchTitles).toHaveBeenLastCalledWith('Nonexistent', expect.anything())
   })
 
+  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
+    searchTitles.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderSheet()
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
+    expect(screen.getByText('Check that this device is online and Kinopeer is running on your server.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('says TMDB isn’t set up when it has no key, with Enter key', async () => {
+    searchTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
+    renderSheet()
+    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enter key' })).toBeInTheDocument()
+  })
+
   it('offers a retry when TMDB doesn’t answer', async () => {
-    searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
     renderSheet()
     const retry = await screen.findByRole('button', { name: 'Try again' })
     await userEvent.click(retry)
