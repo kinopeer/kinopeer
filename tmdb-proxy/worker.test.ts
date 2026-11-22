@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import worker, { handle, limitKey, type Env } from './worker.ts'
+import worker, { handle, isPrivateOrigin, limitKey, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
 const TMDB = 'https://tmdb.test/3'
@@ -108,12 +108,12 @@ describe('TMDB proxy worker', () => {
     expect(tmdb).not.toHaveBeenCalled()
   })
 
-  it('answers 405 for anything but GET and HEAD', async () => {
+  it('answers 405 for anything but GET, HEAD and OPTIONS', async () => {
     const { call, tmdb } = setup()
     const response = await call('/3/search/movie', { method: 'POST', body: '{}' })
 
     expect(response.status).toBe(405)
-    expect(response.headers.get('allow')).toBe('GET, HEAD')
+    expect(response.headers.get('allow')).toBe('GET, HEAD, OPTIONS')
     expect(tmdb).not.toHaveBeenCalled()
   })
 
@@ -227,6 +227,108 @@ describe('TMDB proxy worker', () => {
     expect(limit).toHaveBeenCalledWith({ key: '2001:db8:1:2::/64' })
   })
 
+  describe('CORS', () => {
+    const LAN = 'http://192.168.1.20:8080'
+
+    it('lets a page on a private origin read the answer', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550', { headers: { Origin: LAN } })
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('access-control-allow-origin')).toBe(LAN)
+      expect(response.headers.get('access-control-expose-headers')).toBe('Retry-After')
+      expect(await response.json()).toEqual({ ok: true })
+    })
+
+    // A public site could otherwise spend the shared key's daily quota from its visitors' browsers.
+    it('gives a page on a public origin no CORS headers, and still answers', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550', { headers: { Origin: 'https://example.com' } })
+
+      expect(response.status).toBe(200)
+      expect(response.headers.has('access-control-allow-origin')).toBe(false)
+      expect(response.headers.has('access-control-expose-headers')).toBe(false)
+    })
+
+    it('gives a call with no Origin, Kinopeer’s server, no CORS headers', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550')
+
+      expect(response.headers.has('access-control-allow-origin')).toBe(false)
+    })
+
+    // Workers Cache keeps a variant per value of each header Vary names, so a cached answer never
+    // carries another origin's CORS headers, nor a server's answer lack them for a page.
+    it.each([
+      ['a private origin', LAN],
+      ['a public origin', 'https://example.com'],
+      ['no Origin', undefined],
+    ])('says Vary: Origin to %s', async (_, origin) => {
+      const { call } = setup()
+      const response = await call('/3/search/movie?query=Dune', { headers: origin ? { Origin: origin } : {} })
+
+      expect(response.headers.get('vary')).toBe('Origin')
+      expect(response.headers.get('cache-control')).toBe('public, s-maxage=3600')
+    })
+
+    // A page reads why it was refused: a 429's Retry-After among them.
+    it.each([
+      ['its own 429', '/3/configuration', { TMDB_API_KEY: 'v3key', LIMITER: { limit: async () => ({ success: false }) } }],
+      ['its own 404', '/3/account', { TMDB_API_KEY: 'v3key', LIMITER: allow }],
+      ['its own 503', '/3/configuration', { TMDB_API_KEY: '', LIMITER: allow }],
+    ] as const)('puts the CORS headers on %s', async (_, path, env) => {
+      const { call } = setup({ env })
+      const response = await call(path, { headers: { Origin: LAN } })
+
+      expect(response.headers.get('access-control-allow-origin')).toBe(LAN)
+      expect(response.headers.get('vary')).toBe('Origin')
+    })
+
+    it('answers a preflight from a private origin for a path it serves, without the key, the limit or TMDB', async () => {
+      const limit = vi.fn(async () => ({ success: true }))
+      const { call, tmdb } = setup({ env: { LIMITER: { limit } } })
+      const response = await call('/3/search/movie?query=Dune', {
+        method: 'OPTIONS',
+        headers: { Origin: LAN, 'Access-Control-Request-Method': 'GET' },
+      })
+
+      expect(response.status).toBe(204)
+      expect(response.headers.get('access-control-allow-origin')).toBe(LAN)
+      expect(response.headers.get('access-control-allow-methods')).toBe('GET, HEAD')
+      expect(response.headers.get('access-control-max-age')).toBe('86400')
+      expect(response.headers.get('allow')).toBe('GET, HEAD, OPTIONS')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+      expect(response.headers.get('vary')).toBe('Origin')
+      expect(limit).not.toHaveBeenCalled()
+      expect(tmdb).not.toHaveBeenCalled()
+    })
+
+    it('answers a preflight from a public origin with no CORS headers, so the browser refuses the call', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550', { method: 'OPTIONS', headers: { Origin: 'https://example.com' } })
+
+      expect(response.status).toBe(204)
+      expect(response.headers.has('access-control-allow-origin')).toBe(false)
+      expect(response.headers.has('access-control-allow-methods')).toBe(false)
+    })
+
+    it('answers 404 to a preflight for a path it doesn’t serve', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550/credits', { method: 'OPTIONS', headers: { Origin: LAN } })
+
+      expect(response.status).toBe(404)
+      expect(response.headers.has('access-control-allow-methods')).toBe(false)
+    })
+
+    it('gives a GET no preflight headers', async () => {
+      const { call } = setup()
+      const response = await call('/3/movie/550', { headers: { Origin: LAN } })
+
+      expect(response.headers.has('access-control-allow-methods')).toBe(false)
+      expect(response.headers.has('access-control-max-age')).toBe(false)
+    })
+  })
+
   describe('as deployed', () => {
     it('calls TMDB itself', async () => {
       const tmdb = fakeTmdb()
@@ -270,5 +372,59 @@ describe('limitKey', () => {
   // Not an address Cloudflare sends; kept whole rather than guessed at, so it still has a limit.
   it.each(['2001:db8::1::2', '1:2:3:4:5:6:7::8::9', '2001:db8:1:2:3:4:5', '1:2:3:4:5:6:7:8:9::', 'unknown'])('keeps %s as it is', (ip) => {
     expect(limitKey(ip)).toBe(ip)
+  })
+})
+
+describe('isPrivateOrigin', () => {
+  it.each([
+    ['a 10/8 address', 'http://10.0.0.5:8080'],
+    ['a 172.16/12 address, at its start', 'http://172.16.0.1'],
+    ['a 172.16/12 address, at its end', 'http://172.31.255.254'],
+    ['a 192.168/16 address', 'https://192.168.1.20:8443'],
+    ['a loopback address', 'http://127.0.0.1:8080'],
+    ['a loopback address in another form', 'http://0x7f.1'],
+    ['a link-local address', 'http://169.254.10.1'],
+    ['a CGNAT address, at its start', 'http://100.64.0.1'],
+    ['a CGNAT address, at its end', 'http://100.127.255.254'],
+    ['IPv6 loopback', 'http://[::1]:8080'],
+    ['an IPv6 unique local address (fc00::/7), fd', 'http://[fd12:3456::1]'],
+    ['an IPv6 unique local address (fc00::/7), fc', 'http://[fc00::1]'],
+    ['an IPv6 link-local address, at the start of fe80::/10', 'http://[fe80::1]'],
+    ['an IPv6 link-local address, at the end of fe80::/10', 'http://[febf::1]'],
+    ['localhost', 'http://localhost:8080'],
+    ['a name under .localhost', 'http://kinopeer.localhost'],
+    ['a name under .local', 'http://umbrel.local'],
+    ['a name under .local, in capitals', 'http://Umbrel.LOCAL'],
+    ['a name under .home.arpa', 'http://nas.home.arpa:8080'],
+    ['a name under .internal', 'https://qbt.internal'],
+    ['a name of one label', 'http://nas:8080'],
+    ['a fully qualified name with its trailing dot', 'http://umbrel.local.'],
+  ])('reads %s as private', (_, origin) => {
+    expect(isPrivateOrigin(origin)).toBe(true)
+  })
+
+  it.each([
+    ['a public name', 'https://example.com'],
+    ['a public IPv4 address', 'http://203.0.113.7'],
+    ['an address just below 172.16/12', 'http://172.15.255.255'],
+    ['an address just above 172.16/12', 'http://172.32.0.1'],
+    ['an address just below CGNAT', 'http://100.63.255.255'],
+    ['an address just above CGNAT', 'http://100.128.0.1'],
+    ['192.169/16', 'http://192.169.0.1'],
+    ['169.253/16', 'http://169.253.0.1'],
+    ['a public IPv6 address', 'http://[2001:db8::1]'],
+    ['an IPv6 address just below fc00::/7', 'http://[fbff::1]'],
+    ['an IPv6 address just above fe80::/10', 'http://[fec0::1]'],
+    ['the IPv6 unspecified address', 'http://[::]'],
+    ['a name that only ends like .local', 'http://evil-local.com'],
+    ['a public name with .local inside it', 'http://umbrel.local.example.com'],
+    ['a name whose last label ends in "local"', 'http://example.nonlocal'],
+    ['the opaque origin of a sandboxed page or a file', 'null'],
+    ['an origin that isn’t http(s)', 'chrome-extension://abcdef'],
+    ['no origin', null],
+    ['an empty origin', ''],
+    ['an origin of a lone dot', 'http://.'],
+  ])('reads %s as public', (_, origin) => {
+    expect(isPrivateOrigin(origin)).toBe(false)
   })
 })
