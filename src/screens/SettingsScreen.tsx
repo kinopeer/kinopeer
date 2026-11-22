@@ -30,7 +30,7 @@ import { promptInstall, useInstallMethod, type ManualInstall } from '../pwa/inst
 import { useRequest, type RequestState } from '../lib/useRequest'
 import { sharedRequests } from '../logic/sharedRequests'
 import { useScrollRestoration } from '../lib/useScrollRestoration'
-import { useSettings, type Settings } from '../settings/settings'
+import { updateAndShareSettings, useSettings, type Settings } from '../settings/settings'
 import type { ThemePreference } from '../theme/theme'
 import { useTheme } from '../theme/useTheme'
 import { categoryType } from '../torrents/titleLookup'
@@ -280,7 +280,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   // and where its environment doesn't set it, which it shows as set on the server, not its value.
   const fromApp = (address: AddressStatus | undefined) => auth?.enabled === true && address !== undefined && address.source !== 'env'
   const qbittorrentFromApp = fromApp(server?.qbittorrent.address)
-  const prowlarrFromApp = fromApp(server?.prowlarr.address)
+  // In the WebUI build, which has no such login, Prowlarr's address is the app's all the same.
+  const prowlarrFromApp = __WEBUI__ || fromApp(server?.prowlarr.address)
 
   // The checks behind Connections, run here so About shows the versions they answer with and
   // starts none of its own; a check running again or failing has no data, so About shows "—".
@@ -341,6 +342,16 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
     return { state: 'off', message: t(`push.${state.kind === 'install' ? 'install' : state.kind === 'unsupported' ? 'unsupported' : 'needsHttps'}`) }
   }
 
+  /**
+   * Changes download defaults in the WebUI build, and says so when qBittorrent had no room to keep
+   * them for every device, so they're saved in this browser alone, and a reload brings back the
+   * value qBittorrent keeps, if any. The server build calls `update`.
+   */
+  const updateShared = (changes: Partial<Settings>) =>
+    void updateAndShareSettings(changes).then((outcome) => {
+      if (outcome === 'store-full') toast.show(t('webui.defaultsStoreFull'), { icon: 'alert' })
+    })
+
   const categoryField = (type: 'movie' | 'tv') => {
     const key: keyof Settings = type === 'movie' ? 'movieCategory' : 'tvCategory'
     const automatic = names.find((name) => categoryType(name) === type)
@@ -357,7 +368,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             id={id}
             value={value}
             disabled={!categories.data}
-            onChange={(event) => update({ [key]: event.target.value || undefined })}
+            onChange={(event) => (__WEBUI__ ? updateShared : update)({ [key]: event.target.value || undefined })}
           >
             <option value="">
               {automatic ? t('settings.categoryAuto', { name: automatic }) : t('category.none')}
@@ -474,7 +485,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           {(!__WEBUI__ && server?.notifications ? NOTIFY_SWITCHES : DEFAULT_SWITCHES).map((key) => (
             <div key={key} className="settings-toggle">
               <span className="t-body">{t(`add.${key}`)}</span>
-              <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => update({ [key]: on })} />
+              <Toggle label={t(`add.${key}`)} checked={settings[key]} onChange={(on) => (__WEBUI__ ? updateShared : update)({ [key]: on })} />
             </div>
           ))}
         </div>

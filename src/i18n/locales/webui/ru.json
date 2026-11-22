@@ -2,6 +2,15 @@
   "webui": {
     "signInTitle": "Вход в qBittorrent",
     "signInBody": "Kinopeer работает в веб-интерфейсе qBittorrent: войдите с его логином и паролем.",
-    "signInFailed": "qBittorrent не дал войти. Попробуйте ещё раз."
+    "signInFailed": "qBittorrent не дал войти. Попробуйте ещё раз.",
+    "storeFull": "Хранилище qBittorrent для веб-интерфейсов заполнено: на все интерфейсы в нём 1 МиБ. Возможно, его заполнил другой интерфейс, с которым работает этот qBittorrent.",
+    "keyStoreFull": "Ключ не сохранён. $t(webui.storeFull)",
+    "prowlarrStoreFull": "Адрес и ключ Prowlarr не сохранены. $t(webui.storeFull)",
+    "defaultsStoreFull": "Сохранено в этом браузере, но не в qBittorrent: после перезагрузки страницы может вернуться его значение. $t(webui.storeFull)",
+    "tmdbKeyBody": "Постеры, поиск и описания берутся из The Movie Database. Ключ Kinopeer работает, только когда qBittorrent открыт по локальному адресу, а здесь нужен свой бесплатный API-ключ (v3) или токен доступа. Kinopeer хранит его в qBittorrent.",
+    "tmdbKeyFieldHelp": "Хранится в qBittorrent, для всех устройств, которые в него входят.",
+    "prowlarrSetupBody": "Kinopeer ищет релизы через Prowlarr. Введите его адрес, по которому до него доходит этот браузер, и API-ключ. Без Prowlarr работает всё, кроме поиска релизов.",
+    "prowlarrAddressHelp": "Как его видит этот браузер, например http://192.168.1.10:9696",
+    "prowlarrKeyFieldHelp": "Хранится в qBittorrent: прочитать ключ может любой, кто в него входит."
   }
 }

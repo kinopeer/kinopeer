@@ -9,12 +9,13 @@ export type SetupStep = 'tmdb' | 'prowlarr'
  * The steps onboarding asks, in order: the TMDB key when the server has none and its proxy is off,
  * and Prowlarr when the server has no address for it and can save one from the app, which it does
  * only behind Kinopeer's own login (an address the environment sets, or a key without one, is
- * Settings' to change).
+ * Settings' to change). In the WebUI build: TMDB where Kinopeer's proxy doesn't answer the page and
+ * no key of the user's own is kept, then Prowlarr until its address is kept.
  */
 export function setupSteps(settings: ServerSettings): SetupStep[] {
   const steps: SetupStep[] = []
   if (!settings.tmdb.configured) steps.push('tmdb')
-  if (settings.auth?.enabled && settings.prowlarr.address.source === null) steps.push('prowlarr')
+  if ((__WEBUI__ || settings.auth?.enabled) && settings.prowlarr.address.source === null) steps.push('prowlarr')
   return steps
 }
 

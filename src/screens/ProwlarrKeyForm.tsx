@@ -39,6 +39,7 @@ type FormError =
   | 'env-address'
   | 'auth-off'
   | 'storage'
+  | 'store-full'
   | 'failed'
   | 'forget-failed'
   | null
@@ -49,6 +50,8 @@ function formError(e: unknown, kind: 'save' | 'forget'): FormError {
   const code = e instanceof SettingsError ? e.code : undefined
   if (kind === 'save' && (code === 'invalid-key' || code === 'bad-request')) return 'invalid'
   if (code && KNOWN_ERRORS.has(code)) return code as FormError
+  // Only the WebUI build's qBittorrent keeps the key in a store that can be full.
+  if (__WEBUI__ && code === 'store-full') return code
   return kind === 'save' ? 'failed' : 'forget-failed'
 }
 
@@ -60,7 +63,7 @@ interface Sent {
   url?: string
 }
 
-/** The Prowlarr key field: the server checks the key with Prowlarr, then keeps it. */
+/** The Prowlarr key field: the server checks the key with Prowlarr, then keeps it; in the WebUI build qBittorrent keeps it. */
 export function ProwlarrKeyForm({
   onSaved,
   onForgotten,
@@ -137,6 +140,7 @@ export function ProwlarrKeyForm({
     if (failed === 'env-address') return t('prowlarrKey.envAddress')
     if (failed === 'auth-off') return t('prowlarrKey.authOff')
     if (failed === 'storage') return t('keyForm.storage')
+    if (__WEBUI__ && failed === 'store-full') return t('webui.prowlarrStoreFull')
     if (failed === 'forget-failed') return t('prowlarrKey.forgetFailed')
     // Else that it failed, which trying again may change.
     return named ? t('prowlarrKey.saveFailed', { context: checked ? 'address' : undefined }) : t('keyForm.failed')
@@ -194,10 +198,11 @@ export function ProwlarrKeyForm({
           value={address}
           onChange={(event) => changeAddress(event.target.value)}
           error={addressError}
-          help={t('prowlarrKey.addressHelp')}
+          help={t(__WEBUI__ ? 'webui.prowlarrAddressHelp' : 'prowlarrKey.addressHelp')}
         />
       )}
-      {askAddress && (
+      {/* Find asks Kinopeer's server to look, which the WebUI build has none of. */}
+      {!__WEBUI__ && askAddress && (
         <FindAddress
           service="prowlarr"
           onPick={changeAddress}
@@ -222,7 +227,8 @@ export function ProwlarrKeyForm({
           if (error === 'invalid') setError(null)
         }}
         error={error === 'invalid' && errorText(error)}
-        help={t('prowlarrKey.fieldHelp')}
+        // The WebUI build keeps it in qBittorrent, where the browser reads it to call Prowlarr, without checking it yet (#560).
+        help={t(__WEBUI__ ? 'webui.prowlarrKeyFieldHelp' : 'prowlarrKey.fieldHelp')}
       />
 
       <div className="key-form-actions">

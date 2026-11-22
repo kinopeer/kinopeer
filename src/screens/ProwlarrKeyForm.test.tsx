@@ -566,3 +566,47 @@ describe('ProwlarrKeyForm: a request that settles after the form is gone (#500)'
     expect(authOff).toBeInTheDocument()
   })
 })
+
+describe('ProwlarrKeyForm in the WebUI build', () => {
+  const STORE_FULL =
+    'Prowlarr’s address and key weren’t saved. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+  const FAILED = 'Couldn’t save the key. Try again.'
+
+  beforeEach(() => vi.stubGlobal('__WEBUI__', true))
+
+  it("asks for the address as the browser reaches it, says who can read the key, and has no Find, which needs Kinopeer's server", () => {
+    render(<ProwlarrKeyForm onSaved={vi.fn()} askAddress />, { wrapper: ToastProvider })
+    expect(screen.getByLabelText('Prowlarr address')).toHaveAccessibleDescription('As this browser reaches it, for example http://192.168.1.10:9696')
+    expect(screen.getByLabelText('Prowlarr API key')).toHaveAccessibleDescription('Kept in qBittorrent: anyone who can sign in to it can read the key.')
+    expect(screen.queryByRole('button', { name: 'Find Prowlarr' })).not.toBeInTheDocument()
+  })
+
+  it("says qBittorrent's store had no room for the key, and only that", async () => {
+    saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    const { field, save } = renderForm()
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    expect(await screen.findByRole('alert', { name: saying(STORE_FULL) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+
+  it('says any other failure as the server build does', async () => {
+    saveProwlarrKey.mockRejectedValue(new TypeError('Failed to fetch'))
+    const { field, save } = renderForm()
+    await userEvent.type(field, 'abc123')
+    await userEvent.click(save)
+    expect(await screen.findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(STORE_FULL) })).not.toBeInTheDocument()
+  })
+
+  it("says so in a toast when the form is gone by the time qBittorrent refuses", async () => {
+    const saving = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(saving.promise)
+    const { onSaved, toggle } = renderClosable({ askAddress: true })
+    await saveKey()
+    await toggle()
+    await act(async () => saving.reject(new serverSettings.SettingsError(409, 'store-full')))
+    expect(await findToastOnPage(STORE_FULL)).toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+  })
+})

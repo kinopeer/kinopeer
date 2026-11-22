@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
-import { saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
+import { SettingsError, saveDownloadDefaults, type DownloadDefaults } from '../api/settings'
 import { getSharedServerSettings } from '../api/sharedAnswers'
 import { tmdbLanguage } from '../api/tmdb'
 import {
@@ -17,7 +17,8 @@ import { knownOrder, type DownloadSort } from '../torrents/sort'
  * Preferences from the Settings screen, kept in this browser. The download defaults (categories,
  * start paused, sequential, first and last pieces first) are also kept on the Kinopeer server, so
  * every device has the same: the server's win when they load, and changes go to both. Without the
- * server they stay in this browser only. Connection settings live on the server alone.
+ * server they stay in this browser only. Connection settings live on the server alone. In the WebUI
+ * build qBittorrent keeps what the server would (src/api/settings/webui.ts).
  */
 export interface Settings {
   /** qBittorrent category for new movie downloads; undefined picks one named like "Movies". */
@@ -173,6 +174,8 @@ async function load(started: number): Promise<void> {
     else if (local[key] !== DEFAULT_SETTINGS[key]) Object.assign(missing, { [key]: local[key] })
   }
   if (Object.keys(taken).length > 0) apply(taken)
+  // In the WebUI build, not said when qBittorrent has no room for them: they still apply here, and
+  // the next change the user makes says so.
   share(serverPart(missing))
 }
 
@@ -187,11 +190,39 @@ export function loadServerSettings(): void {
   void load(generation)
 }
 
-export function updateSettings(changes: Partial<Settings>): void {
+/** Applies `changes` here; answers the download defaults among them, to be kept for every device. */
+function applyChanges(changes: Partial<Settings>): Partial<DownloadDefaults> {
   apply(changes)
   const shared = serverPart(changes)
   if (loading) for (const key of Object.keys(shared) as ServerKey[]) changedWhileLoading.add(key)
-  share(shared)
+  return shared
+}
+
+export function updateSettings(changes: Partial<Settings>): void {
+  share(applyChanges(changes))
+}
+
+/**
+ * What became of download defaults sent to be kept for every device: `store-full` when the WebUI
+ * build's qBittorrent had no room for them (src/api/settings/webui.ts), so they're saved in this
+ * browser alone, and a reload brings back the value qBittorrent keeps, if any (`load`); else
+ * undefined, a failure of any other kind kept here as `updateSettings` keeps it.
+ */
+export type SharedOutcome = 'store-full' | undefined
+
+/**
+ * `updateSettings` for the WebUI build's Settings, which says when qBittorrent's store had no room
+ * for the defaults: apart, so the server build, which never meets a full store, carries none of it.
+ */
+export async function updateAndShareSettings(changes: Partial<Settings>): Promise<SharedOutcome> {
+  const shared = applyChanges(changes)
+  if (Object.keys(shared).length === 0) return undefined
+  try {
+    await saveDownloadDefaults(shared)
+  } catch (error) {
+    if (error instanceof SettingsError && error.code === 'store-full') return 'store-full'
+  }
+  return undefined
 }
 
 /** For tests. */

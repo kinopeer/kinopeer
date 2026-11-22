@@ -2,6 +2,15 @@
   "webui": {
     "signInTitle": "Sign in to qBittorrent",
     "signInBody": "Kinopeer runs in qBittorrent’s Web UI: sign in with its username and password.",
-    "signInFailed": "qBittorrent didn’t sign you in. Try again."
+    "signInFailed": "qBittorrent didn’t sign you in. Try again.",
+    "storeFull": "qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.",
+    "keyStoreFull": "The key wasn’t saved. $t(webui.storeFull)",
+    "prowlarrStoreFull": "Prowlarr’s address and key weren’t saved. $t(webui.storeFull)",
+    "defaultsStoreFull": "Saved in this browser, not in qBittorrent, whose value may come back when the page is reloaded. $t(webui.storeFull)",
+    "tmdbKeyBody": "Posters, search and metadata come from The Movie Database. Kinopeer’s own key works only when qBittorrent is opened at a local address, so here use a free API key (v3) or read access token of your own. Kinopeer keeps it in qBittorrent.",
+    "tmdbKeyFieldHelp": "Kept in qBittorrent, for every device that signs in to it.",
+    "prowlarrSetupBody": "Kinopeer finds releases through Prowlarr. Enter its address as this browser reaches it, and its API key. Without Prowlarr everything works but finding releases.",
+    "prowlarrAddressHelp": "As this browser reaches it, for example http://192.168.1.10:9696",
+    "prowlarrKeyFieldHelp": "Kept in qBittorrent: anyone who can sign in to it can read the key."
   }
 }

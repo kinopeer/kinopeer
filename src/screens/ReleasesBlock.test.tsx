@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as settings from '../api/settings'
+import { asServerSettings } from '../api/settings/webui'
 import type { ServerSettings } from '../api/settings'
 import { ToastProvider } from '../components/Toast'
 import { DEFAULT_SORT, NO_FILTERS, NO_REMEMBERED_FILTERS } from '../releases/filterReleases'
@@ -154,6 +155,15 @@ describe('ReleasesBody', () => {
       await screen.findByText('Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.'),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it("asks for Prowlarr's address and key in the WebUI build, which has no Kinopeer login and keeps them in qBittorrent", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(settings.getServerSettings).mockResolvedValue(asServerSettings({ tmdbKey: null, prowlarr: null, downloads: {} }, true))
+    renderBody(releases({ status: 'setup', rows: [], visible: [] }))
+    expect(await screen.findByText('Kinopeer finds releases through Prowlarr. Enter its address and API key, and the search runs again.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Set up Prowlarr' }))
+    expect(within(screen.getByRole('dialog', { name: 'Prowlarr connection' })).getByLabelText('Prowlarr address')).toBeInTheDocument()
   })
 
   it('says Prowlarr rejected the key and changes it, with the saved address, then searches again', async () => {

@@ -1644,4 +1644,47 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument()
     expect(within(screen.getByRole('region', { name: 'Download defaults' })).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
   })
+
+  it("changes Prowlarr's address with its key, which qBittorrent keeps", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
+      tmdb: { configured: true, source: 'shared', fallback: null },
+      prowlarr: { configured: true, source: 'saved', serverKey: false, address: { source: 'saved', url: 'http://192.168.1.20:9696' } },
+      qbittorrent: { configured: true, source: null, address: { source: null } },
+      downloads: {},
+    })
+    renderScreen()
+    await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: 'Change Prowlarr address and key' }))
+    const sheet = screen.getByRole('dialog', { name: 'Prowlarr connection' })
+    expect(within(sheet).getByLabelText('Prowlarr address')).toHaveValue('http://192.168.1.20:9696')
+  })
+
+  const DEFAULTS_STORE_FULL =
+    'Saved in this browser, not in qBittorrent, whose value may come back when the page is reloaded. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+
+  it("says a download default stays in this browser when qBittorrent's store has no room for it", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderScreen()
+    // Kept for every device: nothing to say.
+    await userEvent.click(screen.getByRole('switch', { name: 'Sequential download' }))
+    await waitFor(() => expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledTimes(1))
+    await act(async () => {})
+    expect(screen.queryByRole('status', { name: saying(DEFAULTS_STORE_FULL) })).not.toBeInTheDocument()
+
+    vi.mocked(serverSettings.saveDownloadDefaults).mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
+    expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
+    expect(getSettings().startPaused).toBe(true)
+  })
+
+  it("says so for a category too, which goes through the same save", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(serverSettings.saveDownloadDefaults).mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    renderScreen()
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    await within(movies).findByRole('option', { name: 'Anime' })
+    await userEvent.selectOptions(movies, 'Anime')
+    expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
+    expect(getSettings().movieCategory).toBe('Anime')
+  })
 })

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerSettings } from '../api/settings'
+import { asServerSettings } from '../api/settings/webui'
 import { getSharedServerSettings } from '../api/sharedAnswers'
 import { setupSteps, useSetupSteps } from './useSetupSteps'
 
@@ -33,6 +34,25 @@ describe('setupSteps', () => {
     ['the server is older and says nothing of it', undefined],
   ])('asks nothing of Prowlarr when %s, since the server wouldn’t save an address', (_name, auth) => {
     expect(setupSteps({ ...SET, prowlarr: noProwlarr, auth })).toEqual([])
+  })
+})
+
+describe('setupSteps in the WebUI build', () => {
+  // What qBittorrent keeps, as the WebUI build's settings read it (src/api/settings/webui.ts).
+  const nothingKept = { tmdbKey: null, prowlarr: null, downloads: {} }
+  beforeEach(() => vi.stubGlobal('__WEBUI__', true))
+
+  it("asks for Prowlarr alone where Kinopeer's TMDB proxy answers the page, which has no login of Kinopeer's own", () => {
+    expect(setupSteps(asServerSettings(nothingKept, true))).toEqual(['prowlarr'])
+  })
+
+  it("asks for a TMDB key of the user's own first where the proxy doesn't answer the page", () => {
+    expect(setupSteps(asServerSettings(nothingKept, false))).toEqual(['tmdb', 'prowlarr'])
+    expect(setupSteps(asServerSettings({ ...nothingKept, tmdbKey: 'own-key' }, false))).toEqual(['prowlarr'])
+  })
+
+  it("asks nothing once qBittorrent keeps Prowlarr's address and key", () => {
+    expect(setupSteps(asServerSettings({ ...nothingKept, prowlarr: { url: 'http://192.168.1.20:9696', apiKey: 'k' } }, true))).toEqual([])
   })
 })
 

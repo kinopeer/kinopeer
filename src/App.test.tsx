@@ -9,6 +9,7 @@ import * as prowlarr from './api/prowlarr'
 import * as api from './api/qbittorrent'
 import * as webui from './api/qbittorrent/webui'
 import * as serverSettings from './api/settings'
+import { asServerSettings } from './api/settings/webui'
 import * as tmdb from './api/tmdb'
 import App from './App'
 import { stubDesktop } from './lib/stubDesktop'
@@ -723,6 +724,30 @@ describe('App', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('heading', { name: 'qBittorrent 5.1.4 is too old' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Username' })).not.toBeInTheDocument()
+  })
+
+  it("asks in the WebUI build for a TMDB key where Kinopeer's isn't served, then for Prowlarr as the browser reaches it, each kept in qBittorrent", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    // Nothing kept in qBittorrent yet, on an origin the TMDB proxy doesn't answer.
+    const nothing = asServerSettings({ tmdbKey: null, prowlarr: null, downloads: {} }, false)
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(nothing)
+    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue(asServerSettings({ tmdbKey: 'abc123', prowlarr: null, downloads: {} }, false))
+    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue(nothing)
+    renderApp()
+
+    expect(await screen.findByRole('heading', { name: 'Connect TMDB' })).toBeInTheDocument()
+    expect(screen.getByText(/Kinopeer’s own key works only when qBittorrent is opened at a local address/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('API key or read access token'), 'abc123')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(serverSettings.saveTmdbKey).toHaveBeenCalledWith('abc123')
+
+    expect(await screen.findByRole('heading', { name: 'Connect Prowlarr' })).toBeInTheDocument()
+    expect(screen.getByText(/Enter its address as this browser reaches it/)).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Prowlarr address'), 'http://192.168.1.20:9696')
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'def456')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(serverSettings.saveProwlarrKey).toHaveBeenCalledWith('def456', 'http://192.168.1.20:9696')
+    expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
   })
 
   it('never shows Kinopeer’s own login in the WebUI build, which has no Kinopeer server', async () => {

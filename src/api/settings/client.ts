@@ -6,7 +6,6 @@ import type {
   QbittorrentLoginBody,
   ServerSettings,
   SettingsErrorBody,
-  SourceAddress,
   TelegramChatBody,
   TelegramCheck,
   TelegramFoundChat,
@@ -14,39 +13,17 @@ import type {
   TelegramTokenBody,
   TmdbKeyBody,
 } from './types'
-import { knownFailure, type ConnectionFailure } from '../connectionFailure'
+import { knownFailure } from '../connectionFailure'
 import { isContainerHint, isSourceAddress } from '../containerHints'
+import { SettingsError } from './errors'
 import { fetchKinopeer } from '../fetchKinopeer'
 import { sharedRequests } from '../../logic/sharedRequests'
+import { forgetWebuiTmdbKey, loadWebuiServerSettings, saveWebuiDownloadDefaults, saveWebuiProwlarr, saveWebuiTmdbKey } from './webui'
 
 /** Settings the Kinopeer server keeps (server/settings.ts). */
 export const SETTINGS_BASE = '/api/settings'
 
-export class SettingsError extends Error {
-  readonly status: number
-  readonly code?: SettingsErrorBody['error']
-  /** Why qBittorrent or Prowlarr didn't answer a check (`unreachable`), where the server could tell. */
-  readonly failure?: ConnectionFailure
-  /** The address was localhost inside Kinopeer's container (#509), and the host's, when known. */
-  readonly container?: { hostAddress?: string }
-  /** No login sent, and qBittorrent asks for one: where it sees Kinopeer come from, for its auth bypass (#509). */
-  readonly source?: SourceAddress
-
-  constructor(
-    status: number,
-    code?: SettingsErrorBody['error'],
-    failure?: ConnectionFailure,
-    hints: Pick<SettingsErrorBody, 'container' | 'source'> = {},
-  ) {
-    super(`Settings request failed (${code ?? status})`)
-    this.name = 'SettingsError'
-    this.status = status
-    this.code = code
-    this.failure = failure
-    this.container = hints.container
-    this.source = hints.source
-  }
-}
+export { SettingsError, type SettingsErrorCode } from './errors'
 
 function isJson(response: Response): boolean {
   return response.headers.get('content-type')?.includes('application/json') ?? false
@@ -60,7 +37,14 @@ async function errorFor(response: Response): Promise<SettingsError> {
   })
 }
 
+/**
+ * The settings, without the secrets: the server's (`GET /api/settings`), or in the WebUI build
+ * what qBittorrent keeps (./webui.ts), in the same shape. Each call below that the WebUI build makes
+ * goes there in that build, read with each call so a test can stub `__WEBUI__`; in a build it's a
+ * literal, so the other way is dropped from its bundle.
+ */
 export async function getServerSettings(signal?: AbortSignal): Promise<ServerSettings> {
+  if (__WEBUI__) return loadWebuiServerSettings(signal)
   const response = await fetchKinopeer(SETTINGS_BASE, { signal })
   // No JSON: a server without /api/settings (the SPA fallback answered).
   if (!response.ok || !isJson(response)) throw await errorFor(response)
@@ -103,6 +87,7 @@ async function send<T>(method: 'PUT' | 'PATCH' | 'POST', path: string, body: T):
  * code 'invalid-key' when TMDB refuses it, 'unreachable' when TMDB doesn't answer.
  */
 export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
+  if (__WEBUI__) return saveWebuiTmdbKey(apiKey).then(saved)
   return send<TmdbKeyBody>('PUT', 'tmdb', { apiKey })
 }
 
@@ -115,6 +100,7 @@ export function saveTmdbKey(apiKey: string): Promise<ServerSettings> {
  * 'env-address' or 'auth-off' (`ProwlarrKeyBody`).
  */
 export function saveProwlarrKey(apiKey: string, url?: string): Promise<ServerSettings> {
+  if (__WEBUI__) return saveWebuiProwlarr(apiKey, url).then(saved)
   return send<ProwlarrKeyBody>('PUT', 'prowlarr', { apiKey, url })
 }
 
@@ -150,6 +136,7 @@ async function forget(path: string): Promise<ServerSettings> {
  * with code 'no-server-key' when neither would.
  */
 export function forgetTmdbKey(): Promise<ServerSettings> {
+  if (__WEBUI__) return forgetWebuiTmdbKey().then(saved)
   return forget('tmdb')
 }
 
@@ -176,6 +163,7 @@ export function saveQbittorrentLogin(username: string, password: string, url?: s
 
 /** Saves some of the download defaults on the server; the others stay as they are. */
 export function saveDownloadDefaults(changes: DownloadDefaultsBody): Promise<ServerSettings> {
+  if (__WEBUI__) return saveWebuiDownloadDefaults(changes).then(saved)
   return send<DownloadDefaultsBody>('PATCH', 'downloads', changes)
 }
 

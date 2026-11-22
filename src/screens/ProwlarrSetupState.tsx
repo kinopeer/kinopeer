@@ -34,8 +34,9 @@ export function ProwlarrSetupState({ rejected, onSaved }: ProwlarrSetupStateProp
   const login = settings?.auth?.enabled === true
   // The address changes from the app only behind Kinopeer's own login and where the environment
   // doesn't set it, as in Settings; without that and without an address, only the server sets it.
-  const askAddress = login && address?.source !== 'env'
-  const serverOnly = !login && address?.source === null
+  // In the WebUI build it's always the app's.
+  const askAddress = __WEBUI__ || (login && address?.source !== 'env')
+  const serverOnly = !__WEBUI__ && !login && address?.source === null
   // Until the settings answer there's nothing to offer yet; if they don't, the key is (the form says
   // what the server refuses).
   const known = settings !== undefined || server.error !== undefined
