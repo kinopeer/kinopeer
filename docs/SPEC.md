@@ -18,7 +18,7 @@ The owner of a home server running umbrelOS with the qBittorrent and Prowlarr ap
 - Manage a media library or rename files.
 - Store tracker logins or get around site protection: trackers are set up in Prowlarr. Jackett is not supported.
 - Collect analytics.
-- Install other than on Umbrel, with Docker Compose, or as its image next to a qBittorrent and a Prowlarr of the user's own (Unraid's template among them), for now: no catalog entry for TrueNAS or CasaOS, no native installer, no Helm chart (decision log, 2026-11-21).
+- Install other than on Umbrel, with Docker Compose, as its image next to a qBittorrent and a Prowlarr of the user's own (Unraid's template among them), or as qBittorrent's Alternative WebUI (decision log, 2026-11-22), for now: no catalog entry for TrueNAS or CasaOS, no native installer, no Helm chart (decision log, 2026-11-21).
 - Group a series' torrents into one card in Downloads: the title page lists a title's torrents instead (decision log, 2026-10-24). Revisit only if that turns out not to be enough.
 - Set up HTTPS itself (decision log, 2026-10-25).
 - Notify about anything but a finished download. A finished download is told in Telegram, through a bot of the user's own, and as a push notification on the devices that turned them on (Notifications, below).

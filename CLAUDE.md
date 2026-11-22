@@ -5,14 +5,14 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 ## Product
 
 - Core principle: find a title, pick a release and download it without leaving Kinopeer.
-- Not doing: playback, Sonarr/Radarr-style automation (watchlists, RSS, new episodes), a season picker on the series page, tracker logins or getting around site protection, Jackett, telemetry. Installs are supported on Umbrel, with the repository's `docker-compose.yml`, and as the image on its own next to a qBittorrent and a Prowlarr the user runs (TrueNAS and CasaOS through it, Unraid through its Community Applications template, `unraid/kinopeer.xml`).
+- Not doing: playback, Sonarr/Radarr-style automation (watchlists, RSS, new episodes), a season picker on the series page, tracker logins or getting around site protection, Jackett, telemetry. Installs are supported on Umbrel, with the repository's `docker-compose.yml`, as the image on its own next to a qBittorrent and a Prowlarr the user runs (TrueNAS and CasaOS through it, Unraid through its Community Applications template, `unraid/kinopeer.xml`), and as qBittorrent's Alternative WebUI, from the `kinopeer-webui.zip` each release carries.
 - What each screen does and the log of product decisions: `docs/SPEC.md`.
 
 ## Docs
 
 | File | What's in it |
 | --- | --- |
-| `README.md` | For users: features and installing on Umbrel, with Docker Compose, or next to your own qBittorrent and Prowlarr |
+| `README.md` | For users: features and installing on Umbrel, with Docker Compose, next to your own qBittorrent and Prowlarr, or as qBittorrent's Alternative WebUI, and how the installs differ |
 | `CONTRIBUTING.md` | For outside contributors: where ideas, bugs and PRs go, the checks, how the project is developed, the licensing of contributions |
 | `SECURITY.md` | Supported versions and reporting a vulnerability privately |
 | `docs/SPEC.md` | What the product does and doesn't, decision log |

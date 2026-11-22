@@ -6,15 +6,17 @@ Fixes go into the latest release only. Kinopeer Edge, the builds from `main`, is
 
 ## Reporting a vulnerability
 
-Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, Docker Compose, the image next to your own qBittorrent and Prowlarr, the dev server). Leave out your own passwords and keys.
+Don't open a public issue. Report it privately through GitHub: [Security → Report a vulnerability](https://github.com/kinopeer/kinopeer/security/advisories/new). Describe the steps, your version (Settings → About) and where Kinopeer runs (Umbrel, Docker Compose, the image next to your own qBittorrent and Prowlarr, qBittorrent's Alternative WebUI, the dev server). Leave out your own passwords and keys.
 
 You'll get an answer within a week. The fix ships in a patch release, and the advisory is published after it, crediting you if you'd like.
 
 ## Scope
 
-Kinopeer's server and client, Kinopeer's TMDB proxy on Cloudflare (`tmdb-proxy/`), the images on `ghcr.io/kinopeer`, this repository's workflows, the Kinopeer app in the [Homelab store](https://github.com/MrShakhov/umbrel-homelab-store) for Umbrel, and `docker-compose.yml`, which the README's install steps use. Vulnerabilities in qBittorrent, Prowlarr or Umbrel themselves go to their authors.
+Kinopeer's server and client, Kinopeer's TMDB proxy on Cloudflare (`tmdb-proxy/`), the images on `ghcr.io/kinopeer`, this repository's workflows, the Kinopeer app in the [Homelab store](https://github.com/MrShakhov/umbrel-homelab-store) for Umbrel, `docker-compose.yml`, which the README's install steps use, and `kinopeer-webui.zip`, the Alternative WebUI each release carries. Vulnerabilities in qBittorrent, Prowlarr or Umbrel themselves go to their authors.
 
 Kinopeer has a login of its own, on unless `KINOPEER_AUTH=off`: a way past it to qBittorrent, Prowlarr, TMDB or the saved settings is in scope. On Umbrel the package turns it off, since Umbrel's login protects Kinopeer; there, whoever reaches Kinopeer's port past Umbrel controls it, and so does anyone where an install turned the login off without a login of its own in front. That's by design, not a vulnerability.
+
+As qBittorrent's Alternative WebUI, Kinopeer has no server and no login of its own: qBittorrent's login protects it, and the browser holds the TMDB and Prowlarr keys qBittorrent keeps for it, so anyone with qBittorrent's login can read them. That's by design too; a way for another site's page to read them, or to act in qBittorrent, is in scope.
 
 What the login doesn't cover, by design:
 
