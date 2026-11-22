@@ -6,7 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
-- In Settings, saving qBittorrent's folders and setting up Telegram notifications go on when the sheet is closed or Settings is left: the sheet opened again shows the request on its way, and a toast says how it went, the failure included, which Telegram's sheet used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))
+- In Settings, saving qBittorrent's folders, setting up Telegram notifications and changing qBittorrent's or Prowlarr's address, login or key go on when the sheet is closed or Settings is left: the sheet opened again shows the request on its way, and a toast says how it went, the failure included, which Telegram's and the connections' sheets used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))
 
 ### Fixed
 

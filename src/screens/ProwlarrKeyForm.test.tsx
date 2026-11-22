@@ -1,11 +1,13 @@
-import type { ReactNode } from 'react'
-import { render, screen, within } from '@testing-library/react'
+import { useState, type ReactNode } from 'react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as serverSettings from '../api/settings'
 import type { ServerSettings } from '../api/settings'
+import { ToastProvider } from '../components/Toast'
+import { held } from '../test/held'
+import { findToastOnPage, saying } from '../test/render'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
-import { saying } from '../test/render'
 
 vi.mock('../api/settings', async (importOriginal) => ({
   ...(await importOriginal<typeof serverSettings>()),
@@ -30,7 +32,7 @@ const SERVER: ServerSettings = { ...SAVED, prowlarr: { configured: true, source:
 function renderForm(canForget = false) {
   const onSaved = vi.fn()
   const onForgotten = vi.fn()
-  render(<ProwlarrKeyForm onSaved={onSaved} onForgotten={onForgotten} canForget={canForget} />)
+  render(<ProwlarrKeyForm onSaved={onSaved} onForgotten={onForgotten} canForget={canForget} />, { wrapper: ToastProvider })
   return {
     onSaved,
     onForgotten,
@@ -146,7 +148,7 @@ describe('ProwlarrKeyForm', () => {
     function renderWithAddress(secondary?: ReactNode) {
       const onSaved = vi.fn()
       const onEnvAddress = vi.fn()
-      render(<ProwlarrKeyForm onSaved={onSaved} onEnvAddress={onEnvAddress} askAddress secondary={secondary} />)
+      render(<ProwlarrKeyForm onSaved={onSaved} onEnvAddress={onEnvAddress} askAddress secondary={secondary} />, { wrapper: ToastProvider })
       return { onSaved, onEnvAddress, address: screen.getByLabelText('Prowlarr address'), field: screen.getByLabelText('Prowlarr API key'), save: screen.getByRole('button', { name: 'Save' }) }
     }
 
@@ -320,7 +322,7 @@ describe('ProwlarrKeyForm', () => {
 
   it('names the address, not the variable, when one saved from the app isn’t Prowlarr', async () => {
     saveProwlarrKey.mockRejectedValue(new serverSettings.SettingsError(502, 'not-prowlarr'))
-    render(<ProwlarrKeyForm onSaved={vi.fn()} addressFromApp />)
+    render(<ProwlarrKeyForm onSaved={vi.fn()} addressFromApp />, { wrapper: ToastProvider })
     await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(await screen.findByRole('alert', { name: saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.') })).toBeInTheDocument()
@@ -332,5 +334,120 @@ describe('ProwlarrKeyForm', () => {
     const { save } = renderForm(true)
     await userEvent.click(screen.getByRole('button', { name: 'Use the server’s key' }))
     expect(save).toBeDisabled()
+  })
+})
+
+/** The form under a Close that takes it away and an Open that brings it back, as Settings' sheet does. */
+function renderClosable({ askAddress = false, canForget = false }) {
+  const props = { onSaved: vi.fn(), onForgotten: vi.fn(), onEnvAddress: vi.fn() }
+  function Sheet() {
+    const [open, setOpen] = useState(true)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(!open)}>
+          {open ? 'Close' : 'Open'}
+        </button>
+        {open && <ProwlarrKeyForm askAddress={askAddress} initialAddress="http://saved.test" canForget={canForget} {...props} />}
+      </>
+    )
+  }
+  render(<Sheet />, { wrapper: ToastProvider })
+  return { ...props, toggle: () => userEvent.click(screen.getByRole('button', { name: /^(Close|Open)$/ })) }
+}
+
+const saveKey = async () => {
+  await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123')
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+}
+
+describe('ProwlarrKeyForm: a request that settles after the form is gone (#500)', () => {
+  it('hands a saved key on', async () => {
+    const save = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(save.promise)
+    const { onSaved, toggle } = renderClosable({})
+    await saveKey()
+    await toggle()
+    await act(async () => save.resolve(SAVED))
+    expect(onSaved).toHaveBeenCalledWith(SAVED)
+  })
+
+  it('hands the server’s key on once the saved one is forgotten', async () => {
+    const forget = held<ServerSettings>()
+    forgetProwlarrKey.mockReturnValue(forget.promise)
+    const { onForgotten, toggle } = renderClosable({ canForget: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Use the server’s key' }))
+    await toggle()
+    await act(async () => forget.resolve(SERVER))
+    expect(onForgotten).toHaveBeenCalledWith(SERVER)
+  })
+
+  it.each([
+    ['a key', false, 'Couldn’t save the Prowlarr key. Try again.'],
+    ['an address and a key', true, 'Couldn’t save Prowlarr’s address and key. Try again.'],
+  ])('says in a toast that %s couldn’t be saved', async (_name, askAddress, message) => {
+    const save = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(save.promise)
+    const { onSaved, onEnvAddress, toggle } = renderClosable({ askAddress })
+    await saveKey()
+    await toggle()
+    await act(async () => save.reject(new serverSettings.SettingsError(502, 'not-prowlarr')))
+    expect(await findToastOnPage(message)).toBeInTheDocument()
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(onEnvAddress).not.toHaveBeenCalled()
+  })
+
+  it('says in a toast that the server’s key couldn’t be taken back', async () => {
+    const forget = held<ServerSettings>()
+    forgetProwlarrKey.mockReturnValue(forget.promise)
+    const { toggle } = renderClosable({ canForget: true })
+    await userEvent.click(screen.getByRole('button', { name: 'Use the server’s key' }))
+    await toggle()
+    await act(async () => forget.reject(new TypeError('Failed to fetch')))
+    expect(await findToastOnPage('Couldn’t switch to the server’s key. Try again.')).toBeInTheDocument()
+  })
+
+  it('says the environment’s address in a toast and hands it on', async () => {
+    const save = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(save.promise)
+    const { onEnvAddress, toggle } = renderClosable({ askAddress: true })
+    await saveKey()
+    await toggle()
+    await act(async () => save.reject(new serverSettings.SettingsError(409, 'env-address')))
+    expect(await findToastOnPage('Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.')).toBeInTheDocument()
+    expect(onEnvAddress).toHaveBeenCalledOnce()
+  })
+
+  it('opened again meanwhile, starts busy from what was sent, sends nothing more and says the failure itself', async () => {
+    const save = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(save.promise)
+    const { toggle } = renderClosable({ askAddress: true, canForget: true })
+    await userEvent.clear(screen.getByLabelText('Prowlarr address'))
+    await userEvent.type(screen.getByLabelText('Prowlarr address'), 'http://prowlarr.test')
+    await saveKey()
+    await toggle()
+    await toggle()
+
+    expect(screen.getByLabelText('Prowlarr address')).toHaveValue('http://prowlarr.test')
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByRole('button', { name: 'Use the server’s key' })).toBeDisabled()
+    await userEvent.type(screen.getByLabelText('Prowlarr API key'), 'abc123{Enter}')
+    expect(saveProwlarrKey).toHaveBeenCalledOnce()
+
+    await act(async () => save.reject(new serverSettings.SettingsError(502, 'not-prowlarr')))
+    expect(screen.getByRole('alert', { name: saying('Prowlarr’s address answers, but not like Prowlarr. Check the address and its port.') })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).not.toHaveAttribute('aria-busy')
+    expect(screen.queryByRole('status', { name: saying('Couldn’t save Prowlarr’s address and key. Try again.') })).not.toBeInTheDocument()
+  })
+
+  it('opened again meanwhile, shows nothing failed once the key is saved', async () => {
+    const save = held<ServerSettings>()
+    saveProwlarrKey.mockReturnValue(save.promise)
+    const { onSaved, toggle } = renderClosable({})
+    await saveKey()
+    await toggle()
+    await toggle()
+    await act(async () => save.resolve(SAVED))
+    expect(onSaved).toHaveBeenCalledWith(SAVED)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

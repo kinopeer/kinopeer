@@ -5,7 +5,9 @@ import { SettingsError, forgetProwlarrKey, saveProwlarrKey, type ServerSettings 
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { useToast } from '../components/Toast'
 import { failureText } from '../lib/failureText'
+import { useSaves } from '../lib/useSaves'
 import { LocalhostHint } from './ContainerHints'
 import { FindAddress } from './FindAddress'
 
@@ -50,6 +52,14 @@ function formError(e: unknown, kind: 'save' | 'forget'): FormError {
   return kind === 'save' ? 'failed' : 'forget-failed'
 }
 
+/** The key's save or forgetting (`useSaves`): one target, since both change what the server keeps. */
+const PROWLARR_SAVES = 'prowlarr'
+const KEY = 'key'
+interface Sent {
+  kind: 'save' | 'forget'
+  url?: string
+}
+
 /** The Prowlarr key field: the server checks the key with Prowlarr, then keeps it. */
 export function ProwlarrKeyForm({
   onSaved,
@@ -62,30 +72,49 @@ export function ProwlarrKeyForm({
   secondary,
 }: ProwlarrKeyFormProps) {
   const { t } = useTranslation()
-  const [address, setAddress] = useState(initialAddress)
-  const [apiKey, setApiKey] = useState('')
-  // One request at a time: saving and forgetting at once would race for what the server keeps.
-  const [busy, setBusy] = useState<'save' | 'forget' | null>(null)
+  const toast = useToast()
   const [error, setError] = useState<FormError>(null)
   // Why Prowlarr didn't answer the check, where the server could tell (#508).
   const [failure, setFailure] = useState<ConnectionFailure>()
   // The address was localhost inside Kinopeer's container (#509), and the host's, when known.
   const [localhost, setLocalhost] = useState<SettingsError['container']>()
 
-  const run = async (kind: 'save' | 'forget', request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
-    if (busy) return
-    setBusy(kind)
+  function fail(e: unknown, kind: Sent['kind']) {
+    const error = formError(e, kind)
+    setFailure(failureOf(e))
+    setLocalhost(e instanceof SettingsError ? e.container : undefined)
+    setError(error)
+    if (error === 'env-address') onEnvAddress?.()
+  }
+
+  // Open, the form takes every outcome: a save is the caller's to follow, a failure the form's to say.
+  const saving = useSaves<Sent>(PROWLARR_SAVES, (outcome, sent) => {
+    if (!outcome.ok) fail(outcome.error, sent.kind)
+    return true
+  })
+  // One request at a time, from this form or one opened before it, which this one starts from:
+  // saving and forgetting at once would race for what the server keeps.
+  const sending = saving.pending(KEY)
+  const busy = sending?.kind ?? null
+  const [address, setAddress] = useState(sending?.url ?? initialAddress)
+  const [apiKey, setApiKey] = useState('')
+
+  const run = async (kind: Sent['kind'], request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
     setError(null)
-    try {
-      done(await request())
-    } catch (e) {
-      const error = formError(e, kind)
-      setFailure(failureOf(e))
-      setLocalhost(e instanceof SettingsError ? e.container : undefined)
-      setError(error)
-      setBusy(null)
-      if (error === 'env-address') onEnvAddress?.()
-    }
+    const settled = await saving.send(KEY, { kind, url: askAddress ? address : undefined }, request)
+    if (!settled) return
+    // The caller follows a save whether or not the form is still there.
+    if (settled.ok) return done(settled.result)
+    if (settled.taken) return
+    // The form gone: a toast says what failed.
+    const failed = formError(settled.error, kind)
+    if (failed === 'env-address') onEnvAddress?.()
+    toast.show(
+      t(failed === 'env-address' ? 'prowlarrKey.envAddress' : kind === 'save' ? 'prowlarrKey.saveFailed' : 'prowlarrKey.forgetFailed', {
+        context: askAddress ? 'address' : undefined,
+      }),
+      { icon: 'alert' },
+    )
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {

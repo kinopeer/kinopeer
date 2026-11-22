@@ -117,6 +117,7 @@
     "loginNeeded": "qBittorrent asks for a login: enter its username and password",
     "authOff": "Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.",
     "envAddress": "qBittorrent’s address is now set on the Kinopeer server (QBITTORRENT_URL), which wins over one from the app.",
+    "saveFailed": "Couldn’t save the qBittorrent connection. Try again.",
     "changeAddress": "Change qBittorrent address"
   },
   "unsupported": {
@@ -580,6 +581,8 @@
     "noServerKey": "The Kinopeer server has no Prowlarr key of its own, so the saved one stays.",
     "forgotten": "Using the server’s Prowlarr key",
     "forgetFailed": "Couldn’t switch to the server’s key. Try again.",
+    "saveFailed": "Couldn’t save the Prowlarr key. Try again.",
+    "saveFailed_address": "Couldn’t save Prowlarr’s address and key. Try again.",
     "envAddress": "Prowlarr’s address is now set on the Kinopeer server (PROWLARR_URL), which wins over one from the app.",
     "authOff": "Kinopeer’s own login is off, so Prowlarr’s address can only be set on the server: PROWLARR_URL.",
     "saved_address": "Prowlarr address and key saved",
