@@ -23,3 +23,15 @@ export class TmdbKeyError extends TmdbError {
     this.name = 'TmdbKeyError'
   }
 }
+
+/**
+ * In the WebUI build, the user's TMDB key couldn't be read from qBittorrent's store, so TMDB wasn't
+ * asked: qBittorrent didn't answer or refused, its error the `cause` (`UnauthorizedError` when its
+ * session ended). The screens then name qBittorrent rather than TMDB (`TmdbFailedState`).
+ */
+export class TmdbKeyReadError extends Error {
+  constructor(cause: unknown) {
+    super('qBittorrent did not give the TMDB key', { cause })
+    this.name = 'TmdbKeyReadError'
+  }
+}

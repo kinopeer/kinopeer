@@ -1,12 +1,15 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
+import { waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ProxySignInError } from '../api/fetchKinopeer'
 import { KinopeerUnreachableError } from '../api/qbittorrent'
-import { TmdbError, TmdbKeyError } from '../api/tmdb'
+import { UnauthorizedError } from '../api/qbittorrent'
+import { TmdbError, TmdbKeyError, TmdbKeyReadError } from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { controlledByServiceWorker, renderWithRouter } from '../test/render'
+import { MainDataProvider } from '../torrents/MainDataProvider'
 import { TmdbFailedState } from './TmdbFailedState'
 
 vi.mock('../pwa/proxySignIn', async (importOriginal) => ({
@@ -83,5 +86,38 @@ describe('TmdbFailedState', () => {
     renderState(new TmdbKeyError(401))
     expect(screen.getByText('Search needs a TMDB key. Enter it once, and Kinopeer keeps it in qBittorrent.')).toBeInTheDocument()
     expect(screen.queryByText(/Kinopeer server/)).not.toBeInTheDocument()
+  })
+
+  describe('in the WebUI build, where qBittorrent keeps the key', () => {
+    /** The state under the app's shared poll, whose 403 ends qBittorrent's session (`onUnauthorized`). */
+    function renderUnderPoll(error: unknown, onUnauthorized = () => {}, onRetry = () => {}) {
+      return renderWithRouter(
+        <MainDataProvider onUnauthorized={onUnauthorized}>
+          <TmdbFailedState error={error} onRetry={onRetry} />
+        </MainDataProvider>,
+      )
+    }
+
+    it('says qBittorrent didn’t answer when it didn’t give the key, not TMDB, and retries', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new TypeError('Failed to fetch')))
+      const onRetry = vi.fn()
+      renderUnderPoll(new TmdbKeyReadError(new TypeError('Failed to fetch')), undefined, onRetry)
+      expect(screen.getByRole('heading', { name: 'qBittorrent isn’t answering' })).toBeInTheDocument()
+      expect(screen.getByText('Check that qBittorrent is running and its Web UI is on.')).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Couldn’t load from TMDB' })).not.toBeInTheDocument()
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+      expect(onRetry).toHaveBeenCalledOnce()
+    })
+
+    it('brings back qBittorrent’s login when its session ended, through the poll it starts', async () => {
+      vi.stubGlobal('__WEBUI__', true)
+      const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('Forbidden', { status: 403 }))
+      vi.stubGlobal('fetch', fetchMock)
+      const onUnauthorized = vi.fn()
+      renderUnderPoll(new TmdbKeyReadError(new UnauthorizedError()), onUnauthorized)
+      await waitFor(() => expect(onUnauthorized).toHaveBeenCalledOnce())
+      expect(String(fetchMock.mock.calls[0]![0])).toMatch(/^api\/v2\/sync\/maindata\b/)
+    })
   })
 })

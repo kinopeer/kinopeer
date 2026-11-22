@@ -1645,6 +1645,13 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(within(screen.getByRole('region', { name: 'Download defaults' })).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
   })
 
+  it("names qBittorrent on TMDB's row when qBittorrent didn't give the TMDB key", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyReadError(new TypeError('Failed to fetch')))
+    renderScreen()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('qBittorrent isn’t answering') })).toBeInTheDocument()
+  })
+
   it("changes Prowlarr's address with its key, which qBittorrent keeps", async () => {
     vi.stubGlobal('__WEBUI__', true)
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({

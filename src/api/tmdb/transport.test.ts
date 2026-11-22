@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { unreachable } from '../qbittorrent/errors'
+import { UnauthorizedError } from '../qbittorrent/errors'
 import { SETTING_KEYS } from '../settings/webui'
-import { TmdbError, TmdbKeyError } from './errors'
+import { TmdbError, TmdbKeyError, TmdbKeyReadError } from './errors'
 import { webuiTransport } from './transport'
 
 let fetchMock: Mock<typeof fetch>
@@ -85,11 +85,32 @@ describe('webuiTransport', () => {
     await expect(webuiTransport('/movie/1')).rejects.toMatchObject({ status: 429, retryAfterMs: 10_000 })
   })
 
-  it('names TMDB as who didn’t answer when nothing did, as there’s no server of Kinopeer’s in this build', async () => {
-    answer = () => Promise.reject(new TypeError('Failed to fetch'))
+  it('passes on what fetch throws when TMDB doesn’t answer', async () => {
+    const failed = new TypeError('Failed to fetch')
+    answer = () => Promise.reject(failed)
+    await expect(webuiTransport('/movie/1')).rejects.toBe(failed)
+  })
+
+  it.each([
+    ["qBittorrent's session ended", () => Promise.resolve(new Response('Forbidden', { status: 403 })), UnauthorizedError],
+    ["qBittorrent doesn't answer", () => Promise.reject(new TypeError('Failed to fetch')), TypeError],
+  ] as const)("tells a key qBittorrent didn't give from TMDB's failures, and asks TMDB nothing: %s", async (_case, load, cause) => {
+    fetchMock.mockImplementationOnce(load)
     const error = await webuiTransport('/movie/1').catch((caught: unknown) => caught)
-    expect(error).toBeInstanceOf(TypeError)
-    // `qbittorrent` is the service called, TMDB for TMDB's calls.
-    expect(unreachable(error)).toBe('qbittorrent')
+    expect(error).toBeInstanceOf(TmdbKeyReadError)
+    expect((error as Error).cause).toBeInstanceOf(cause)
+    expect(tmdbCalls()).toEqual([])
+  })
+
+  it('passes on the abort of a caller that gave the call up while the key was read, as any other call’s', async () => {
+    const controller = new AbortController()
+    fetchMock.mockImplementationOnce(
+      (_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))),
+    )
+    const call = webuiTransport('/movie/1', controller.signal)
+    controller.abort()
+    const error = await call.catch((caught: unknown) => caught)
+    expect(error).not.toBeInstanceOf(TmdbKeyReadError)
+    expect(error).toMatchObject({ name: 'AbortError' })
   })
 })

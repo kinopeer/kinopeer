@@ -11,7 +11,7 @@ import type {
 import { TMDB_IMAGES } from './direct'
 import { bridgeTransport, webuiTransport } from './transport'
 
-export { TmdbError, TmdbKeyError } from './errors'
+export { TmdbError, TmdbKeyError, TmdbKeyReadError } from './errors'
 export { TMDB_BASE } from './transport'
 /** Same-origin prefix proxied to TMDB's image CDN. */
 export const TMDB_IMAGE_BASE = '/tmdb-img'

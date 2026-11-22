@@ -6,7 +6,6 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createServer, preview, resolveConfig } from 'vite'
 import { refusal } from './server/hostCheck.ts'
-import { TMDB_PROXY, TMDB_PROXY_EDGE } from './server/main.ts'
 import { CONTENT_SECURITY_POLICY, SECURITY_HEADERS, WEBUI_CONTENT_SECURITY_POLICY } from './server/securityHeaders.ts'
 import { getWithHost } from './server/test/fakes.ts'
 import { BaseSequencer, type TestSequencerConstructor, type TestSpecification, type Vitest } from 'vitest/node'
@@ -145,14 +144,12 @@ describe('vite.config.ts', () => {
     expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui/public', 'true'])
   })
 
-  // The WebUI build calls Kinopeer's TMDB proxy from the page, so the build bakes in the one the image would use.
-  it('gives the build the TMDB proxy the image would use: the release worker unless the environment names another', async () => {
+  // The WebUI build calls Kinopeer's TMDB proxy from the page, so the build bakes in the one the image would use
+  // (tmdbProxy, whose own tests cover its defaults). Each case sets TMDB_PROXY_URL, which wins over a .env.local's.
+  it('gives the build the TMDB proxy the image would use, from the environment', async () => {
     const proxyOf = async () => (await resolveConfig(options, 'build', 'webui')).define?.__TMDB_PROXY__
-    vi.stubEnv('TMDB_PROXY_URL', undefined)
-    vi.stubEnv('KINOPEER_TMDB_PROXY', '')
-    expect(await proxyOf()).toBe(JSON.stringify(TMDB_PROXY))
-    vi.stubEnv('KINOPEER_TMDB_PROXY', TMDB_PROXY_EDGE)
-    expect(await proxyOf()).toBe(JSON.stringify(TMDB_PROXY_EDGE))
+    vi.stubEnv('TMDB_PROXY_URL', 'https://proxy.example.test/3')
+    expect(await proxyOf()).toBe(JSON.stringify('https://proxy.example.test/3'))
     // An empty TMDB_PROXY_URL turns the proxy off, as for the image.
     vi.stubEnv('TMDB_PROXY_URL', '')
     expect(await proxyOf()).toBe('""')

@@ -51,6 +51,7 @@ beforeEach(() => {
   })
   vi.stubGlobal('fetch', fetchMock)
   vi.stubGlobal('__WEBUI__', true)
+  vi.stubGlobal('__TMDB_PROXY__', 'https://tmdb.example.test/3')
   // jsdom's page is on localhost, which the proxy answers; a test on a public origin says so.
   vi.stubGlobal('location', new URL('http://192.168.1.20:8080/'))
 })
@@ -308,12 +309,12 @@ describe('the settings in qBittorrent', () => {
 
   it('refuses a TMDB key with a space inside without asking TMDB, as the server does', async () => {
     await expect(saveTmdbKey('own key')).rejects.toMatchObject({ code: 'bad-request' })
-    await expect(saveTmdbKey('   ')).rejects.toMatchObject({ code: 'bad-request' })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('refuses an empty key without storing it, as the server does', async () => {
     await expect(saveTmdbKey('')).rejects.toMatchObject({ code: 'bad-request' })
+    await expect(saveTmdbKey('   ')).rejects.toMatchObject({ code: 'bad-request' })
     await expect(saveProwlarrKey('', 'http://192.168.1.20:9696')).rejects.toMatchObject({ code: 'bad-request' })
     expect(stored()).toEqual([])
   })
