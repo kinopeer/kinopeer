@@ -15,10 +15,12 @@ function savedPosition(key: string): number | undefined {
 }
 
 /**
- * Where the page is scrolled to. While a modal with a field holds the page (`holdPage`), the window
- * waits by the top and the body's negative margin stands in for the rest, so a screen that goes away
- * under it (a link or a reload from the modal) adds the margin back (#553).
+ * Where the page is scrolled to. While a modal with a field holds the page (`holdPage` in
+ * src/lib/holdPage.ts, its `pin`), the window waits a pixel from the top and the body's negative
+ * margin stands in for the rest of the page's offset, so a screen that goes away under it (a link or
+ * a reload from the modal) adds the margin back (#553).
  */
+// The margin is holdPage's stand-in for the page's offset: subtracting it gives the real position.
 const pageScrollY = () => window.scrollY - (parseFloat(document.body.style.marginTop) || 0)
 
 function savePosition(key: string, y: number): void {
