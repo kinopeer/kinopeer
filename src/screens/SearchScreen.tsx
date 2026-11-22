@@ -198,7 +198,9 @@ export function SearchScreen() {
 
       <section className="search-body" aria-busy={loading}>
         {error ? (
-          <TmdbFailedState error={error} onRetry={request.retry} />
+          // A next page whose key the WebUI build couldn't read is tried again by Show more: the first page is
+          // kept, so retry would ask nothing. A key error's state has no Try again.
+          <TmdbFailedState error={error} onRetry={__WEBUI__ && error === moreKeyError ? search.showMore : request.retry} />
         ) : loading ? (
           <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('search.loading')}</span>
