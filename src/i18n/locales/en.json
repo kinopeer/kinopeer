@@ -684,6 +684,8 @@
     "testSent": "Test notification sent",
     "turnOff": "Turn off push notifications on this device",
     "turnedOff": "Push notifications are off on this device",
+    "turnedOn": "Push notifications are on for this device",
+    "failedNamed": "Push notifications: {{reason}}",
     "needsHttps": "Need Kinopeer opened over HTTPS, with its certificate trusted on this device",
     "install": "On iPhone and iPad, add Kinopeer to the Home Screen and turn them on there",
     "unsupported": "This browser can’t show push notifications",
