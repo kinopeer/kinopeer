@@ -8,37 +8,16 @@ import type {
   TvDetails,
   TvResult,
 } from './types'
-import { fetchKinopeer } from '../fetchKinopeer'
-import { BRIDGE_HEADER, KinopeerUnreachableError } from '../qbittorrent/client'
+import { TMDB_IMAGES } from './direct'
+import { bridgeTransport, webuiTransport } from './transport'
 
-/** Same-origin prefix proxied to the TMDB API; the proxy adds the API key. */
-export const TMDB_BASE = '/tmdb'
+export { TmdbError, TmdbKeyError } from './errors'
+export { TMDB_BASE } from './transport'
 /** Same-origin prefix proxied to TMDB's image CDN. */
 export const TMDB_IMAGE_BASE = '/tmdb-img'
 
 export type PosterSize = 'w92' | 'w154' | 'w185' | 'w342' | 'w500' | 'w780' | 'original'
 export type BackdropSize = 'w300' | 'w780' | 'w1280' | 'original'
-
-export class TmdbError extends Error {
-  readonly status: number
-  /** How long a 429 asks to wait before the next call, from its Retry-After in seconds. */
-  readonly retryAfterMs?: number
-
-  constructor(message: string, status: number, retryAfterMs?: number) {
-    super(message)
-    this.name = 'TmdbError'
-    this.status = status
-    this.retryAfterMs = retryAfterMs
-  }
-}
-
-/** No TMDB_API_KEY on the proxy (the route doesn't exist), or TMDB rejected it. */
-export class TmdbKeyError extends TmdbError {
-  constructor(status: number) {
-    super('The TMDB API key is missing or invalid', status)
-    this.name = 'TmdbKeyError'
-  }
-}
 
 /** TMDB language tag for an app language: "ru" → "ru-RU". */
 export function tmdbLanguage(language: string): string {
@@ -60,32 +39,9 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
     if (value !== undefined) search.set(key, String(value))
   }
   const query = search.toString()
-  const response = await fetchKinopeer(`${TMDB_BASE}${path}${query ? `?${query}` : ''}`, {
-    headers: { Accept: 'application/json' },
-    signal,
-  })
-  // 404 from the dev server itself (no /tmdb proxy configured) is not JSON.
-  if (response.status === 401 || (response.status === 404 && !isJson(response))) {
-    throw new TmdbKeyError(response.status)
-  }
-  // Without the TMDB bridge's mark, something in front of Kinopeer's server answered for it (#537):
-  // `unreachable` in the qBittorrent client tells who didn't answer, for TMDB's calls too.
-  if (!response.ok) {
-    throw response.headers.has(BRIDGE_HEADER)
-      ? new TmdbError(`TMDB responded ${response.status}`, response.status, retryAfter(response))
-      : new KinopeerUnreachableError(response.status)
-  }
+  // Read with each call, so a test can stub `__WEBUI__`; in a build it's a constant and the other way is dropped.
+  const response = await (__WEBUI__ ? webuiTransport : bridgeTransport)(`${path}${query ? `?${query}` : ''}`, signal)
   return (await response.json()) as T
-}
-
-/** Retry-After in seconds (TMDB's and Kinopeer's proxy's form), in milliseconds. */
-function retryAfter(response: Response): number | undefined {
-  const seconds = Number(response.headers.get('retry-after') ?? Number.NaN)
-  return seconds > 0 ? seconds * 1000 : undefined
-}
-
-function isJson(response: Response): boolean {
-  return response.headers.get('content-type')?.includes('application/json') ?? false
 }
 
 function yearOf(date: string | null | undefined): number | undefined {
@@ -267,10 +223,14 @@ export async function checkTmdb(signal?: AbortSignal): Promise<void> {
   await request('/configuration', {}, { signal })
 }
 
+// Images come through Kinopeer's server's image bridge, or from TMDB's own CDN in the WebUI build,
+// which has no server (the page's policy lets them in, WEBUI_CONTENT_SECURITY_POLICY). Written out in
+// each, rather than a function of its own, so the server's bundle folds it to its constant.
+
 export function posterUrl(path: string | null, size: PosterSize = 'w342'): string | undefined {
-  return path ? `${TMDB_IMAGE_BASE}/${size}${path}` : undefined
+  return path ? `${__WEBUI__ ? TMDB_IMAGES : TMDB_IMAGE_BASE}/${size}${path}` : undefined
 }
 
 export function backdropUrl(path: string | null, size: BackdropSize = 'w1280'): string | undefined {
-  return path ? `${TMDB_IMAGE_BASE}/${size}${path}` : undefined
+  return path ? `${__WEBUI__ ? TMDB_IMAGES : TMDB_IMAGE_BASE}/${size}${path}` : undefined
 }

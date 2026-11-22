@@ -5,6 +5,7 @@
 import { isPrivateOrigin } from '../../logic/privateOrigin'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { isStoreFull, loadClientData, storeClientData, type ClientData } from '../qbittorrent/webui'
+import { checkTmdbKey } from '../tmdb/direct'
 import { SettingsError } from './errors'
 import type { DownloadDefaults, ServerSettings } from './types'
 
@@ -91,12 +92,12 @@ export function readSettings(data: ClientData): WebuiSettings {
 }
 
 /**
- * The page's origin is one Kinopeer's TMDB proxy answers (a private one, `isPrivateOrigin`, as the
- * proxy reads it), so TMDB works without a key of the user's own.
+ * The build has Kinopeer's TMDB proxy (`__TMDB_PROXY__`) and the page's origin is one it answers (a
+ * private one, `isPrivateOrigin`, as the proxy reads it), so TMDB works without a key of the user's own.
  */
 export function sharedTmdbAvailable(): boolean {
   // Read through globalThis, as the clients also run in Node (the integration tests), where there's no page.
-  return isPrivateOrigin((globalThis as { location?: { origin: string } }).location?.origin ?? null)
+  return __TMDB_PROXY__ !== '' && isPrivateOrigin((globalThis as { location?: { origin: string } }).location?.origin ?? null)
 }
 
 /**
@@ -130,8 +131,8 @@ async function loadStored(signal: AbortSignal): Promise<ClientData> {
 
 /**
  * Kinopeer's settings as qBittorrent keeps them, shared with the page's other callers while
- * `WEBUI_SETTINGS_FRESH_MS` fresh; `renew` asks qBittorrent anew. Where TMDB's and Prowlarr's
- * clients will read the keys they call with once this build calls them itself (#559, #560).
+ * `WEBUI_SETTINGS_FRESH_MS` fresh; `renew` asks qBittorrent anew. Where TMDB's client reads the key it
+ * calls TMDB with (src/api/tmdb/transport.ts), and Prowlarr's will once this build calls it itself (#560).
  */
 export async function getWebuiSettings(signal?: AbortSignal, renew = false): Promise<WebuiSettings> {
   return readSettings(await sharedRequests.get(WEBUI_SETTINGS_KEY, loadStored, { freshFor: WEBUI_SETTINGS_FRESH_MS, signal, renew }))
@@ -165,12 +166,21 @@ async function store(changes: ClientData): Promise<ServerSettings> {
 }
 
 /**
- * Saves the user's own TMDB key. Not checked with TMDB yet: the WebUI build calls TMDB itself from
- * #559 on. Rejects with code 'bad-request' for an empty key, as the server does.
+ * Checks the user's own TMDB key with TMDB, then saves it, trimmed, as the server does: rejects with
+ * code 'bad-request' for an empty key or one with a space inside, 'invalid-key' for one TMDB
+ * refuses and 'unreachable' when TMDB doesn't answer the check, and stores nothing then.
  */
-export function saveWebuiTmdbKey(apiKey: string): Promise<ServerSettings> {
-  if (apiKey === '') return Promise.reject(new SettingsError(400, 'bad-request'))
-  return store({ [SETTING_KEYS.tmdbKey]: apiKey })
+export async function saveWebuiTmdbKey(apiKey: string): Promise<ServerSettings> {
+  const key = apiKey.trim()
+  if (key === '' || /\s/.test(key)) throw new SettingsError(400, 'bad-request')
+  let valid: boolean
+  try {
+    valid = await checkTmdbKey(key)
+  } catch {
+    throw new SettingsError(502, 'unreachable')
+  }
+  if (!valid) throw new SettingsError(422, 'invalid-key')
+  return store({ [SETTING_KEYS.tmdbKey]: key })
 }
 
 /** Forgets the user's TMDB key, for Kinopeer's; 'no-server-key' where the proxy doesn't answer this page. */
