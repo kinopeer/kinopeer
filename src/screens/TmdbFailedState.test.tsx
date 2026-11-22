@@ -77,4 +77,11 @@ describe('TmdbFailedState', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
     expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
   })
+
+  it('says qBittorrent keeps the key in the WebUI build, which has no server of Kinopeer’s', () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderState(new TmdbKeyError(401))
+    expect(screen.getByText('Search needs a TMDB key. Enter it once, and Kinopeer keeps it in qBittorrent.')).toBeInTheDocument()
+    expect(screen.queryByText(/Kinopeer server/)).not.toBeInTheDocument()
+  })
 })

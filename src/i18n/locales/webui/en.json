@@ -9,6 +9,7 @@
     "defaultsStoreFull": "Saved in this browser, not in qBittorrent, whose value may come back when the page is reloaded. $t(webui.storeFull)",
     "tmdbKeyBody": "Posters, search and metadata come from The Movie Database. Kinopeer’s own key works only when qBittorrent is opened at a local address, so here use a free API key (v3) or read access token of your own. Kinopeer keeps it in qBittorrent.",
     "tmdbKeyFieldHelp": "Kinopeer checks it with TMDB, then keeps it in qBittorrent for every device that signs in to it.",
+    "tmdbKeyNeeded": "Search needs a TMDB key. Enter it once, and Kinopeer keeps it in qBittorrent.",
     "prowlarrSetupBody": "Kinopeer finds releases through Prowlarr. Enter its address as this browser reaches it, and its API key. Without Prowlarr everything works but finding releases.",
     "prowlarrAddressHelp": "As this browser reaches it, for example http://192.168.1.10:9696",
     "prowlarrKeyFieldHelp": "Kept in qBittorrent: anyone who can sign in to it can read the key."

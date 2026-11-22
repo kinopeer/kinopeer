@@ -37,7 +37,8 @@ export function TmdbFailedState({ error, onRetry, retryIcon }: TmdbFailedStatePr
         actionLabel={t('tmdbKey.enter')}
         onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
       >
-        {t('search.keyBody')}
+        {/* The WebUI build has no server: qBittorrent keeps the key. */}
+        {t(__WEBUI__ ? 'webui.tmdbKeyNeeded' : 'search.keyBody')}
       </EmptyState>
     )
   }
