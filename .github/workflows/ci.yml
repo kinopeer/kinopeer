@@ -79,11 +79,15 @@ jobs:
   performance:
     # The speed budgets in checks.json (docs/QUALITY.md): the build's size, then what each screen asks
     # the servers for when it opens and each move between screens asks for, each with a table in the
-    # job's summary, and how far each screen moves as it loads on a phone. No screenshots, so a
-    # plain runner with Chromium, as the smoke journeys have.
+    # job's summary, and how far each screen moves as it loads on a phone and on desktop.
     runs-on: ubuntu-latest
-    # Usually a few minutes, but apt alone has taken 550 s on a runner like this one.
-    timeout-minutes: 15
+    # About three minutes.
+    timeout-minutes: 10
+    # Chromium and its system libraries come with the Playwright image visual runs in, pinned by the
+    # same digest, so nothing is fetched from Ubuntu's archive on a run (#502).
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
     env:
       ACTUALS_DIR: actuals-parts
       ACTUALS_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -91,32 +95,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
       - run: npm run build
       # The build's size against budgets.size (docs/QUALITY.md → The size budget).
       - run: npm run size
-      - name: Read the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache Chromium
-        id: chromium
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ steps.playwright.outputs.version }}
-      - name: Install Chromium and its system libraries
-        if: steps.chromium.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Chromium's system libraries
-        if: steps.chromium.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
       # Each screen's requests on opening and each move's between screens, against budgets.requests
       # and budgets.journeys, on the build above (docs/QUALITY.md → The requests budget), and the
-      # layout shift of each screen on a phone (docs/TESTING.md → The layout shift test).
+      # layout shift of each screen on a phone and on desktop (docs/TESTING.md → The layout shift test).
       - run: npm run test:requests
       - name: Record the actual values
         # A tool whose step never ran gets null values.
@@ -142,7 +127,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Baselines in e2e/__screenshots__ are rendered in this image (scripts/playwright-docker.sh); keep its
-    # tag on the @playwright/test version from package.json, pinned by the digest that tag names.
+    # tag on the @playwright/test version from package.json, pinned by the digest that tag names, and the
+    # same image in the performance and smoke jobs.
     container:
       image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
       options: --ipc=host
@@ -173,35 +159,20 @@ jobs:
           retention-days: 14
 
   smoke:
-    # The smoke journeys through the production server (docs/TESTING.md → Smoke journeys): no
-    # screenshots, so a plain runner with Chromium, not the Playwright image.
+    # The smoke journeys through the production server (docs/TESTING.md → Smoke journeys).
     runs-on: ubuntu-latest
-    # Usually a minute, but apt alone has taken 550 s here.
-    timeout-minutes: 15
+    # About a minute.
+    timeout-minutes: 10
+    # Chromium and its system libraries come with the Playwright image visual runs in, pinned by the
+    # same digest, so nothing is fetched from Ubuntu's archive on a run (#502).
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble@sha256:eff16c30e6f3f4af0a03fa4b706120d5e9b0891c344a27d64559aff5900a4a27
+      options: --ipc=host
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
       - run: npm ci
-      - name: Read the Playwright version
-        id: playwright
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-      - name: Cache Chromium
-        id: chromium
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ steps.playwright.outputs.version }}
-      - name: Install Chromium and its system libraries
-        if: steps.chromium.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-      - name: Install Chromium's system libraries
-        if: steps.chromium.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
       - run: npm run test:smoke
       - name: Upload the report with the traces
         if: failure()

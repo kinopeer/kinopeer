@@ -561,7 +561,7 @@ accepts it only with the measurement and why it can't be met otherwise. **Under 
 budget lowered needs nothing. A new budget, for a new screen or a new move, is judged in the deputy's round.
 
 **In CI** it is the step after the size budget's in the `performance` job, on the same build,
-Chromium from the cache as in the `smoke` job; the reporter `e2e/performance/summary.ts` adds the
+in the Playwright image the screenshot tests run in, pinned by the same digest, as the `smoke` job is; the reporter `e2e/performance/summary.ts` adds the
 tables of the counts, the openings' and the moves', to the job's summary, and a failure uploads the Playwright report with its
 traces. The counts and the layout shifts are also recorded as actual values ([The actual values](#the-actual-values)).
 

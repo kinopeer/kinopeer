@@ -898,7 +898,7 @@ Unit tests run in jsdom, which has no layout, so they can't catch a button in th
 - **Parallel worktrees:** each checkout, every git worktree included, gets its own `node_modules` volume, `kinopeer-visual-nm-<folder>-<checksum of its physical path>` (`scripts/playwright-docker.sh`, shared with the README screenshots), so runs in several worktrees at once don't reinstall it under each other. A run installs only when the volume wasn't installed from this `package-lock.json`, in this image, for this architecture (`scripts/install-node-modules.sh`, a stamp in the volume says which), so the first run in a worktree takes a minute longer and later ones skip `npm ci`. Since `npm ci` no longer runs every time, a run that fails inside `node_modules` (a missing module, a binary for another platform) is fixed by removing that checkout's volume and running again. Two runs in the same checkout still share `test-results/` and the baselines, so run one at a time there. Each volume takes about 250 MB, so it's labelled with its checkout's path (`kinopeer.checkout`), and every run removes the labelled volumes whose folder no longer exists, as a worktree's once its session is cleaned up; Docker refuses one a running container uses, and the next run tries again. Volumes without the label are never removed automatically: those made by hand, before the label or before the rename to Kinopeer (`kinoseed-visual-node-modules*`, every `kinoseed-visual-nm-*`, whose `kinoseed.checkout` label the cleanup no longer reads) go once by hand: `docker volume ls -q --filter name=kinoseed-visual | xargs docker volume rm`, and `docker volume rm <name>` for a hand-named one.
 - **Changing the UI:** a PR that changes how a covered screen looks updates its baselines. First run `npm run test:visual` as is: every failed screenshot leaves an expected, an actual and a diff image in `test-results/`, where the diff highlights only the changed pixels. Make sure nothing but the intended change is highlighted, then re-render with `npm run test:visual:update` and commit the PNGs (GitHub shows image diffs in the PR too). A change too small to fail its screenshot (a hover shade a few levels darker) is under the threshold, and the plain update keeps the old PNG: re-render that spec with `npm run test:visual -- --update-snapshots=all e2e/<spec>.spec.ts` and commit only the PNGs of the screens you meant to change. Open every new baseline and check that it shows what its test's name says. The PR lists each PNG with what changed and how it was checked: the diff looked at, re-rendered with `=all`, or new and opened. Each change on a screen is either intended, what the PR sets out to change, or a side effect: a shift, a swap or something gone on a screen or in a state the task didn't touch. A side effect isn't accepted by describing it: one visible to the eye is a question for the coordinator before the merge, in the PR's own **For the coordinator** section, with the before and after images, and the deputy approves the PR once the coordinator has answered it (the `deputy` skill → The round); a change only the diff image shows (a pixel of anti-aliasing) isn't one (#324, where a swap of the header's rows, described in #100's list, stayed for two weeks). Add a spec when a new screen, sheet, dialog or state needs one ([Saying why something is uncovered](#saying-why-something-is-uncovered)), with `test` and `expect` from `./test.ts`.
 - **In CI:** the `visual` job runs in the same image, on two workers (`playwright.config.ts`; locally Playwright picks). When it fails, its `playwright-report` artifact has the expected, actual and diff images.
-- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/playwright-docker.sh` and `.github/workflows/ci.yml` must name the same version, and both pin the image by the digest that tag names (`docker buildx imagetools inspect mcr.microsoft.com/playwright:v<version>-noble`, the `Digest` line); re-render the baselines after an upgrade.
+- **Upgrading Playwright:** `@playwright/test` in `package.json`, the image tag in `scripts/playwright-docker.sh` and in `.github/workflows/ci.yml` (the `visual`, `performance` and `smoke` jobs) must name the same version, and both pin the image by the digest that tag names (`docker buildx imagetools inspect mcr.microsoft.com/playwright:v<version>-noble`, the `Digest` line); re-render the baselines after an upgrade.
 
 ### README screenshots
 
@@ -968,8 +968,12 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
 - **Typechecking:** the journeys and `control.ts` are under `tsconfig.e2e.json` (DOM types, for
   what runs in the page); the stand is a Node program under `tsconfig.smoke.json`, since the
   fakes it imports send `Buffer`s where the DOM's `fetch` types take none.
-- **In CI:** the `smoke` job runs on a plain runner, with Chromium cached by the Playwright
-  version, in about two minutes; when it fails, its `playwright-report-smoke` artifact has the
+- **In CI:** the `smoke` job runs in the Playwright image the screenshot tests run in, pinned by
+  the same digest, so its Chromium and system libraries come with the image and nothing is fetched
+  from Ubuntu's archive (#502). There the production server runs in a container with a network of
+  its own (Docker puts `/.dockerenv` in it and gives it no interface backed by a device or a bridge),
+  so `container()`'s hints are on (`server/container.ts`), while on the host they're off; no journey
+  depends on them. When it fails, its `playwright-report-smoke` artifact has the
   report and the traces (`trace: 'retain-on-failure'`).
 
 ## The requests test
@@ -1006,8 +1010,8 @@ it are in [QUALITY.md](QUALITY.md) → The requests budget.
   fixtures' options more than the app: QUALITY → The requests budget lists them.
 - **Locally** it starts its own `vite preview` on port 4174 and fails when the port is taken,
   rather than count another build's requests; it serves what `dist/` has, so build first.
-- **In CI:** the `performance` job runs them on a plain runner after the size budget, with Chromium
-  cached by the Playwright version; it adds the tables of the counts to the job's summary, and when
+- **In CI:** the `performance` job runs them after the size budget, in the Playwright image the
+  screenshot tests run in, pinned by the same digest; it adds the tables of the counts to the job's summary, and when
   it fails, its `playwright-report-performance` artifact has the report and the traces.
 
 ## The layout shift test
@@ -1094,13 +1098,14 @@ has the budgets' rule.
   against 0.0888 with motion on). Both are set in the test, not taken from the configs it builds
   on: the share of the window that moves is the score, so each size reads its own number.
 - **Exact.** Every case in each order read the same number in every run, to the fourth digit: ten
-  runs in a row locally (macOS) and in CI (Linux). On a phone every reading in CI has 0.0002 more
-  than on a Mac, which varies in its sixth digit (0.000179 or 0.000183): the "Connecting" text,
-  before any answer, moves sideways as the font comes in, in one shift or two. On desktop, read in
-  five runs on a Mac and in CI at #402's head, CI reads up to 0.0002 more (downloads and the
-  torrent's drawer), 0.0001 (the title's and the series' page in one order, `desktop-1280`) or the
-  same (the rest). The budgets come from CI's
-  readings. A reading that varies by more is a race in the test (an answer whose content wasn't
+  runs in a row on a Mac and on the plain runner CI used until #502 (#395), and since #502 CI reads
+  in the Playwright image, whose runs on #533 read the same as each other to the last digit.
+  On a phone the image reads what a Mac reads where #395's table and #533's both have the screen:
+  0 on browse, search, search-year and settings, which the runner read as 0.0002, the "Connecting"
+  text before any answer moving sideways there as the web font came in. Where a screen moves of its
+  own they still part at the fourth digit: Downloads reads 0.0028 on a Mac (#395) and 0.0031 in
+  the image (#533). On desktop a Mac and the image haven't been read side by side; the image reads
+  up to 0.0001 less than the runner did (#533's table). The budgets come from CI's readings. A reading that varies by more is a race in the test (an answer whose content wasn't
   waited for) to find, not noise to budget, but for a jump planted among the titles in Downloads,
   which can read one of two numbers (What it leaves out).
 - **The rules** (the budgets read with their ceiling, the sum, the verdict and its report, the
@@ -1159,7 +1164,7 @@ On desktop each screen has the same chain, with what the desktop layout adds or 
   link become common. The states between the titles' answers in Downloads: the app shows the
   titles that came in a batch every `SHOW_EVERY_MS` (250 ms, `src/torrents/useTitleMatches.ts`), and
   the next title's lookup is asked without waiting for it, so whether two titles show in one frame
-  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0030 in CI) doesn't depend on
+  or in two goes by the clock. Today's reading (0.0028 on a Mac, 0.0031 in CI) doesn't depend on
   it; a jump planted in a row reads one of two numbers by how the batches fall, in the order where
   the first asked lands first (#395's review: a 30px block read 0.0507 or 0.0395 there, and 0.0450
   in the other order, all over the budget), so the jump is still caught, but its number may differ

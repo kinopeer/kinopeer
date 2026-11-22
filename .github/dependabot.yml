@@ -26,8 +26,8 @@ updates:
         patterns: ['*']
         update-types: [major]
     ignore:
-      # Pinned to the Playwright image the screenshot baselines are rendered in (ci.yml's visual job
-      # and scripts/playwright-docker.sh), which Dependabot doesn't update: the three move together,
+      # Pinned to the Playwright image the screenshot baselines are rendered in (ci.yml's visual,
+      # performance and smoke jobs and scripts/playwright-docker.sh), which Dependabot doesn't update: the three move together,
       # by hand, with the baselines re-rendered.
       - dependency-name: '@playwright/test'
       # Its major is the Node the image runs (the Dockerfile's node:24-alpine): a later one would let tsc
