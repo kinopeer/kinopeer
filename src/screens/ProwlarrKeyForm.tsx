@@ -140,7 +140,7 @@ export function ProwlarrKeyForm({
     if (failed === 'env-address') return t('prowlarrKey.envAddress')
     if (failed === 'auth-off') return t('prowlarrKey.authOff')
     if (failed === 'storage') return t('keyForm.storage')
-    if (__WEBUI__ && failed === 'store-full') return t('webui.keyStoreFull')
+    if (__WEBUI__ && failed === 'store-full') return t('webui.prowlarrStoreFull')
     if (failed === 'forget-failed') return t('prowlarrKey.forgetFailed')
     // Else that it failed, which trying again may change.
     return named ? t('prowlarrKey.saveFailed', { context: checked ? 'address' : undefined }) : t('keyForm.failed')

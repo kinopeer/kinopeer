@@ -344,7 +344,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
 
   /**
    * Changes download defaults in the WebUI build, and says so when qBittorrent had no room to keep
-   * them for every device, so they apply in this browser alone. The server build calls `update`.
+   * them for every device, so they apply in this browser until the page is reloaded, when the value
+   * qBittorrent keeps, if any, comes back. The server build calls `update`.
    */
   const updateShared = (changes: Partial<Settings>) =>
     void updateAndShareSettings(changes).then((outcome) => {

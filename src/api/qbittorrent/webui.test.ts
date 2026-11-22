@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
-import { QbittorrentError } from './errors'
-import { UnauthorizedError } from './errors'
-import { LOGIN_TIMEOUT_MS, isStoreFull, loadClientData, logIn, storeClientData } from './webui'
+import { QbittorrentError, UnauthorizedError } from './errors'
+import { CLIENT_DATA_TIMEOUT_MS, LOGIN_TIMEOUT_MS, isStoreFull, loadClientData, logIn, storeClientData } from './webui'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -89,7 +88,7 @@ describe('logIn', () => {
 // answers 204, merges it key by key and removes a key sent as null; past 1 MiB for the whole store it
 // answers 409 and keeps none of it.
 describe('clientdata', () => {
-  it("asks qBittorrent for Kinopeer's keys alone, as a JSON array in the query", async () => {
+  it("asks qBittorrent for Kinopeer's keys alone, as a JSON array in the query, and stops when the caller does", async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ 'kinopeer.a': 1 }))
     await expect(loadClientData(['kinopeer.a', 'kinopeer.b'])).resolves.toEqual({ 'kinopeer.a': 1 })
     const [url, init] = fetchMock.mock.calls[0]
@@ -97,6 +96,14 @@ describe('clientdata', () => {
     expect(asked.pathname).toBe('/api/v2/clientdata/load')
     expect(JSON.parse(asked.searchParams.get('keys')!)).toEqual(['kinopeer.a', 'kinopeer.b'])
     expect(init).toMatchObject({ method: 'GET', credentials: 'same-origin' })
+
+    // The caller's abort reaches the request.
+    fetchMock.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason))))
+    const caller = new AbortController()
+    const load = loadClientData(['kinopeer.a'], caller.signal)
+    caller.abort()
+    await expect(load).rejects.toThrow()
+    expect(fetchMock.mock.calls[1][1]!.signal!.aborted).toBe(true)
   })
 
   it.each([['an array', [1]], ['null', null], ['a string', 'x']])('reads an answer that is %s as nothing kept', async (_, answer) => {
@@ -113,19 +120,32 @@ describe('clientdata', () => {
     expect(JSON.parse(new URLSearchParams(String(init!.body)).get('data')!)).toEqual({ 'kinopeer.a': 'x', 'kinopeer.b': null })
   })
 
-  it("tells qBittorrent's 409 for a store with no room from its other refusals", async () => {
-    fetchMock.mockResolvedValueOnce(new Response('Total web client data must not be larger than 1048576 bytes', { status: 409 }))
-    const full = await storeClientData({ 'kinopeer.a': 'x' }).catch((caught: unknown) => caught)
-    expect(isStoreFull(full)).toBe(true)
+  it.each([
+    ['a store with no room', 409, 'Total web client data must not be larger than 1048576 bytes', QbittorrentError, true],
+    ['data that is no object', 400, '`data` must be an object', QbittorrentError, false],
+    ['a session that ended', 403, 'Forbidden', UnauthorizedError, false],
+  ])("tells qBittorrent's refusal of %s apart", async (_name, status, text, kind, full) => {
+    fetchMock.mockResolvedValueOnce(new Response(text, { status }))
+    const error = await storeClientData({ 'kinopeer.a': 'x' }).catch((caught: unknown) => caught)
+    expect(error).toBeInstanceOf(kind)
+    expect(isStoreFull(error)).toBe(full)
+  })
 
-    fetchMock.mockResolvedValueOnce(new Response('`data` must be an object', { status: 400 }))
-    const refused = await storeClientData({ 'kinopeer.a': 'x' }).catch((caught: unknown) => caught)
-    expect(refused).toBeInstanceOf(QbittorrentError)
-    expect(isStoreFull(refused)).toBe(false)
-
-    fetchMock.mockResolvedValueOnce(new Response('Forbidden', { status: 403 }))
-    const signedOut = await storeClientData({ 'kinopeer.a': 'x' }).catch((caught: unknown) => caught)
-    expect(signedOut).toBeInstanceOf(UnauthorizedError)
-    expect(isStoreFull(signedOut)).toBe(false)
+  it.each([
+    ['a load', () => loadClientData(['kinopeer.a'])],
+    ['a store', () => storeClientData({ 'kinopeer.a': 'x' })],
+  ])('gives up %s qBittorrent doesn\'t answer in its time limit', async (_name, call) => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementation((_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason))))
+      let settled = false
+      const request = call().catch((caught: unknown) => caught).finally(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(CLIENT_DATA_TIMEOUT_MS - 1)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await request).toMatchObject({ name: 'AbortError' })
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

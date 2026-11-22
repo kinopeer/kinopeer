@@ -568,6 +568,10 @@ describe('ProwlarrKeyForm: a request that settles after the form is gone (#500)'
 })
 
 describe('ProwlarrKeyForm in the WebUI build', () => {
+  const STORE_FULL =
+    'Prowlarr’s address and key weren’t saved. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+  const FAILED = 'Couldn’t save the key. Try again.'
+
   beforeEach(() => vi.stubGlobal('__WEBUI__', true))
 
   it("asks for the address as the browser reaches it, says who can read the key, and has no Find, which needs Kinopeer's server", () => {
@@ -582,8 +586,8 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
-    expect(await screen.findByRole('alert', { name: saying('The key wasn’t saved. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.') })).toBeInTheDocument()
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(await screen.findByRole('alert', { name: saying(STORE_FULL) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
 
   it('says any other failure as the server build does', async () => {
@@ -591,8 +595,8 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
     const { field, save } = renderForm()
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).toBeInTheDocument()
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(await screen.findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    expect(screen.queryByRole('alert', { name: saying(STORE_FULL) })).not.toBeInTheDocument()
   })
 
   it("says so in a toast when the form is gone by the time qBittorrent refuses", async () => {
@@ -602,7 +606,7 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
     await saveKey()
     await toggle()
     await act(async () => saving.reject(new serverSettings.SettingsError(409, 'store-full')))
-    expect(await findToastOnPage('The key wasn’t saved. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.')).toBeInTheDocument()
+    expect(await findToastOnPage(STORE_FULL)).toBeInTheDocument()
     expect(onSaved).not.toHaveBeenCalled()
   })
 })

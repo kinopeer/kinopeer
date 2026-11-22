@@ -42,10 +42,19 @@ export async function logIn(username: string, password: string): Promise<LogInRe
  */
 export type ClientData = Record<string, unknown>
 
+/**
+ * How long a `clientdata` call waits for qBittorrent's answer, its body included, before it gives up,
+ * so a qBittorrent that took the connection and stopped answering doesn't keep a form busy, as with
+ * `LOGIN_TIMEOUT_MS`.
+ */
+export const CLIENT_DATA_TIMEOUT_MS = 15_000
+
 /** The values of `keys` that qBittorrent keeps; a key it doesn't keep isn't in the answer. */
-export async function loadClientData(keys: readonly string[], signal?: AbortSignal): Promise<ClientData> {
-  const response = await webuiTransport(`/clientdata/load?${new URLSearchParams({ keys: JSON.stringify(keys) })}`, { method: 'GET', signal })
-  const data: unknown = await response.json()
+export async function loadClientData(keys: readonly string[], signal = new AbortController().signal): Promise<ClientData> {
+  const data: unknown = await withTimeout(CLIENT_DATA_TIMEOUT_MS, signal, async (attempt) => {
+    const response = await webuiTransport(`/clientdata/load?${new URLSearchParams({ keys: JSON.stringify(keys) })}`, { method: 'GET', signal: attempt })
+    return response.json()
+  })
   return typeof data === 'object' && data !== null && !Array.isArray(data) ? (data as ClientData) : {}
 }
 
@@ -56,7 +65,9 @@ export async function loadClientData(keys: readonly string[], signal?: AbortSign
  * 1 MiB (`isStoreFull`), and keeps nothing of it.
  */
 export async function storeClientData(data: ClientData): Promise<void> {
-  await webuiTransport('/clientdata/store', { method: 'POST', body: new URLSearchParams({ data: JSON.stringify(data) }) })
+  await withTimeout(CLIENT_DATA_TIMEOUT_MS, new AbortController().signal, (signal) =>
+    webuiTransport('/clientdata/store', { method: 'POST', body: new URLSearchParams({ data: JSON.stringify(data) }), signal }),
+  )
 }
 
 /** qBittorrent refused a `storeClientData` because its store would be over 1 MiB. */

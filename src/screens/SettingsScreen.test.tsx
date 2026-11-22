@@ -1659,6 +1659,9 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(within(sheet).getByLabelText('Prowlarr address')).toHaveValue('http://192.168.1.20:9696')
   })
 
+  const DEFAULTS_STORE_FULL =
+    'Changed in this browser only, until the page is reloaded. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.'
+
   it("says a download default stays in this browser when qBittorrent's store has no room for it", async () => {
     vi.stubGlobal('__WEBUI__', true)
     renderScreen()
@@ -1666,14 +1669,22 @@ describe('SettingsScreen in the WebUI build', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Sequential download' }))
     await waitFor(() => expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledTimes(1))
     await act(async () => {})
-    expect(screen.queryByRole('status', { name: saying(/^Saved in this browser only/) })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status', { name: saying(DEFAULTS_STORE_FULL) })).not.toBeInTheDocument()
+
     vi.mocked(serverSettings.saveDownloadDefaults).mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
-    expect(
-      await findToastOnPage(
-        'Saved in this browser only. qBittorrent’s store for web interfaces is full: it holds 1 MiB for all of them. Another interface used with this qBittorrent may have filled it.',
-      ),
-    ).toBeInTheDocument()
+    expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
     expect(getSettings().startPaused).toBe(true)
+  })
+
+  it("says so for a category too, which goes through the same save", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(serverSettings.saveDownloadDefaults).mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    renderScreen()
+    const movies = screen.getByRole('combobox', { name: 'Movies category' })
+    await within(movies).findByRole('option', { name: 'Anime' })
+    await userEvent.selectOptions(movies, 'Anime')
+    expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
+    expect(getSettings().movieCategory).toBe('Anime')
   })
 })

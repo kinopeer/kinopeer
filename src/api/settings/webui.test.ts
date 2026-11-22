@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { sharedRequests } from '../../logic/sharedRequests'
 import { SERVER_SETTINGS_KEY, forgetTmdbKey, getServerSettings, saveDownloadDefaults, saveProwlarrKey, saveTmdbKey } from './client'
+import { UnauthorizedError } from '../qbittorrent/errors'
 import { SettingsError } from './errors'
 import type { ServerSettings } from './types'
 import {
@@ -76,12 +77,15 @@ describe('readSettings', () => {
       readSettings({
         'kinopeer.tmdbKey': '',
         'kinopeer.prowlarr': { url: 'http://192.168.1.20:9696' },
-        'kinopeer.downloads.movieCategory': 7,
+        'kinopeer.downloads.tvCategory': null,
+        'kinopeer.downloads.movieCategory': true,
         'kinopeer.downloads.startPaused': 'yes',
         'other.interface': { theme: 'dark' },
       }),
     ).toEqual({ tmdbKey: null, prowlarr: null, downloads: {} })
     expect(readSettings({ 'kinopeer.prowlarr': null })).toEqual({ tmdbKey: null, prowlarr: null, downloads: {} })
+    // A key without the address it belongs to.
+    expect(readSettings({ 'kinopeer.prowlarr': { apiKey: 'prowlarr-key' } })).toEqual({ tmdbKey: null, prowlarr: null, downloads: {} })
   })
 })
 
@@ -103,6 +107,8 @@ describe('asServerSettings', () => {
     expect(settings.prowlarr).toEqual({ configured: true, source: 'saved', address: { source: 'saved', url: 'http://192.168.1.20:9696' }, serverKey: false })
     expect(JSON.stringify(settings)).not.toContain('secret')
     expect(settings.downloads).toEqual({ sequential: true })
+    // The page's own qBittorrent, with no login or address of the app's to keep.
+    expect(settings.qbittorrent).toEqual({ configured: true, source: null, address: { source: null } })
     expect(settings).not.toHaveProperty('auth')
     expect(settings).not.toHaveProperty('telegram')
     expect(asServerSettings(none, true).prowlarr).toEqual({ configured: false, source: null, address: { source: null }, serverKey: false })
@@ -121,14 +127,24 @@ describe('prowlarrAddress', () => {
   it('takes an http or https address, its path kept for a reverse proxy, without trailing slashes', () => {
     expect(prowlarrAddress(' http://192.168.1.20:9696/ ')).toBe('http://192.168.1.20:9696')
     expect(prowlarrAddress('https://nas.local/prowlarr//')).toBe('https://nas.local/prowlarr')
+    // As long as the server takes one (server/address.ts), and no longer (below).
+    const longest = `http://nas.local/${'x'.repeat(2048 - 'http://nas.local/'.length)}`
+    expect(prowlarrAddress(longest)).toBe(longest)
   })
 
-  it.each(['192.168.1.20:9696', 'ftp://nas.local', 'http://user:pass@nas.local', 'http://user@nas.local', 'http://:pass@nas.local', 'http://nas.local/?apikey=1', 'http://nas.local/#x', ''])(
+  it.each(['192.168.1.20:9696', 'ftp://nas.local', 'http://user:pass@nas.local', 'http://user@nas.local', 'http://:pass@nas.local', 'http://nas.local/?apikey=1', 'http://nas.local/#x', '', `http://nas.local/${'x'.repeat(2048 - 'http://nas.local/'.length + 1)}`])(
     'refuses %j',
     (value) => {
       expect(prowlarrAddress(value)).toBeUndefined()
     },
   )
+})
+
+describe('SettingsError', () => {
+  it('names its code in its message, else its status', () => {
+    expect(new SettingsError(409, 'store-full').message).toBe('Settings request failed (store-full)')
+    expect(new SettingsError(502).message).toBe('Settings request failed (502)')
+  })
 })
 
 describe('the settings in qBittorrent', () => {
@@ -169,10 +185,18 @@ describe('the settings in qBittorrent', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
-  it('asks qBittorrent after a save when the page has no settings from it yet', async () => {
+  it('asks qBittorrent what it keeps before a save when the page has nothing from it yet, and stores nothing when that fails', async () => {
     kept['kinopeer.downloads.sequential'] = true
     await expect(saveWebuiTmdbKey('own-key')).resolves.toMatchObject({ tmdb: { source: 'saved' }, downloads: { sequential: true } })
+    expect(fetchMock.mock.calls.map(([url]) => new URL(String(url), 'http://192.168.1.20:8080/').pathname)).toEqual(['/api/v2/clientdata/load', '/api/v2/clientdata/store'])
     expect(sharedRequests.peek(WEBUI_SETTINGS_KEY, Infinity)?.data).toEqual({ 'kinopeer.tmdbKey': 'own-key', 'kinopeer.downloads.sequential': true })
+
+    // A save that would succeed isn't failed by a read after it: the read comes first, and fails it before anything is stored.
+    sharedRequests.clear()
+    fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    await expect(saveWebuiTmdbKey('other-key')).rejects.toBeInstanceOf(TypeError)
+    expect(stored()).toHaveLength(1)
+    expect(kept['kinopeer.tmdbKey']).toBe('own-key')
   })
 
   it("forgets the user's TMDB key for Kinopeer's where the proxy answers the page, and refuses elsewhere", async () => {
@@ -222,7 +246,8 @@ describe('the settings in qBittorrent', () => {
   })
 
   it("passes on qBittorrent's other refusals as they are", async () => {
+    await getServerSettings()
     fetchMock.mockResolvedValueOnce(new Response('Forbidden', { status: 403 }))
-    await expect(saveWebuiDownloadDefaults({ sequential: true })).rejects.not.toBeInstanceOf(SettingsError)
+    await expect(saveWebuiDownloadDefaults({ sequential: true })).rejects.toBeInstanceOf(UnauthorizedError)
   })
 })

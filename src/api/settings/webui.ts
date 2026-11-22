@@ -58,25 +58,35 @@ export const WEBUI_SETTINGS_FRESH_MS = 60_000
  */
 const AUTOMATIC = ''
 
+/**
+ * What each download default is in the store: a category's name, or a switch. A Record, so a default
+ * added to `DownloadDefaults` fails typecheck until it's read too.
+ */
+const DEFAULT_KINDS = {
+  movieCategory: 'category',
+  tvCategory: 'category',
+  startPaused: 'switch',
+  sequential: 'switch',
+  firstLastPieces: 'switch',
+  notify: 'switch',
+} as const satisfies Record<keyof DownloadDefaults, 'category' | 'switch'>
+
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value !== ''
 
 /** Kinopeer's settings in `data`, the store's answer; what isn't the shape it writes is left out. */
 export function readSettings(data: ClientData): WebuiSettings {
-  const downloads: Partial<DownloadDefaults> = {}
-  for (const key of ['movieCategory', 'tvCategory'] as const) {
-    const value = data[SETTING_KEYS[key]]
-    if (typeof value === 'string') downloads[key] = value === AUTOMATIC ? null : value
-  }
-  for (const key of ['startPaused', 'sequential', 'firstLastPieces', 'notify'] as const) {
-    const value = data[SETTING_KEYS[key]]
-    if (typeof value === 'boolean') downloads[key] = value
+  const downloads: Record<string, string | boolean | null> = {}
+  for (const [key, kind] of Object.entries(DEFAULT_KINDS)) {
+    const value = data[SETTING_KEYS[key as keyof DownloadDefaults]]
+    if (kind === 'category' && typeof value === 'string') downloads[key] = value === AUTOMATIC ? null : value
+    if (kind === 'switch' && typeof value === 'boolean') downloads[key] = value
   }
   const prowlarr = data[SETTING_KEYS.prowlarr] as Partial<StoredProwlarr> | null | undefined
   const tmdbKey = data[SETTING_KEYS.tmdbKey]
   return {
     tmdbKey: nonEmpty(tmdbKey) ? tmdbKey : null,
     prowlarr: nonEmpty(prowlarr?.url) && nonEmpty(prowlarr.apiKey) ? { url: prowlarr.url, apiKey: prowlarr.apiKey } : null,
-    downloads,
+    downloads: downloads as Partial<DownloadDefaults>,
   }
 }
 
@@ -120,8 +130,8 @@ async function loadStored(signal: AbortSignal): Promise<ClientData> {
 
 /**
  * Kinopeer's settings as qBittorrent keeps them, shared with the page's other callers while
- * `WEBUI_SETTINGS_FRESH_MS` fresh; `renew` asks qBittorrent anew. TMDB's and Prowlarr's clients
- * read the keys they call with here.
+ * `WEBUI_SETTINGS_FRESH_MS` fresh; `renew` asks qBittorrent anew. Where TMDB's and Prowlarr's
+ * clients will read the keys they call with once this build calls them itself (#559, #560).
  */
 export async function getWebuiSettings(signal?: AbortSignal, renew = false): Promise<WebuiSettings> {
   return readSettings(await sharedRequests.get(WEBUI_SETTINGS_KEY, loadStored, { freshFor: WEBUI_SETTINGS_FRESH_MS, signal, renew }))
@@ -133,20 +143,20 @@ export async function loadWebuiServerSettings(signal?: AbortSignal): Promise<Ser
 }
 
 /**
- * Stores `changes` (a null removes its key) and answers the settings with them. The page's answer
- * from the store takes them in, so callers don't read what was there before; without one, the store
- * is asked. Throws `SettingsError` with `store-full` when qBittorrent's store has no room for them,
- * and the transport's errors when qBittorrent doesn't take them.
+ * Stores `changes` (a null removes its key) and answers the settings with them. What qBittorrent
+ * keeps besides is read first, the page's answer while it's fresh, so once qBittorrent has taken the
+ * change nothing more can fail the save; the page's answer then takes the change in, so callers
+ * don't read what was there before. Throws `SettingsError` with `store-full` when qBittorrent's
+ * store has no room for them, and the transport's errors when qBittorrent doesn't answer or take them.
  */
 async function store(changes: ClientData): Promise<ServerSettings> {
+  const kept = await sharedRequests.get(WEBUI_SETTINGS_KEY, loadStored, { freshFor: WEBUI_SETTINGS_FRESH_MS })
   try {
     await storeClientData(changes)
   } catch (error) {
     if (isStoreFull(error)) throw new SettingsError(409, 'store-full')
     throw error
   }
-  const kept = sharedRequests.peek<ClientData>(WEBUI_SETTINGS_KEY, Infinity)?.data
-  if (!kept) return loadWebuiServerSettings()
   const merged: ClientData = { ...kept, ...changes }
   for (const key of Object.keys(changes)) if (changes[key] === null) delete merged[key]
   sharedRequests.set(WEBUI_SETTINGS_KEY, merged)
@@ -168,13 +178,18 @@ export function forgetWebuiTmdbKey(): Promise<ServerSettings> {
   return store({ [SETTING_KEYS.tmdbKey]: null })
 }
 
+/** Longer than any service address, as the server's limit (`MAX_ADDRESS_LENGTH` in server/address.ts). */
+const MAX_ADDRESS_LENGTH = 2048
+
 /**
  * The address the browser will call Prowlarr at, or undefined when it isn't one: http or https,
  * with no login (the key has its own field), query or fragment, a path kept for a reverse proxy, and
- * no trailing slash. The server's rule for a Prowlarr address from the app (`parseAddress` in
- * server/address.ts), which the image can't share, since it ships server/ alone.
+ * no trailing slash, and no longer than `MAX_ADDRESS_LENGTH`. The server's rule for a Prowlarr
+ * address from the app (`parseAddress` in server/address.ts), which the image can't share, since it
+ * ships server/ alone.
  */
 export function prowlarrAddress(value: string): string | undefined {
+  if (value.length > MAX_ADDRESS_LENGTH) return undefined
   let url: URL
   try {
     // The URL parser drops spaces around it itself.

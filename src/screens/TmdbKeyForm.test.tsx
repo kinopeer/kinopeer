@@ -197,6 +197,6 @@ describe('TmdbKeyForm in the WebUI build', () => {
     await userEvent.type(field, 'abc123')
     await userEvent.click(save)
     expect(screen.getByRole('alert', { name: saying('Couldn’t save the key. Try again.') })).toBeInTheDocument()
-    expect(screen.getAllByRole('alert')).toHaveLength(1)
+    expect(screen.queryByRole('alert', { name: saying(/store for web interfaces is full/) })).not.toBeInTheDocument()
   })
 })
