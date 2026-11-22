@@ -536,7 +536,6 @@
     "submit": "Move",
     "note": "qBittorrent moves the files in the background, and the torrent carries on from the new folder. It keeps its category, but the category no longer decides its folder.",
     "moved": "Moving files to {{location}}",
-    "noAccess": "qBittorrent has no access to that folder.",
     "cantCreate": "qBittorrent couldn’t create that folder."
   },
   "folders": {

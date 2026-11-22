@@ -406,17 +406,11 @@ export async function deleteTorrents(hashes: string[], deleteFiles: boolean): Pr
 
 /**
  * Moves torrents' files to `location`, creating it if needed. qBittorrent answers 409 when it can't
- * create the folder and 403 when it can't write there, but 403 is also its answer without a
- * session: the version check, which needs only a session, tells the two apart.
+ * create the folder; from 4.5.2 it takes an existing folder it can't write to (the torrent fails
+ * later), so a 403 is only a lost session, as for every other call.
  */
 export async function setTorrentLocation(hashes: string[], location: string): Promise<void> {
-  try {
-    await request('/torrents/setLocation', { method: 'POST', params: { hashes: hashes.join('|'), location } })
-  } catch (error) {
-    if (!(error instanceof UnauthorizedError)) throw error
-    await getAppVersion()
-    throw new QbittorrentError('qBittorrent cannot write to that folder', 403)
-  }
+  await request('/torrents/setLocation', { method: 'POST', params: { hashes: hashes.join('|'), location } })
 }
 
 /**
