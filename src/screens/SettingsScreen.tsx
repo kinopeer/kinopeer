@@ -304,6 +304,10 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
     telegramCheckNow.current = telegramCheck
   })
 
+  /** A check's service didn't answer, or Kinopeer's server didn't answer for it, as the qBittorrent card says (#566). */
+  const noAnswer = (error: unknown, service: 'prowlarr' | 'tmdb' | 'telegram') =>
+    unreachableText(unreachable(error)) ? t('noAnswer.qbittorrent_kinopeer') : t(`noAnswer.${service}`)
+
   /** The Telegram card: a failed check first, then what the settings say of the chat. */
   const telegramStatus = (): ConnectionStatus => {
     if (!telegram?.bot) return { state: 'off', message: t('telegram.notSetUp') }
@@ -316,7 +320,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
             ? { message: t('telegram.chatRefused', { chat: telegram.chat.name }), warn: true }
             : { message: t('telegram.sendsTo', { chat: telegram.chat.name, bot: telegram.bot }) },
       (error) =>
-        error instanceof SettingsError && error.code === 'token-rejected' ? t('telegram.tokenRejected') : t('noAnswer.telegram'),
+        error instanceof SettingsError && error.code === 'token-rejected' ? t('telegram.tokenRejected') : noAnswer(error, 'telegram'),
     )
   }
 
@@ -406,7 +410,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               ({ indexers }) =>
                 indexers === 0 ? { message: t('settings.connectedNoIndexers'), warn: true } : { message: t('settings.connected') },
               (error) =>
-                error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : (failureText(t, 'prowlarr', failureOf(error)) ?? t('noAnswer.prowlarr')),
+                error instanceof ProwlarrSetupError ? t('settings.prowlarrSetup') : (failureText(t, 'prowlarr', failureOf(error)) ?? noAnswer(error, 'prowlarr')),
             )}
             onTest={prowlarr.retry}
             editLabel={t('prowlarrKey.change', { context: prowlarrFromApp ? 'address' : undefined })}
@@ -419,7 +423,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               tmdb,
               // Kinopeer's own key, behind its proxy: said, so the user knows a key of their own is optional.
               () => ({ message: sharedTmdbKey ? t('settings.connectedSharedKey') : t('settings.connected') }),
-              (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : t('noAnswer.tmdb')),
+              (error) => (error instanceof TmdbKeyError ? t('settings.tmdbKey') : noAnswer(error, 'tmdb')),
             )}
             onTest={tmdb.retry}
             editLabel={sharedTmdbKey ? t('tmdbKey.useOwn') : t('tmdbKey.change')}

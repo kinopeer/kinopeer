@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { ProwlarrError, ProwlarrSetupError, fetchRelease, getFailingIndexers, searchReleases } from './client'
 import type { Release } from './types'
+import { KinopeerUnreachableError } from '../qbittorrent/client'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -12,11 +13,22 @@ beforeEach(() => {
 })
 
 describe('searchReleases', () => {
-  it('treats an answer without JSON as a setup problem', async () => {
-    // The SPA fallback answering instead of the bridge.
+  it('takes an answer without the bridge’s code for Kinopeer’s server not answering (#566)', async () => {
+    // Something in front of the server answering for it, or the SPA fallback of a server without the bridge.
     fetchMock.mockResolvedValueOnce(new Response('<!doctype html>', { headers: { 'Content-Type': 'text/html' } }))
-    await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
+    await expect(searchReleases('a')).rejects.toBeInstanceOf(KinopeerUnreachableError)
     expect(fetchMock.mock.calls[0][1]).toMatchObject({ credentials: 'same-origin', redirect: 'manual' })
+    fetchMock.mockResolvedValueOnce(new Response('Bad Gateway', { status: 502 }))
+    await expect(searchReleases('a')).rejects.toMatchObject({ name: 'KinopeerUnreachableError', status: 502 })
+    fetchMock.mockResolvedValueOnce(Response.json({}, { status: 502 }))
+    await expect(searchReleases('a')).rejects.toBeInstanceOf(KinopeerUnreachableError)
+  })
+
+  it('takes the bridge’s setup codes for a setup problem', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'not-configured' }, { status: 503 }))
+    await expect(searchReleases('a')).rejects.toMatchObject({ name: 'ProwlarrSetupError', code: 'not-configured' })
+    fetchMock.mockResolvedValueOnce(Response.json({ error: 'unauthorized' }, { status: 502 }))
+    await expect(searchReleases('a')).rejects.toBeInstanceOf(ProwlarrSetupError)
   })
 })
 

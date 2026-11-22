@@ -230,11 +230,22 @@ describe('SettingsScreen', () => {
   })
 
   it('says when Prowlarr or TMDB doesn’t answer its check', async () => {
-    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new TypeError('Failed to fetch'))
-    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbError('TMDB responded 502', 502))
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Prowlarr isn’t answering') })).toBeInTheDocument()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('TMDB isn’t answering') })).toBeInTheDocument()
+  })
+
+  it.each([
+    ['nothing answered for it', () => new TypeError('Failed to fetch')],
+    ['something in front of it answered', () => new qbt.KinopeerUnreachableError(502)],
+  ])('says it’s Kinopeer that doesn’t answer the Prowlarr and TMDB checks when %s (#566)', async (_name, error) => {
+    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(error())
+    vi.mocked(tmdb.checkTmdb).mockRejectedValue(error())
+    renderScreen()
+    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('says why qBittorrent or Prowlarr didn’t answer its check, where the server could tell (#508)', async () => {
@@ -1171,6 +1182,7 @@ describe('SettingsScreen: Telegram', () => {
   it.each([
     ['the token Telegram no longer knows', CONNECTED, new serverSettings.SettingsError(422, 'token-rejected'), 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'],
     ['that Telegram doesn’t answer', CONNECTED, new serverSettings.SettingsError(502, 'unreachable'), 'Telegram isn’t answering'],
+    ['Kinopeer when nothing answered for it (#566)', CONNECTED, new TypeError('Failed to fetch'), 'Kinopeer isn’t answering'],
   ])('names %s', async (_name, telegram, error, message) => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
     vi.mocked(serverSettings.checkTelegram).mockRejectedValue(error)

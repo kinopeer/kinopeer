@@ -36,9 +36,7 @@ describe('useReleases', () => {
   it.each([
     ['not-configured', 'setup'],
     ['unauthorized', 'rejected'],
-    // An answer without the server's code, a proxy's error page say: nothing to set up.
-    [undefined, 'error'],
-  ] as const)('tells Prowlarr not set up from a rejected key, and from neither: %s', async (code, status) => {
+  ] as const)('tells Prowlarr not set up from a rejected key: %s', async (code, status) => {
     vi.mocked(prowlarr.searchReleases).mockRejectedValue(new prowlarr.ProwlarrSetupError(code === 'unauthorized' ? 502 : 503, code))
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe(status))
@@ -49,6 +47,17 @@ describe('useReleases', () => {
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe('error'))
     expect(result.current.failure).toBe('refused')
+  })
+
+  it.each([
+    ['Kinopeer’s server, something in front of it answering', () => new qbt.KinopeerUnreachableError(502), 'kinopeer'],
+    ['Kinopeer’s server, nothing answering', () => new TypeError('Failed to fetch'), 'unreached'],
+    ['Prowlarr, behind the bridge', () => new prowlarr.ProwlarrError('down', 502, 'unreachable'), 'qbittorrent'],
+  ] as const)('says who didn’t answer the search: %s (#566)', async (_name, error, who) => {
+    vi.mocked(prowlarr.searchReleases).mockRejectedValue(error())
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('error'))
+    expect(result.current.unreachable).toBe(who)
   })
 
   it("starts another title's search without the last one's picks", async () => {

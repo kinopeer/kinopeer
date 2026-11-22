@@ -217,6 +217,15 @@ describe('ReleasesBody', () => {
     expect(search.retry).toHaveBeenCalledOnce()
   })
 
+  it('says when Kinopeer’s server didn’t answer the search, not Prowlarr (#566)', async () => {
+    const search = releases({ status: 'error', unreachable: 'kinopeer', rows: [], visible: [] })
+    renderBody(search)
+    expect(screen.getByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
+    expect(screen.getByText('Check that this device is online and Kinopeer is running on your server.')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(search.retry).toHaveBeenCalledOnce()
+  })
+
   it('says why Prowlarr can’t be reached, where the server could tell (#508)', () => {
     renderBody(releases({ status: 'error', failure: 'timeout', rows: [], visible: [] }))
     expect(screen.getByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()

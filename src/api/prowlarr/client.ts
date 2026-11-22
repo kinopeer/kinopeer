@@ -1,6 +1,7 @@
 import { MAX_FAILING_WITHIN_MS, type FailingIndexers, type MagnetResponse, type ProwlarrErrorBody, type ProwlarrStatus, type Release, type SearchType } from './types'
 import { knownFailure, type ConnectionFailure } from '../connectionFailure'
 import { fetchKinopeer } from '../fetchKinopeer'
+import { KinopeerUnreachableError } from '../qbittorrent/client'
 
 /** Same-origin prefix served by Kinopeer's Prowlarr bridge (server/prowlarr.ts). */
 export const PROWLARR_BASE = '/prowlarr'
@@ -22,20 +23,22 @@ export class ProwlarrError extends Error {
 
 /** The server has no address or key for Prowlarr (`not-configured`), or Prowlarr rejected its key (`unauthorized`). */
 export class ProwlarrSetupError extends ProwlarrError {
-  constructor(status: number, code?: ProwlarrErrorBody['error']) {
+  constructor(status: number, code: 'not-configured' | 'unauthorized') {
     super('Prowlarr is not configured or rejected the API key', status, code)
     this.name = 'ProwlarrSetupError'
   }
 }
 
-async function errorFor(response: Response): Promise<ProwlarrError> {
+async function errorFor(response: Response): Promise<ProwlarrError | KinopeerUnreachableError> {
   let body: Partial<ProwlarrErrorBody> = {}
   if (response.headers.get('content-type')?.includes('application/json')) {
     body = (await response.json().catch(() => ({}))) as Partial<ProwlarrErrorBody>
   }
   const code = body.error
-  // No JSON at all: the server has no /prowlarr route (e.g. an old build), so treat it as setup.
-  if (code === 'not-configured' || code === 'unauthorized' || !code) return new ProwlarrSetupError(response.status, code)
+  // The bridge answers every failure with its code: without one, something in front of the server
+  // answered for it (a proxy's error page), or a server without the bridge did (#566).
+  if (!code) return new KinopeerUnreachableError(response.status)
+  if (code === 'not-configured' || code === 'unauthorized') return new ProwlarrSetupError(response.status, code)
   return new ProwlarrError(`Prowlarr request failed (${code})`, response.status, code, knownFailure(body.failure))
 }
 
