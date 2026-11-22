@@ -1,6 +1,8 @@
+import { spawnSync } from 'node:child_process'
 import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { findSubstitutions, main, substitutionsIn } from './substitutions.ts'
 
@@ -86,5 +88,23 @@ describe('main', () => {
     const { passed, report } = main(at('missing'))
     expect(passed).toBe(false)
     expect(report).toMatch(`Can't check the WebUI build in ${at('missing')}: ENOENT`)
+  })
+})
+
+// What `npm run build:webui` runs: the exit code fails the build.
+describe('the script', () => {
+  const script = fileURLToPath(new URL('./substitutions.ts', import.meta.url))
+  const run = (...args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd: root, encoding: 'utf8' })
+
+  it('prints the report and fails on a string qBittorrent would replace', async () => {
+    await write({ 'build/index.js': 'x=${LANG}' })
+    const { status, stdout } = run('build')
+    expect([status, stdout]).toEqual([1, 'qBittorrent would replace these strings in the WebUI build in build:\n- index.js:1: ${LANG}\n'])
+  })
+
+  it('checks dist-webui when it’s named no folder, and passes a clean one', async () => {
+    await write({ 'dist-webui/public/index.html': '<html lang="en">' })
+    const { status, stdout } = run()
+    expect([status, stdout]).toEqual([0, 'The WebUI build in dist-webui has nothing qBittorrent would replace.\n'])
   })
 })
