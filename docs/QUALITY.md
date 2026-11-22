@@ -264,8 +264,8 @@ the report.
 The lists of the tests that ran come from a job of their own, `tests`, which the `guard` job waits
 for. It installs and runs both sides, the commit the branch left `main` at and the branch's head:
 the Vitest tests with the JSON reporter, since only a run has a table's every row as a test and
-knows a skipped one, and Playwright's `--list` for the screenshot tests, the smoke journeys and
-the requests test (on a side that has its config), which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
+knows a skipped one, and Playwright's `--list` for the screenshot tests, the smoke journeys,
+the WebUI's smoke journeys and the requests test (on a side that has its config), which needs no browser. A failing test is still a test that ran; CI's own jobs fail for it. The
 branch's code runs in that job, so its token can only read. What that code can still write is the
 job's artifact and the Actions cache in the PR's scope: the `guard` job takes the artifact, the
 reports with their paths cut to start at the repository's root, as data to `main`'s script (one it

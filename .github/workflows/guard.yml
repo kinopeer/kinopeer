@@ -68,6 +68,10 @@ jobs:
               if [ -f playwright.performance.config.ts ]; then
                 npx playwright test --config playwright.performance.config.ts --list --reporter=json > "../lists/$side/playwright.performance.json"
               fi
+              # The WebUI's smoke journeys, on the sides that have them (#563 added them).
+              if [ -f playwright.webui.config.ts ]; then
+                npx playwright test --config playwright.webui.config.ts --list --reporter=json > "../lists/$side/playwright.webui.json"
+              fi
               sed -i "s|$PWD/||g" "../lists/$side"/*.json
             )
           done
