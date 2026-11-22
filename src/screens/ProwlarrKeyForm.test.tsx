@@ -88,7 +88,7 @@ describe('ProwlarrKeyForm', () => {
     expect(await screen.findByRole('alert', { name: saying(message) })).toBeInTheDocument()
     expect(screen.getAllByRole('alert')).toHaveLength(1)
     // With no cause, no title says who didn't answer.
-    expect(screen.getByRole('alert')).toHaveTextContent(new RegExp(`^${message.replace(/[.()]/g, '\\$&')}$`))
+    expect(screen.getByRole('alert').textContent).toBe(message)
   })
 
   it('says why Prowlarr didn’t answer at the server’s address, where the server could tell (#508)', async () => {
