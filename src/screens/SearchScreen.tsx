@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router'
+import { useSearchParams } from 'react-router'
 import {
   TmdbKeyError,
   discoverTitles,
@@ -25,7 +25,7 @@ import { titleKey } from '../torrents/titleDownloads'
 import { useTitlesInDownloads } from '../torrents/useTitlesInDownloads'
 import { InDownloadsMark } from './InDownloadsMark'
 import { PosterRow } from './PosterRow'
-import type { SettingsLocationState } from './SettingsScreen'
+import { TmdbFailedState } from './TmdbFailedState'
 import './SearchScreen.css'
 import { titleSubtitle } from './titleSubtitle'
 import { useSearchResults } from './useSearchResults'
@@ -76,7 +76,6 @@ function parseType(value: string | null): TypeFilter {
 
 export function SearchScreen() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
   const type = parseType(params.get('type'))
@@ -187,27 +186,7 @@ export function SearchScreen() {
 
       <section className="search-body" aria-busy={loading}>
         {error ? (
-          error instanceof TmdbKeyError ? (
-            <EmptyState
-              icon="key"
-              tone="error"
-              title={t('search.keyTitle')}
-              actionLabel={t('tmdbKey.enter')}
-              onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
-            >
-              {t('search.keyBody')}
-            </EmptyState>
-          ) : (
-            <EmptyState
-              icon="wifi-off"
-              tone="error"
-              title={t('search.errorTitle')}
-              actionLabel={t('common.retry')}
-              onAction={request.retry}
-            >
-              {t('search.errorBody')}
-            </EmptyState>
-          )
+          <TmdbFailedState error={error} onRetry={request.retry} />
         ) : loading ? (
           <div className="ks-poster-grid" role="status">
             <span className="sr-only">{t('search.loading')}</span>

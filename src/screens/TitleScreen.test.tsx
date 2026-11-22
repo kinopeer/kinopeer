@@ -205,6 +205,12 @@ describe('TitleScreen', () => {
     expect(getMovie).not.toHaveBeenCalled()
   })
 
+  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
+    getMovie.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderAt('/title/movie/693134')
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
+  })
+
   it('retries after a network error', async () => {
     getMovie.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderAt('/title/movie/693134')

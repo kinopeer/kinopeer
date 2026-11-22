@@ -273,6 +273,15 @@ describe('ReleasesScreen', () => {
     expect(getMovie).toHaveBeenCalledTimes(2)
   })
 
+  it('says Kinopeer isn’t answering when the request to its server for the title failed, not TMDB', async () => {
+    getMovie.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderAt('/title/movie/693134/releases')
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
+    // Retry keeps its icon here, as Prowlarr's states have it on this screen; decorative, so only its tag finds it.
+    expect(screen.getByRole('button', { name: 'Try again' }).querySelector('svg')).not.toBeNull()
+    expect(searchReleases).not.toHaveBeenCalled()
+  })
+
   it('explains a missing TMDB key and sends the user to enter it in Settings', async () => {
     getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderAt('/title/movie/693134/releases')

@@ -9,6 +9,7 @@ import type {
   TvResult,
 } from './types'
 import { fetchKinopeer } from '../fetchKinopeer'
+import { BRIDGE_HEADER, KinopeerUnreachableError } from '../qbittorrent/client'
 
 /** Same-origin prefix proxied to the TMDB API; the proxy adds the API key. */
 export const TMDB_BASE = '/tmdb'
@@ -67,6 +68,9 @@ async function request<T>(path: string, params: QueryParams, { language, signal 
   if (response.status === 401 || (response.status === 404 && !isJson(response))) {
     throw new TmdbKeyError(response.status)
   }
+  // Without the TMDB bridge's mark, something in front of Kinopeer's server answered for it (#537):
+  // `unreachable` in the qBittorrent client tells who didn't answer, for TMDB's calls too.
+  if (!response.ok && !response.headers.has(BRIDGE_HEADER)) throw new KinopeerUnreachableError(response.status)
   if (!response.ok) throw new TmdbError(`TMDB responded ${response.status}`, response.status, retryAfter(response))
   return (await response.json()) as T
 }

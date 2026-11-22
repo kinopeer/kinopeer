@@ -63,6 +63,27 @@ describe('tmdbMiddleware', () => {
     expect(await response.json()).toEqual({ status_message: 'The TMDB API key is not set' })
   })
 
+  it('marks every answer as its own, its failures and TMDB’s answers alike, so the client tells them from a proxy’s in front', async () => {
+    const tmdb = await fakeTmdb()
+    const silent = await silentService()
+    const answered = await kinopeer({ apiKey: 'abc123', apiBase: `${tmdb.base}/3` })
+    const late = await kinopeer({ apiKey: 'abc123', apiBase: `${silent.base}/3`, timeoutMs: 50 })
+    const unreachable = await kinopeer({ proxyBase: 'http://127.0.0.1:1/3' })
+    const noKey = await kinopeer({})
+
+    for (const url of [
+      `${answered}/tmdb/movie/771`,
+      `${answered}/tmdb-img/w342/poster.jpg`,
+      `${late}/tmdb/movie/771`,
+      `${unreachable}/tmdb/movie/771`,
+      `${noKey}/tmdb/movie/771`,
+      // Refused, as a path that leads out of /3/ (#305).
+      `${noKey}/tmdb/movie%2F..%2Fauth`,
+    ]) {
+      expect((await fetch(url)).headers.get('x-kinopeer-bridge'), url).toBe('1')
+    }
+  })
+
   it('sends calls without a key to Kinopeer’s proxy, which adds its own', async () => {
     const tmdb = await fakeTmdb()
     const proxy = await fakeTmdb()

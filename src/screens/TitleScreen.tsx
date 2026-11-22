@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next'
 import { useLocation, useMatch, useNavigate, useParams } from 'react-router'
 import {
   TmdbError,
-  TmdbKeyError,
   posterUrl,
 } from '../api/tmdb'
 import { Badge } from '../components/Badge'
@@ -23,7 +22,7 @@ import { useTitleTorrents } from '../torrents/useTitleMatches'
 import { useMainData } from '../torrents/useMainData'
 import { inDownloadsText } from './inDownloadsText'
 import { ReleasesScreen } from './ReleasesScreen'
-import type { SettingsLocationState } from './SettingsScreen'
+import { TmdbFailedState } from './TmdbFailedState'
 import { TitleDownloads } from './TitleDownloads'
 import { TitleOverview } from './TitleOverview'
 import { TitleRelated } from './TitleRelated'
@@ -168,26 +167,8 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
           >
             {t('title.notFoundBody')}
           </EmptyState>
-        ) : request.error instanceof TmdbKeyError ? (
-          <EmptyState
-              icon="key"
-              tone="error"
-              title={t('search.keyTitle')}
-              actionLabel={t('tmdbKey.enter')}
-              onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
-            >
-            {t('search.keyBody')}
-          </EmptyState>
         ) : (
-          <EmptyState
-            icon="wifi-off"
-            tone="error"
-            title={t('search.errorTitle')}
-            actionLabel={t('common.retry')}
-            onAction={request.retry}
-          >
-            {t('search.errorBody')}
-          </EmptyState>
+          <TmdbFailedState error={request.error} onRetry={request.retry} />
         )}
       </main>
     )

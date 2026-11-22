@@ -45,8 +45,9 @@ export class TorrentRefusedError extends QbittorrentError {
 }
 
 /**
- * The bridge's mark on each of its answers (`BRIDGE_HEADER` in server/qbittorrent.ts): a failure
- * without it never reached Kinopeer's server, a proxy in front answered for it.
+ * The bridge's mark on each of its answers, and the TMDB bridge's (`BRIDGE_HEADER` in
+ * server/qbittorrent.ts): a failure without it never reached Kinopeer's server, a proxy in front
+ * answered for it.
  */
 export const BRIDGE_HEADER = 'x-kinopeer-bridge'
 /** The bridge's mark when it has no address for qBittorrent (`NO_ADDRESS` in server/qbittorrent.ts). */

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation, useNavigate, useParams } from 'react-router'
-import { TmdbError, TmdbKeyError } from '../api/tmdb'
+import { TmdbError } from '../api/tmdb'
 import { Badge } from '../components/Badge'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -19,7 +19,7 @@ import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
-import type { SettingsLocationState } from './SettingsScreen'
+import { TmdbFailedState } from './TmdbFailedState'
 import { useTitleDetails } from './useTitleDetails'
 import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases } from './useReleases'
@@ -56,24 +56,8 @@ export function ReleasesScreen() {
         {t('title.notFoundBody')}
       </EmptyState>
     )
-  } else if (details.error instanceof TmdbKeyError) {
-    body = (
-      <EmptyState
-        icon="key"
-        tone="error"
-        title={t('search.keyTitle')}
-        actionLabel={t('tmdbKey.enter')}
-        onAction={() => navigate('/settings', { state: { editTmdbKey: true } satisfies SettingsLocationState })}
-      >
-        {t('search.keyBody')}
-      </EmptyState>
-    )
   } else if (details.error) {
-    body = (
-      <EmptyState icon="wifi-off" tone="error" title={t('search.errorTitle')} actionLabel={t('common.retry')} actionIcon="refresh" onAction={details.retry}>
-        {t('search.errorBody')}
-      </EmptyState>
-    )
+    body = <TmdbFailedState error={details.error} onRetry={details.retry} retryIcon="refresh" />
   } else {
     body = (
       <ReleasesBody

@@ -3,6 +3,7 @@ import { Readable } from 'node:stream'
 import type { ReadableStream } from 'node:stream/web'
 import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
+import { BRIDGE_HEADER } from './qbittorrent.ts'
 
 /**
  * Same-origin bridge to TMDB that adds the key server-side, so it never reaches the browser:
@@ -155,6 +156,8 @@ export function tmdbMiddleware(config: TmdbConfig): Middleware {
     const path = request.url ?? '/'
     const isApi = path.startsWith(API_PREFIX)
     if (!isApi && !path.startsWith(IMAGE_PREFIX)) return next()
+    // On every answer, so the client tells TMDB's failure from one that never reached this server.
+    response.setHeader(BRIDGE_HEADER, '1')
     const fail = (status: number, message: string) => {
       response.statusCode = status
       response.setHeader('Content-Type', 'application/json; charset=utf-8')

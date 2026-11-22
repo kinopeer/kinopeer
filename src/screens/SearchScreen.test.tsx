@@ -136,7 +136,7 @@ describe('SearchScreen', () => {
   it('shows an error when the type picked has only failed rows', async () => {
     const answer = discoverTitles.getMockImplementation()!
     discoverTitles.mockImplementation(async (type, params, options) => {
-      if (type === 'tv') throw new TypeError('Failed to fetch')
+      if (type === 'tv') throw new tmdb.TmdbError('TMDB responded 502', 502)
       return answer(type, params, options)
     })
     renderScreen('/search?type=tv')
@@ -415,6 +415,12 @@ describe('SearchScreen', () => {
     })
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
+  })
+
+  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
+    discoverTitles.mockRejectedValue(new TypeError('Failed to fetch'))
+    renderScreen()
+    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
   })
 
   it('retries after a network error', async () => {
