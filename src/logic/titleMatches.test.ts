@@ -5,6 +5,7 @@ import { HASH, MISSING_GRACE_MS, merged, pruned, validMatch, validStoredMatch, w
 const A = 'a'.repeat(40)
 const B = 'b'.repeat(40)
 const V2 = 'c'.repeat(64)
+const C = 'd'.repeat(40)
 
 const USER = { type: 'movie', id: 1, source: 'user' } as const
 const GUESS = { type: 'tv', id: 2, source: 'guess', version: 2 } as const
@@ -35,7 +36,7 @@ describe('merged', () => {
   })
 
   it('keeps a guess that found no title under the user’s choice and under a guess or a miss of the same or a newer version of guessing, not an older one, with no expiry', () => {
-    const [C, D, E, F] = ['d', 'e', 'f', '0'].map((digit) => digit.repeat(40))
+    const [D, E, F] = ['e', 'f', '0'].map((digit) => digit.repeat(40))
     const current = merged({}, {
       [A]: USER,
       [B]: GUESS,
@@ -59,14 +60,12 @@ describe('merged', () => {
   })
 
   it('replaces nothing by a guess of an older version of guessing, from a page open since before it changed', () => {
-    const C = 'd'.repeat(40)
     const current = { [A]: MISS, [B]: GUESS, [C]: MISS }
     // A guess without a version is from before guesses had one.
     expect(merged(current, { [A]: { ...GUESS, version: 1 }, [B]: { ...GUESS, id: 3, version: 1 }, [C]: { type: 'tv', id: 3, source: 'guess' } })).toBe(current)
   })
 
   it('forgets matches set to null, the user’s choice and a guess that found no title too', () => {
-    const C = 'd'.repeat(40)
     expect(merged({ [A]: USER, [B]: GUESS, [C]: MISS }, { [A]: null, [C]: null, [V2]: null })).toEqual({ [B]: GUESS })
   })
 
