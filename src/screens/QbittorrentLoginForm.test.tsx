@@ -88,22 +88,42 @@ describe('QbittorrentLoginForm', () => {
   })
 })
 
-/** The form under a Close that takes it away and an Open that brings it back, as Settings' sheet does. */
-function renderClosable(onSubmit: QbittorrentLoginFormProps['onSubmit']) {
-  const onEnvAddress = vi.fn()
+const SETTINGS: serverSettings.ServerSettings = {
+  tmdb: { configured: true, source: 'shared', fallback: null },
+  prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
+  qbittorrent: { configured: true, source: 'saved', address: { source: 'saved', url: 'http://qbt.test' } },
+  downloads: null,
+}
+
+const caller = () => ({ onSaved: vi.fn(), onEnvAddress: vi.fn() })
+
+/**
+ * The form under a Close that takes it away and an Open that brings it back, as Settings' sheet does:
+ * the form opened again has a caller of its own, as Settings opened again would.
+ */
+function renderClosable(onSubmit: QbittorrentLoginFormProps['onSubmit'], askAddress = true) {
+  const callers = [caller(), caller()]
   function Sheet() {
     const [open, setOpen] = useState(true)
+    const [opened, setOpened] = useState(0)
+    const { onSaved, onEnvAddress } = callers[Math.min(opened, 1)]
+    const toggle = () => {
+      if (!open) setOpened(opened + 1)
+      setOpen(!open)
+    }
     return (
       <>
-        <button type="button" onClick={() => setOpen(!open)}>
+        <button type="button" onClick={toggle}>
           {open ? 'Close' : 'Open'}
         </button>
-        {open && <QbittorrentLoginForm className="key-form" askAddress initialAddress="http://saved.test" onSubmit={onSubmit} onEnvAddress={onEnvAddress} />}
+        {open && (
+          <QbittorrentLoginForm className="key-form" askAddress={askAddress} initialAddress="http://saved.test" onSubmit={onSubmit} onSaved={onSaved} onEnvAddress={onEnvAddress} />
+        )}
       </>
     )
   }
   render(<Sheet />, { wrapper: ToastProvider })
-  return { onEnvAddress, toggle: () => userEvent.click(screen.getByRole('button', { name: /^(Close|Open)$/ })) }
+  return { sender: callers[0], again: callers[1], toggle: () => userEvent.click(screen.getByRole('button', { name: /^(Close|Open)$/ })) }
 }
 
 const connectAs = async (address: string, username: string) => {
@@ -115,36 +135,68 @@ const connectAs = async (address: string, username: string) => {
 }
 
 describe('QbittorrentLoginForm: a check that settles after the form is gone (#500)', () => {
-  it('says a failure in a toast', async () => {
-    const check = held()
+  it.each([
+    ['a refused login', new SettingsError(401, 'invalid-credentials'), 'admin', 'qBittorrent didn’t accept the username or password.'],
+    ['no login where one is wanted', new SettingsError(401, 'invalid-credentials'), '', 'qBittorrent asks for a login: enter its username and password'],
+    ['a ban', new SettingsError(403, 'banned'), 'admin', 'Too many failed attempts. qBittorrent has blocked this address for a while.'],
+    ['something else at the address', new SettingsError(502, 'not-qbittorrent'), 'admin', 'qBittorrent’s address answers, but not like qBittorrent. Check the address and its port.'],
+    ['the Host header refused', new SettingsError(502, 'host-refused'), 'admin', /^qBittorrent refused this address: with Host header validation on/],
+    ['the login off', new SettingsError(409, 'auth-off'), 'admin', 'Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.'],
+    ['the settings unwritable', new SettingsError(500, 'storage'), 'admin', 'The Kinopeer server couldn’t save the change. Check that its data folder is writable.'],
+    ['nothing listening at the address', new SettingsError(502, 'unreachable', 'refused'), 'admin', /^Nothing listens on this port: check that qBittorrent is running/],
+    ['no answer from the address, with no cause', new SettingsError(502, 'unreachable'), 'admin', 'Nothing answers at this address. Check it, and that qBittorrent is running.'],
+    ['no answer from Kinopeer', new TypeError('Failed to fetch'), 'admin', 'Couldn’t save the qBittorrent connection. Try again.'],
+  ])('says %s in a toast, as the form would', async (_name, error, username, message) => {
+    const check = held<serverSettings.ServerSettings>()
     const { toggle } = renderClosable(() => check.promise)
-    await connectAs('http://qbt.test', 'admin')
+    await userEvent.clear(screen.getByLabelText('qBittorrent address'))
+    await userEvent.type(screen.getByLabelText('qBittorrent address'), 'http://qbt.test')
+    if (username) {
+      await userEvent.type(screen.getByLabelText('Username'), username)
+      await userEvent.type(screen.getByLabelText('Password'), 'secret')
+    }
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
     await toggle()
-    await act(async () => check.reject(new SettingsError(401, 'invalid-credentials')))
-    expect(await findToastOnPage('Couldn’t save the qBittorrent connection. Try again.')).toBeInTheDocument()
+    await act(async () => check.reject(error))
+    expect(await findToastOnPage(message)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['why qBittorrent didn’t answer', new SettingsError(502, 'unreachable', 'refused'), /^Nothing listens on this port: check that qBittorrent is running/],
+    ['something else at the server’s address', new SettingsError(502, 'not-qbittorrent'), 'The qBittorrent address on the Kinopeer server answers, but not like qBittorrent. Check QBITTORRENT_URL.'],
+  ])('asking for no address, says %s in a toast, as the form would', async (_name, error, message) => {
+    const check = held<serverSettings.ServerSettings>()
+    const { toggle } = renderClosable(() => check.promise, false)
+    await userEvent.type(screen.getByLabelText('Username'), 'admin')
+    await userEvent.type(screen.getByLabelText('Password'), 'secret')
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    await toggle()
+    await act(async () => check.reject(error))
+    expect(await findToastOnPage(message)).toBeInTheDocument()
   })
 
   it('leaves the environment’s address to the caller, which says it', async () => {
-    const check = held()
-    const { onEnvAddress, toggle } = renderClosable(() => check.promise)
+    const check = held<serverSettings.ServerSettings>()
+    const { sender, toggle } = renderClosable(() => check.promise)
     await connectAs('http://qbt.test', 'admin')
     await toggle()
     await act(async () => check.reject(new SettingsError(409, 'env-address')))
-    expect(onEnvAddress).toHaveBeenCalledOnce()
+    expect(sender.onEnvAddress).toHaveBeenCalledOnce()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('says nothing of a save, which the caller follows', async () => {
-    const check = held()
-    const { toggle } = renderClosable(() => check.promise)
+  it('hands a save to the caller that sent it, saying nothing itself', async () => {
+    const check = held<serverSettings.ServerSettings>()
+    const { sender, toggle } = renderClosable(() => check.promise)
     await connectAs('http://qbt.test', 'admin')
     await toggle()
-    await act(async () => check.resolve())
+    await act(async () => check.resolve(SETTINGS))
+    expect(sender.onSaved).toHaveBeenCalledExactlyOnceWith(SETTINGS)
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('opened again meanwhile, starts busy from what was sent, sends nothing more and says the failure itself', async () => {
-    const check = held()
+    const check = held<serverSettings.ServerSettings>()
     const onSubmit = vi.fn(() => check.promise)
     const { toggle } = renderClosable(onSubmit)
     await connectAs('http://qbt.test', 'admin')
@@ -166,13 +218,28 @@ describe('QbittorrentLoginForm: a check that settles after the form is gone (#50
     expect(screen.queryByRole('status', { name: saying('Couldn’t save the qBittorrent connection. Try again.') })).not.toBeInTheDocument()
   })
 
-  it('opened again meanwhile, shows nothing failed once the check passes', async () => {
-    const check = held()
-    const { toggle } = renderClosable(() => check.promise)
+  it('keeps what it says while a check is on its way, however often Connect is pressed', async () => {
+    const check = held<serverSettings.ServerSettings>()
+    findAddresses.mockRejectedValue(new SettingsError(409, 'auth-off'))
+    renderClosable(() => check.promise)
+    await connectAs('http://qbt.test', 'admin')
+    await userEvent.click(screen.getByRole('button', { name: 'Find qBittorrent' }))
+    const authOff = saying('Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.')
+    expect(await screen.findByRole('alert', { name: authOff })).toBeInTheDocument()
+    await userEvent.type(screen.getByLabelText('Password'), '{Enter}')
+    expect(screen.getByRole('alert', { name: authOff })).toBeInTheDocument()
+    await act(async () => check.resolve(SETTINGS))
+  })
+
+  it('opened again meanwhile, hands a save to its own caller, not the one that sent it, and shows nothing failed', async () => {
+    const check = held<serverSettings.ServerSettings>()
+    const { sender, again, toggle } = renderClosable(() => check.promise)
     await connectAs('http://qbt.test', 'admin')
     await toggle()
     await toggle()
-    await act(async () => check.resolve())
+    await act(async () => check.resolve(SETTINGS))
+    expect(again.onSaved).toHaveBeenCalledExactlyOnceWith(SETTINGS)
+    expect(sender.onSaved).not.toHaveBeenCalled()
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(screen.getByLabelText('qBittorrent address')).not.toHaveAttribute('aria-invalid')
   })
@@ -196,17 +263,17 @@ function renderChangeable(onSubmit: QbittorrentLoginFormProps['onSubmit'], start
 
 describe('QbittorrentLoginForm: started afresh while a check is on its way (#500)', () => {
   it('leaves a refused address to a toast once the form asks for none', async () => {
-    const check = held()
+    const check = held<serverSettings.ServerSettings>()
     renderChangeable(() => check.promise, true)
     await connectAs('http://qbt.test', 'admin')
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('button', { name: 'Connect' })).toHaveAttribute('aria-busy', 'true')
     await act(async () => check.reject(new SettingsError(400, 'invalid-address')))
-    expect(await findToastOnPage('Couldn’t save the qBittorrent connection. Try again.')).toBeInTheDocument()
+    expect(await findToastOnPage('Enter an address that starts with http:// or https://, with no login, ? or # in it')).toBeInTheDocument()
   })
 
   it('says qBittorrent didn’t answer a login sent without an address over the form, not on the address asked for since', async () => {
-    const check = held()
+    const check = held<serverSettings.ServerSettings>()
     renderChangeable(() => check.promise, false)
     await userEvent.type(screen.getByLabelText('Username'), 'admin')
     await userEvent.type(screen.getByLabelText('Password'), 'secret')

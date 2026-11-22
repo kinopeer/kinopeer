@@ -117,6 +117,7 @@
     "loginNeeded": "qBittorrent asks for a login: enter its username and password",
     "authOff": "Kinopeer’s own login is off, so qBittorrent’s address can only be set on the server: QBITTORRENT_URL.",
     "envAddress": "qBittorrent’s address is now set on the Kinopeer server (QBITTORRENT_URL), which wins over one from the app.",
+    "loginRefused": "qBittorrent didn’t accept the username or password.",
     "saveFailed": "Couldn’t save the qBittorrent connection. Try again.",
     "changeAddress": "Change qBittorrent address"
   },

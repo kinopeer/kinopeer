@@ -117,6 +117,7 @@
     "loginNeeded": "qBittorrent просит войти: введите логин и пароль",
     "authOff": "Собственный вход Kinopeer выключен, поэтому адрес qBittorrent задаётся только на сервере: QBITTORRENT_URL.",
     "envAddress": "Адрес qBittorrent теперь задан на сервере Kinopeer (QBITTORRENT_URL), и он важнее сохранённого в приложении.",
+    "loginRefused": "qBittorrent не принял имя пользователя или пароль.",
     "saveFailed": "Не удалось сохранить подключение к qBittorrent. Попробуйте ещё раз.",
     "changeAddress": "Изменить адрес qBittorrent"
   },

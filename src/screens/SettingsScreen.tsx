@@ -640,8 +640,9 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           askAddress
           initialAddress={savedUrl(server?.qbittorrent.address)}
           addressFromApp
-          onSubmit={async (username, password, url) => {
-            setServerChanged(await signIn(username, password, url))
+          onSubmit={signIn}
+          onSaved={(changed) => {
+            setServerChanged(changed)
             setEditingQbittorrent(false)
             toast.show(t('settings.qbittorrentSaved'))
             // The row and the categories come from the qBittorrent at the new address.

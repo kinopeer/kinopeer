@@ -79,17 +79,24 @@ export function ProwlarrKeyForm({
   // The address was localhost inside Kinopeer's container (#509), and the host's, when known.
   const [localhost, setLocalhost] = useState<SettingsError['container']>()
 
-  function fail(e: unknown, kind: Sent['kind']) {
+  // Whether the check refused was of an address: its field says why, else the banner does.
+  const [checkedAddress, setCheckedAddress] = useState<boolean>()
+
+  function fail(e: unknown, { kind, url }: Sent) {
     const error = formError(e, kind)
+    setCheckedAddress(url !== undefined)
     setFailure(failureOf(e))
     setLocalhost(e instanceof SettingsError ? e.container : undefined)
     setError(error)
     if (error === 'env-address') onEnvAddress?.()
   }
 
-  // Open, the form takes every outcome: a save is the caller's to follow, a failure the form's to say.
+  // Open, the form takes every save, for its caller to follow, and every failure it can show: one that
+  // asks for no address can't show what refused one.
   const saving = useSaves<Sent>(PROWLARR_SAVES, (outcome, sent) => {
-    if (!outcome.ok) fail(outcome.error, sent.kind)
+    if (outcome.ok) (sent.kind === 'save' ? onSaved : onForgotten)?.(outcome.result as ServerSettings)
+    else if (sent.url !== undefined && !askAddress) return false
+    else fail(outcome.error, sent)
     return true
   })
   // One request at a time, from this form or one opened before it, which this one starts from:
@@ -99,22 +106,40 @@ export function ProwlarrKeyForm({
   const [address, setAddress] = useState(sending?.url ?? initialAddress)
   const [apiKey, setApiKey] = useState('')
 
-  const run = async (kind: Sent['kind'], request: () => Promise<ServerSettings>, done: (settings: ServerSettings) => void) => {
+  const run = async (kind: Sent['kind'], request: () => Promise<ServerSettings>, done?: (settings: ServerSettings) => void) => {
+    // Nothing goes while a request is on its way, and what it shows stays.
+    if (busy) return
     setError(null)
-    const settled = await saving.send(KEY, { kind, url: askAddress ? address : undefined }, request)
-    if (!settled) return
-    // The caller follows a save whether or not the form is still there.
-    if (settled.ok) return done(settled.result)
-    if (settled.taken) return
-    // The form gone: a toast says what failed.
+    // Forgetting sends no address.
+    const sent = { kind, url: askAddress && kind === 'save' ? address : undefined }
+    const settled = await saving.send(KEY, sent, request)
+    // No form took it: the caller still follows a save, and a toast says what failed.
+    if (!settled || settled.taken) return
+    if (settled.ok) return done?.(settled.result)
     const failed = formError(settled.error, kind)
     if (failed === 'env-address') onEnvAddress?.()
-    toast.show(
-      t(failed === 'env-address' ? 'prowlarrKey.envAddress' : kind === 'save' ? 'prowlarrKey.saveFailed' : 'prowlarrKey.forgetFailed', {
-        context: askAddress ? 'address' : undefined,
-      }),
-      { icon: 'alert' },
-    )
+    toast.show(errorText(failed, failureText(t, 'prowlarr', failureOf(settled.error)), sent.url !== undefined, true), { icon: 'alert' })
+  }
+
+  /**
+   * What a failure says, on its field or in a banner, or in a toast once the form is gone (`named`,
+   * which names what failed): one wording per failure for both. `checked`: the check was of an address.
+   */
+  function errorText(failed: FormError, why?: string, checked?: boolean, named?: boolean): string {
+    if (failed === 'invalid') return t('prowlarrKey.invalid')
+    if (failed === 'invalid-address') return t('address.invalid')
+    if (failed === 'unreachable') return why ?? t(checked ? 'prowlarrKey.addressUnreachable' : 'prowlarrKey.unreachable')
+    // An address from the app, typed here or saved before, is checked here; the environment's on the server.
+    if (failed === 'not-prowlarr') return t('prowlarrKey.notProwlarr', { context: checked || addressFromApp ? 'app' : undefined })
+    if (failed === 'not-configured') return t('prowlarrKey.notConfigured')
+    if (failed === 'no-server-key') return t('prowlarrKey.noServerKey')
+    // Both refuse an address the app sends, which trying again won't change.
+    if (failed === 'env-address') return t('prowlarrKey.envAddress')
+    if (failed === 'auth-off') return t('prowlarrKey.authOff')
+    if (failed === 'storage') return t('keyForm.storage')
+    if (failed === 'forget-failed') return t('prowlarrKey.forgetFailed')
+    // Else that it failed, which trying again may change.
+    return named ? t('prowlarrKey.saveFailed', { context: checked ? 'address' : undefined }) : t('keyForm.failed')
   }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -123,8 +148,7 @@ export function ProwlarrKeyForm({
   }
   // With an address sent, the server is there and says that address didn't answer: the field's to fix.
   const why = failureText(t, 'prowlarr', failure)
-  const addressError =
-    (error === 'invalid-address' && t('address.invalid')) || (askAddress && error === 'unreachable' && (why ?? t('prowlarrKey.addressUnreachable')))
+  const addressError = (error === 'invalid-address' || (checkedAddress && error === 'unreachable')) && errorText(error, why, true)
 
   const changeAddress = (value: string) => {
     setAddress(value)
@@ -137,26 +161,11 @@ export function ProwlarrKeyForm({
     <form className="key-form" onSubmit={handleSubmit}>
       <p className="t-body c2">{t('prowlarrKey.help')}</p>
 
-      {error === 'unreachable' &&
-        !askAddress &&
-        (why ? (
-          <Banner tone="error" title={t('noAnswer.prowlarr')}>
-            {why}
-          </Banner>
-        ) : (
-          <Banner tone="error">{t('prowlarrKey.unreachable')}</Banner>
-        ))}
-      {error === 'not-prowlarr' && (
-        <Banner tone="error">{t('prowlarrKey.notProwlarr', { context: askAddress || addressFromApp ? 'app' : undefined })}</Banner>
+      {error && error !== 'invalid' && !addressError && (
+        <Banner tone="error" title={why ? t('noAnswer.prowlarr') : undefined}>
+          {errorText(error, why, checkedAddress)}
+        </Banner>
       )}
-      {error === 'not-configured' && <Banner tone="error">{t('prowlarrKey.notConfigured')}</Banner>}
-      {error === 'no-server-key' && <Banner tone="error">{t('prowlarrKey.noServerKey')}</Banner>}
-      {/* Both refuse an address the app sends, which trying again won't change. */}
-      {error === 'env-address' && <Banner tone="error">{t('prowlarrKey.envAddress')}</Banner>}
-      {error === 'auth-off' && <Banner tone="error">{t('prowlarrKey.authOff')}</Banner>}
-      {error === 'storage' && <Banner tone="error">{t('keyForm.storage')}</Banner>}
-      {error === 'failed' && <Banner tone="error">{t('keyForm.failed')}</Banner>}
-      {error === 'forget-failed' && <Banner tone="error">{t('prowlarrKey.forgetFailed')}</Banner>}
       {askAddress && localhost && (error === 'unreachable' || error === 'not-prowlarr') && (
         <LocalhostHint
           service="prowlarr"
@@ -211,7 +220,7 @@ export function ProwlarrKeyForm({
           setApiKey(event.target.value)
           if (error === 'invalid') setError(null)
         }}
-        error={error === 'invalid' && t('prowlarrKey.invalid')}
+        error={error === 'invalid' && errorText(error)}
         help={t('prowlarrKey.fieldHelp')}
       />
 
@@ -227,7 +236,7 @@ export function ProwlarrKeyForm({
             block
             loading={busy === 'forget'}
             disabled={busy === 'save'}
-            onClick={() => void run('forget', forgetProwlarrKey, (settings) => onForgotten?.(settings))}
+            onClick={() => void run('forget', forgetProwlarrKey, onForgotten)}
           >
             {t('keyForm.useServerKey')}
           </Button>
