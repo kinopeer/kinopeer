@@ -125,6 +125,12 @@ describe('statusDirect', () => {
     ])
   })
 
+  it('reads a status that isn’t JSON as an answer that isn’t Prowlarr’s', async () => {
+    answers['/api/v1/system/status'] = () => new Response('<html>Sign in</html>', { headers: { 'Content-Type': 'text/html' } })
+    answers['/api/v1/indexer'] = () => Response.json([])
+    await expect(statusDirect()).rejects.toMatchObject({ name: 'ProwlarrError', code: 'upstream' })
+  })
+
   it('reads a 401 on either as a key Prowlarr refuses', async () => {
     answers['/api/v1/system/status'] = () => Response.json({ version: '3.0.2.5780' })
     answers['/api/v1/indexer'] = () => new Response(null, { status: 401 })

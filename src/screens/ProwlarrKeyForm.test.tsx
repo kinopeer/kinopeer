@@ -586,6 +586,8 @@ describe('ProwlarrKeyForm in the WebUI build', () => {
       'Kinopeer checks it with Prowlarr, then keeps it in qBittorrent, where this browser reads it to call Prowlarr.',
     )
     expect(screen.getByText('This browser sees the key')).toBeInTheDocument()
+    // Said as the form opens, not announced as news.
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
     expect(screen.getByText(/anyone with qBittorrent’s login, a browser extension or a release’s link can see it/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Find Prowlarr' })).not.toBeInTheDocument()
   })

@@ -547,6 +547,26 @@ describe('AddReleaseSheet', () => {
     expect(addRelease).toHaveBeenCalledWith({ kind: 'link', uri: link }, expect.anything(), undefined)
   })
 
+  it('says a magnet link’s files in the WebUI build as in the server build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
+    renderSheet()
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText(/Magnet link: all files/)).toBeInTheDocument()
+    expect(within(sheet).queryByText(/Prowlarr gave a link/)).not.toBeInTheDocument()
+  })
+
+  it('neither notes the files of a .torrent it can’t read nor warns by the release size in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    readTorrentFile.mockRejectedValue(new Error('not bencoded'))
+    renderSheet(RELEASE, await runningPoll())
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    expect(await within(sheet).findByText('TV → /data/tv')).toBeInTheDocument()
+    await waitFor(() => expect(within(sheet).getByRole('button', { name: /^Download · 50\.0\sGB$/ })).toBeEnabled())
+    expect(within(sheet).queryByText('Not enough free space')).not.toBeInTheDocument()
+    expect(within(sheet).queryByText(/Magnet link: all files|Prowlarr gave a link/)).not.toBeInTheDocument()
+  })
+
   it('says qBittorrent refused the torrent when it then doesn’t have it', async () => {
     addRelease.mockRejectedValue(new qbt.TorrentRefusedError(200))
     const { onAdded } = renderSheet()

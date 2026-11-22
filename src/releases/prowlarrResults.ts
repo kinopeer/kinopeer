@@ -68,7 +68,7 @@ export function downloadUrl(base: string, token: string, apiKey: string): URL | 
   const match = /^(\d+)\/download\?(.*)$/.exec(token)
   if (!match) return undefined
   const params = new URLSearchParams(match[2])
-  params.delete('apikey')
+  // Replaces any key the token carries.
   params.set('apikey', apiKey)
   // The /api/ path, not Prowlarr's /{id}/download alias: proxies in front of Prowlarr (e.g. Umbrel's
   // app auth) often let only /api/* through without their own login.

@@ -367,6 +367,10 @@ describe('the settings in qBittorrent', () => {
     ['https:', 'http://localhost:9696', false],
     ['https:', 'http://prowlarr.localhost', false],
     ['https:', 'http://127.0.0.1:9696', false],
+    ['https:', 'http://127.10.20.30:9696', false],
+    // Only an address that is all loopback: a LAN one with 127 in it, or a name that starts with one, isn't.
+    ['https:', 'http://10.127.0.1:9696', true],
+    ['https:', 'http://127.0.0.1.example.test:9696', true],
     ['https:', 'http://[::1]:9696', false],
     [undefined, 'http://192.168.1.20:9696', false],
   ] as const)('reads a page at %s calling %s as mixed content: %s', (page, address, mixed) => {

@@ -132,4 +132,17 @@ describe('the WebUI build', () => {
   it('hands qBittorrent the download link when Prowlarr answers with a redirect', async () => {
     await expect(fetchRelease(RELEASE)).resolves.toEqual({ kind: 'link', uri: `${PROWLARR}/api/v1/indexer/1/download?link=A&apikey=k` })
   })
+
+  it('names the .torrent Prowlarr answers with after the release, as on the server build', async () => {
+    const answer = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation(async (url, init) =>
+      String(url).startsWith(`${PROWLARR}/api/v1/indexer/1/download`) ? new Response(new Uint8Array([0x64, 0x65])) : answer(url, init),
+    )
+    const source = await fetchRelease({ ...RELEASE, title: 'Dune: Part Two ' })
+    expect(source).toMatchObject({ kind: 'torrent' })
+    const { file } = source as { file: File }
+    expect(file.name).toBe('Dune Part Two.torrent')
+    expect(file.type).toBe('application/x-bittorrent')
+    expect(new Uint8Array(await file.arrayBuffer())).toEqual(new Uint8Array([0x64, 0x65]))
+  })
 })
