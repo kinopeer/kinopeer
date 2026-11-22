@@ -67,6 +67,19 @@ vi.mock('../api/tmdb', async (importOriginal) => ({
   checkTmdb: vi.fn(),
 }))
 
+/** An answer kept as the page's settings as it comes, as the settings client keeps a save's (`saved`). */
+function kept(answer: Promise<serverSettings.ServerSettings>) {
+  return answer.then((settings) => {
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, settings)
+    return settings
+  })
+}
+
+/** Answers with these settings, kept as the page's as they come. */
+function keeps(settings: serverSettings.ServerSettings) {
+  return () => kept(Promise.resolve(settings))
+}
+
 function renderScreen(state?: unknown) {
   return renderWithRouter(<SettingsScreen signIn={serverSettings.saveQbittorrentLogin} />, [{ pathname: '/settings', state }])
 }
@@ -308,7 +321,7 @@ describe('SettingsScreen', () => {
   it('says Kinopeer’s key is used, offers the user’s own, and drops the mention once it’s saved', async () => {
     const shared = { tmdb: { configured: true, source: 'shared', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(shared)
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ ...shared, tmdb: { configured: true, source: 'saved', fallback: null } })
+    vi.mocked(serverSettings.saveTmdbKey).mockImplementation(keeps({ ...shared, tmdb: { configured: true, source: 'saved', fallback: null } }))
     renderScreen()
 
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
@@ -324,7 +337,7 @@ describe('SettingsScreen', () => {
   it('goes back from a saved TMDB key to Kinopeer’s and checks the connection again', async () => {
     const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
-    vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } })
+    vi.mocked(serverSettings.forgetTmdbKey).mockImplementation(keeps({ ...saved, tmdb: { configured: true, source: 'shared', fallback: 'shared' } }))
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     vi.mocked(tmdb.checkTmdb).mockClear()
@@ -345,7 +358,7 @@ describe('SettingsScreen', () => {
     const saved = { tmdb: { configured: true, source: 'saved', fallback: 'shared' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
     let finish = (_settings: serverSettings.ServerSettings) => {}
-    vi.mocked(serverSettings.forgetTmdbKey).mockReturnValue(new Promise((resolve) => (finish = resolve)))
+    vi.mocked(serverSettings.forgetTmdbKey).mockReturnValue(kept(new Promise((resolve) => (finish = resolve))))
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
 
@@ -365,7 +378,7 @@ describe('SettingsScreen', () => {
   it('goes back to the server’s TMDB key when it has TMDB_API_KEY', async () => {
     const saved = { tmdb: { configured: true, source: 'saved', fallback: 'env' }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null } as const
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(saved)
-    vi.mocked(serverSettings.forgetTmdbKey).mockResolvedValue({ ...saved, tmdb: { configured: true, source: 'env', fallback: 'env' } })
+    vi.mocked(serverSettings.forgetTmdbKey).mockImplementation(keeps({ ...saved, tmdb: { configured: true, source: 'env', fallback: 'env' } }))
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
 
@@ -394,7 +407,7 @@ describe('SettingsScreen', () => {
 
   it('changes the TMDB key and checks the connection again', async () => {
     vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbKeyError(401))
-    vi.mocked(serverSettings.saveTmdbKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
+    vi.mocked(serverSettings.saveTmdbKey).mockImplementation(keeps({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null }))
     renderScreen()
     expect(await within(connection('TMDB')).findByRole('status', { name: saying('The API key is missing or invalid') })).toBeInTheDocument()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(/^Connected/) })).toBeInTheDocument()
@@ -417,7 +430,7 @@ describe('SettingsScreen', () => {
 
   it('changes the Prowlarr key and checks the connection again', async () => {
     vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
-    vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null })
+    vi.mocked(serverSettings.saveProwlarrKey).mockImplementation(keeps({ tmdb: { configured: true, source: 'saved', fallback: null }, prowlarr: { configured: true, source: 'saved', serverKey: true, address: { source: 'env' } }, qbittorrent: { configured: true, source: 'env', address: { source: 'env' } }, downloads: null }))
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Not set up, or the API key was rejected') })).toBeInTheDocument()
 
@@ -456,12 +469,12 @@ describe('SettingsScreen', () => {
       qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
     })
-    vi.mocked(serverSettings.forgetProwlarrKey).mockResolvedValue({
+    vi.mocked(serverSettings.forgetProwlarrKey).mockImplementation(keeps({
       tmdb: { configured: true, source: 'saved', fallback: null },
       prowlarr: { configured: true, source: 'env', serverKey: true, address: { source: 'env' } },
       qbittorrent: { configured: true, source: 'env', address: { source: 'env' } },
       downloads: null,
-    })
+    }))
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected') })).toBeInTheDocument()
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/2$/)
@@ -637,6 +650,23 @@ describe('SettingsScreen', () => {
     expect(screen.queryByText('Couldn’t sign out. Try again.')).not.toBeInTheDocument()
     // The page's answer says so too, so Settings opened again doesn't offer the section.
     expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...settings, auth: { enabled: false } })
+  })
+
+  it('keeps a save that landed while signing out was on its way when the server answers its login is off', async () => {
+    const settings = { ...(await serverSettings.getServerSettings()), auth: { enabled: true, source: 'saved' } as const }
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings)
+    let refuse = () => {}
+    vi.mocked(auth.signOut).mockReturnValue(new Promise((_, reject) => (refuse = () => reject(new auth.AuthError(409, 'auth-off')))))
+    renderScreen()
+    await userEvent.click(within(await screen.findByRole('region', { name: 'Sign-in' })).getByRole('button', { name: /^Sign out/ }))
+    // A save from an earlier visit lands meanwhile: TMDB is on Kinopeer's key now.
+    const saved = { ...settings, tmdb: { configured: true, source: 'shared', fallback: null } } satisfies serverSettings.ServerSettings
+    act(() => sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, saved))
+    await act(async () => refuse())
+
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Sign-in' })).not.toBeInTheDocument())
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...saved, auth: { enabled: false } })
+    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Connected · Kinopeer’s key') })).toBeInTheDocument()
   })
 
   it('keeps no answer of its own when the login was turned off while the page’s next answer is on its way', async () => {
@@ -854,7 +884,7 @@ describe('SettingsScreen', () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       const saved = fromApp()
       saved.qbittorrent.address = { source: 'saved', url: 'http://192.168.1.20:8080' }
-      vi.mocked(serverSettings.saveQbittorrentLogin).mockResolvedValue(saved)
+      vi.mocked(serverSettings.saveQbittorrentLogin).mockImplementation(keeps(saved))
       renderScreen()
       expect(await screen.findByText(hintFromApp)).toBeInTheDocument()
       await waitFor(() => expect(qbt.getCategories).toHaveBeenCalledOnce())
@@ -900,7 +930,7 @@ describe('SettingsScreen', () => {
     it('closes the sheet, says so and shows the settings asked again when the environment set qBittorrent’s address meanwhile', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       vi.mocked(serverSettings.saveQbittorrentLogin)
-        .mockResolvedValueOnce(fromApp())
+        .mockImplementationOnce(keeps(fromApp()))
         .mockRejectedValueOnce(new serverSettings.SettingsError(409, 'env-address'))
       renderScreen()
       const change = async () => {
@@ -928,7 +958,7 @@ describe('SettingsScreen', () => {
     it('saves qBittorrent’s address when the sheet was closed before the answer, and says so', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       let answer = (_settings: serverSettings.ServerSettings) => {}
-      vi.mocked(serverSettings.saveQbittorrentLogin).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      vi.mocked(serverSettings.saveQbittorrentLogin).mockReturnValue(kept(new Promise((resolve) => (answer = resolve))))
       renderScreen()
       await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
       const sheet = screen.getByRole('dialog', { name: qbittorrentSheet })
@@ -964,10 +994,9 @@ describe('SettingsScreen', () => {
       await userEvent.click(within(sheet).getByRole('button', { name: 'Connect' }))
       first.unmount()
 
-      // Opened again within the minute, so it shows the page's answer from before the save.
+      // Opened again within the minute, before the save settles.
       renderScreen()
-      await userEvent.click(await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent }))
-      fireEvent(screen.getByRole('dialog', { name: qbittorrentSheet }), new Event('cancel', { cancelable: true }))
+      await within(connection('qBittorrent')).findByRole('button', { name: changeQbittorrent })
       await act(async () => answer())
 
       await userEvent.click(within(connection('qBittorrent')).getByRole('button', { name: changeQbittorrent }))
@@ -976,7 +1005,7 @@ describe('SettingsScreen', () => {
 
     it('changes Prowlarr’s address with its key, the sheet starting at the saved address', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
-      vi.mocked(serverSettings.saveProwlarrKey).mockResolvedValue(fromApp())
+      vi.mocked(serverSettings.saveProwlarrKey).mockImplementation(keeps(fromApp()))
       renderScreen()
       await userEvent.click(await within(connection('Prowlarr')).findByRole('button', { name: changeProwlarr }))
       const sheet = screen.getByRole('dialog', { name: prowlarrSheet })
@@ -990,7 +1019,7 @@ describe('SettingsScreen', () => {
     it('says the environment’s address wins and asks the settings again when it set Prowlarr’s meanwhile', async () => {
       vi.mocked(serverSettings.getServerSettings).mockResolvedValue(fromApp())
       vi.mocked(serverSettings.saveProwlarrKey)
-        .mockResolvedValueOnce(fromApp())
+        .mockImplementationOnce(keeps(fromApp()))
         .mockRejectedValueOnce(new serverSettings.SettingsError(409, 'env-address'))
       renderScreen()
       const save = async () => {
@@ -1111,7 +1140,7 @@ describe('SettingsScreen: Telegram', () => {
 
   it('offers to set Telegram up, asking Telegram nothing, and saves a token from its sheet', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings({ bot: null, chat: null, refused: null }))
-    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings({ bot: 'kinopeer_home_bot', chat: null, refused: null }))
+    vi.mocked(serverSettings.saveTelegramToken).mockImplementation(keeps(settings({ bot: 'kinopeer_home_bot', chat: null, refused: null })))
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
     renderScreen()
     const card = await waitFor(() => connection('Telegram'))
@@ -1154,7 +1183,7 @@ describe('SettingsScreen: Telegram', () => {
     vi.mocked(serverSettings.checkTelegram)
       .mockRejectedValueOnce(new serverSettings.SettingsError(422, 'token-rejected'))
       .mockResolvedValue({ bot: 'kinopeer_home_bot' })
-    vi.mocked(serverSettings.saveTelegramToken).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.saveTelegramToken).mockImplementation(keeps(settings(CONNECTED)))
     renderScreen()
     const rejected = 'Telegram no longer knows the bot’s token. Get a new one from @BotFather and save it here.'
     await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying(rejected) }))
@@ -1175,7 +1204,7 @@ describe('SettingsScreen: Telegram', () => {
   it('doesn’t check the bot again after a test message went through', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
-    vi.mocked(serverSettings.testTelegram).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.testTelegram).mockImplementation(keeps(settings(CONNECTED)))
     renderScreen()
     await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Sends to “Alex” from @kinopeer_home_bot') }))
     await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
@@ -1206,7 +1235,7 @@ describe('SettingsScreen: Telegram', () => {
       .mockResolvedValue({ bot: 'kinopeer_home_bot' })
     vi.mocked(serverSettings.testTelegram).mockImplementation(test)
     vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
-    vi.mocked(serverSettings.saveTelegramChat).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.saveTelegramChat).mockImplementation(keeps(settings(CONNECTED)))
     renderScreen()
     await waitFor(() => within(connection('Telegram')).getByRole('status', { name: saying('Telegram isn’t answering') }))
     await userEvent.click(within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' }))
@@ -1222,7 +1251,7 @@ describe('SettingsScreen: Telegram', () => {
       .mockReturnValueOnce(new Promise((_resolve, reject) => (failCheck = reject)))
       .mockResolvedValue({ bot: 'kinopeer_home_bot' })
     let sent = (_settings: serverSettings.ServerSettings) => {}
-    vi.mocked(serverSettings.testTelegram).mockReturnValue(new Promise((resolve) => (sent = resolve)))
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(kept(new Promise((resolve) => (sent = resolve))))
     renderScreen()
     await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
     await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
@@ -1265,7 +1294,7 @@ describe('SettingsScreen: Telegram', () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
     const test = held<serverSettings.ServerSettings>()
-    vi.mocked(serverSettings.testTelegram).mockReturnValue(test.promise)
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(kept(test.promise))
     renderScreen()
     await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
     await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
@@ -1314,7 +1343,7 @@ describe('SettingsScreen: Telegram', () => {
   it('turns notifications off from the sheet: the sheet closes, a toast says so and the card offers to set up again', async () => {
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
-    vi.mocked(serverSettings.forgetTelegram).mockResolvedValue(settings({ bot: null, chat: null, refused: null }))
+    vi.mocked(serverSettings.forgetTelegram).mockImplementation(keeps(settings({ bot: null, chat: null, refused: null })))
     renderScreen()
     await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Telegram notifications' })).getByRole('button', { name: 'Turn off' }))
@@ -1333,7 +1362,7 @@ describe('SettingsScreen: Telegram', () => {
     vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
     vi.mocked(serverSettings.findTelegramChat).mockResolvedValue({ id: 42, name: 'Alex', type: 'private' })
     let answer!: (saved: serverSettings.ServerSettings) => void
-    const answered = new Promise<serverSettings.ServerSettings>((resolve) => (answer = resolve))
+    const answered = kept(new Promise<serverSettings.ServerSettings>((resolve) => (answer = resolve)))
     vi.mocked(serverSettings.saveTelegramToken).mockReturnValue(answered)
     vi.mocked(serverSettings.saveTelegramChat).mockReturnValue(answered)
     vi.mocked(serverSettings.testTelegram).mockReturnValue(answered)

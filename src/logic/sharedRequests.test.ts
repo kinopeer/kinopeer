@@ -239,6 +239,19 @@ describe('createSharedRequests', () => {
     expect(second).toHaveBeenLastCalledWith('again')
   })
 
+  it('keeps a follower that came after another left, however often that one leaves', () => {
+    const { shared } = setup()
+    const first = vi.fn()
+    const later = vi.fn()
+    const leaveFirst = shared.follow('k', first)
+    leaveFirst()
+    shared.follow('k', later)
+    leaveFirst()
+    shared.set('k', 'saved')
+    expect(later).toHaveBeenCalledWith('saved')
+    expect(first).not.toHaveBeenCalled()
+  })
+
   it('doesn’t tell followers of an answer a request of their own brought', async () => {
     const { shared } = setup()
     const follower = vi.fn()

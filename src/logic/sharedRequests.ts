@@ -120,9 +120,13 @@ export function createSharedRequests(now: () => number = () => Date.now()): Shar
     },
     follow: <T>(key: string, listener: (data: T) => void) => {
       const follower = listener as (data: unknown) => void
-      // A key's set stays once empty: the keys followed are a few.
-      followers.set(key, (followers.get(key) ?? new Set()).add(follower))
-      return () => void followers.get(key)?.delete(follower)
+      const ofKey = followers.get(key) ?? new Set()
+      followers.set(key, ofKey.add(follower))
+      // A key is followed while something shows it: one per title opened, say, so an empty one goes.
+      return () => {
+        ofKey.delete(follower)
+        if (ofKey.size === 0 && followers.get(key) === ofKey) followers.delete(key)
+      }
     },
     clear: () => {
       // Followers stay: they're the mounted callers', which leave by themselves.

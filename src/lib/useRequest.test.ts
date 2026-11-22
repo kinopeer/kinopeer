@@ -177,21 +177,11 @@ describe('useRequest with freshFor', () => {
     expect(result.current.data).toBe('again')
   })
 
-  it('follows nothing without freshFor, nor for a key it left', async () => {
+  it('follows nothing without freshFor', async () => {
     const own = renderHook(() => useRequest('k', () => Promise.resolve('own')))
     await waitFor(() => expect(own.result.current.data).toBe('own'))
-    const { result, rerender } = renderHook(({ key }) => useRequest(key, () => Promise.resolve(key), { freshFor: 60_000 }), {
-      initialProps: { key: 'a' },
-    })
-    await waitFor(() => expect(result.current.data).toBe('a'))
-    rerender({ key: 'b' })
-    await waitFor(() => expect(result.current.data).toBe('b'))
-    act(() => {
-      sharedRequests.set('k', 'saved')
-      sharedRequests.set('a', 'saved')
-    })
+    act(() => sharedRequests.set('k', 'saved'))
     expect(own.result.current.data).toBe('own')
-    expect(result.current.data).toBe('b')
   })
 
   it('stops following a key it leaves or as it goes', async () => {
