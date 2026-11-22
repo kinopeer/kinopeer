@@ -132,6 +132,13 @@ describe('vite.config.ts', () => {
     expect(ours.server.fs.deny).toEqual(expect.arrayContaining(vites.server.fs.deny))
   })
 
+  // The WebUI build (#360) branches on __WEBUI__, which the server's build has false, so its code is dropped there.
+  it('builds the server’s app into dist/ and the WebUI into dist-webui/, each with its own __WEBUI__', async () => {
+    const [server, webui] = await Promise.all([resolveConfig(options, 'build', 'production'), resolveConfig(options, 'build', 'webui')])
+    expect([server.build.outDir, server.define?.__WEBUI__]).toStrictEqual(['dist', 'false'])
+    expect([webui.build.outDir, webui.define?.__WEBUI__]).toStrictEqual(['dist-webui', 'true'])
+  })
+
   it('answers no cross-origin preflight on the preview server either', async () => {
     const answer = await preflight(await startPreview())
     expect(answer.headers.has('access-control-allow-origin')).toBe(false)

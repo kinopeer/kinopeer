@@ -45,6 +45,7 @@ npm run guard          # the checks guard over this branch's commits: what weake
 npm run lint       # oxlint
 npm run typecheck  # tsc -b
 npm run build      # production build into dist/
+npm run build:webui  # the Alternative WebUI build into dist-webui/, served by qBittorrent itself
 npm run size       # the build's JS and CSS gzipped and the rest, against their budgets in checks.json
 npm run test:requests  # each screen's requests on opening and each move's between screens, against their budgets in checks.json, and each screen's layout shift on a phone and on desktop (after npm run build)
 npm start          # production server (server/main.ts) serving dist/

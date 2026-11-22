@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:webui": "tsc -b && vite build --mode webui",
     "lint": "oxlint --disable-nested-config",
     "preview": "vite preview",
     "start": "node server/main.ts",
