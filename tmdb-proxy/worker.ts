@@ -98,6 +98,7 @@ const PRIVATE_SUFFIXES = ['.localhost', '.local', '.home.arpa', '.internal']
 
 /** Whether `address`, an IPv4 address in dotted decimal, is private, loopback, link-local or CGNAT. */
 function isPrivateIpv4(address: string): boolean {
+  // Four numbers, as the caller's pattern holds; the defaults only satisfy the type.
   const [a = -1, b = -1] = address.split('.').map(Number)
   return (
     a === 10 || // 10.0.0.0/8
@@ -116,7 +117,8 @@ function isPrivateIpv4(address: string): boolean {
  */
 function isPrivateIpv6(address: string): boolean {
   if (address === '::1') return true
-  const first = address.startsWith(':') ? 0 : Number.parseInt(address.split(':')[0] ?? '', 16)
+  // An address that starts with `::` has an empty first group, read as NaN, whose bits are none.
+  const first = Number.parseInt(address.split(':')[0] ?? '', 16)
   return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80
 }
 
@@ -131,10 +133,10 @@ function isPrivateIpv6(address: string): boolean {
  * question is whose page it is, and a public IP address is someone's public site.
  */
 export function isPrivateOrigin(origin: string | null): boolean {
-  if (!origin) return false
   let url: URL
   try {
-    url = new URL(origin)
+    // No Origin, `null` and an empty one don't parse.
+    url = new URL(origin ?? '')
   } catch {
     return false
   }
@@ -154,7 +156,7 @@ export function isPrivateOrigin(origin: string | null): boolean {
  * honors it and keeps an answer per origin, and the rest only for a private one. A preflight also
  * gets the methods and how long the browser may keep it.
  */
-function withCors(response: Response, origin: string | null, preflight = false): Response {
+function withCors(response: Response, origin: string | null, preflight: boolean): Response {
   response.headers.append('Vary', 'Origin')
   if (!isPrivateOrigin(origin)) return response
   response.headers.set('Access-Control-Allow-Origin', origin ?? '')
