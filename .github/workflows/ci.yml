@@ -75,6 +75,8 @@ jobs:
           name: actuals-check
           path: actuals-check.json
       - run: npm run build
+      # The Alternative WebUI's build (#360), which nothing else here builds, so it can't break unnoticed.
+      - run: npm run build:webui
 
   performance:
     # The speed budgets in checks.json (docs/QUALITY.md): the build's size, then what each screen asks

@@ -1,12 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter } from 'react-router'
 import '@fontsource-variable/onest'
 import './styles/tokens.css'
 import './styles/layout.css'
 import './styles/base.css'
 import './i18n'
 import App from './App.tsx'
+import { AppRouter } from './lib/appRouter'
 import { trackInputModality } from './lib/inputModality'
 import { trackKeyboardInset } from './lib/keyboardInset'
 import { ROUTER_OPTIONS } from './lib/routerOptions'
@@ -34,11 +34,11 @@ trackKeyboardInset()
 void showLanguage(resolveLanguage(getLanguagePreference())).then(() =>
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <BrowserRouter {...ROUTER_OPTIONS}>
+      <AppRouter {...ROUTER_OPTIONS}>
         <ErrorBoundary>
           <App />
         </ErrorBoundary>
-      </BrowserRouter>
+      </AppRouter>
     </StrictMode>,
   ),
 )
