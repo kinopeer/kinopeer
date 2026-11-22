@@ -963,7 +963,10 @@ need no Docker: Chromium on the host will do (`npx playwright install chromium`,
   fakes it imports send `Buffer`s where the DOM's `fetch` types take none.
 - **In CI:** the `smoke` job runs in the Playwright image the screenshot tests run in, pinned by
   the same digest, so its Chromium and system libraries come with the image and nothing is fetched
-  from Ubuntu's archive (#502); when it fails, its `playwright-report-smoke` artifact has the
+  from Ubuntu's archive (#502). There the production server runs in a container with a network of
+  its own (Docker puts `/.dockerenv` in it and gives it no interface backed by a device or a bridge),
+  so `container()`'s hints are on (`server/container.ts`), while on the host they're off; no journey
+  depends on them. When it fails, its `playwright-report-smoke` artifact has the
   report and the traces (`trace: 'retain-on-failure'`).
 
 ## The requests test
