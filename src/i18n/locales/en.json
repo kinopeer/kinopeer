@@ -660,11 +660,14 @@
     "connectedTo": "Notifications go to “{{chat}}” ({{type}}) from @{{bot}}.",
     "sendTest": "Send a test message",
     "testSent": "Test message sent",
+    "botSaved": "Telegram bot saved",
+    "chatSaved": "Telegram chat saved",
     "changeChat": "Choose another chat",
     "changeBot": "Use another bot",
     "turnOff": "Turn off",
     "turnedOff": "Telegram notifications are off",
     "failed": "Couldn’t save. Try again.",
+    "failedNamed": "Couldn’t save Telegram notifications. Try again.",
     "unreachable": "$t(noAnswer.telegram). Kinopeer’s server needs to reach api.telegram.org."
   },
   "push": {

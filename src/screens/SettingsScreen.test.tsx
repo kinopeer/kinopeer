@@ -12,6 +12,7 @@ import i18n from '../i18n'
 import { BUG_REPORT_URL, IDEAS_URL, REPO_URL } from '../lib/links'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { sharedRequests } from '../logic/sharedRequests'
+import { held } from '../test/held'
 import * as push from '../pwa/push'
 import { getSettings, resetSettings } from '../settings/settings'
 import { TELEGRAM_TOKEN } from '../test/fixtures'
@@ -1220,6 +1221,21 @@ describe('SettingsScreen: Telegram', () => {
     expect(await within(connection('Telegram')).findByRole('status', { name: saying(chatRefused) })).toBeInTheDocument()
     // A refused chat says nothing new about a bot the card's check found answering, so that check isn't asked again.
     expect(serverSettings.checkTelegram).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a save that came in while the test message was on its way when Telegram refuses it', async () => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(CONNECTED))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    const test = held<serverSettings.ServerSettings>()
+    vi.mocked(serverSettings.testTelegram).mockReturnValue(test.promise)
+    renderScreen()
+    await userEvent.click(await waitFor(() => within(connection('Telegram')).getByRole('button', { name: 'Change Telegram notifications' })))
+    await sendTest(screen.getByRole('dialog', { name: 'Telegram notifications' }))
+    // Another save meanwhile keeps its answer as the page's settings, as every save does.
+    const meanwhile = { ...settings(CONNECTED), downloads: { notify: true } }
+    sharedRequests.set(serverSettings.SERVER_SETTINGS_KEY, meanwhile)
+    await act(async () => test.reject(new serverSettings.SettingsError(422, 'chat-rejected')))
+    expect(sharedRequests.peek(serverSettings.SERVER_SETTINGS_KEY, Infinity)?.data).toEqual({ ...meanwhile, telegram: { ...CONNECTED, refused: 'chat' } })
   })
 
   it('keeps the chat Telegram refused a test message for in the page’s settings, so Settings opened again within the minute warns of it', async () => {
