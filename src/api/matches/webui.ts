@@ -27,7 +27,8 @@ export async function loadWebuiMatches(signal?: AbortSignal): Promise<Matches> {
 }
 
 // The page's last change, which the next one waits for, as the server's JsonFile runs its changes.
-let changing: Promise<unknown> = Promise.resolve()
+// Not a promise from the start: a call at the module's top level would stay in the server build.
+let changing: Promise<unknown> | undefined
 
 /**
  * Applies `change` to the matches qBittorrent keeps, stores what changed, and answers the result,
@@ -36,7 +37,11 @@ let changing: Promise<unknown> = Promise.resolve()
  * store the guess over it, and a prune read before a torrent was forgotten would bring its match back.
  */
 function changeMatches(change: (current: Matches) => Matches): Promise<Matches> {
-  const run = changing.then(() => applyChange(change))
+  const before = changing
+  const run = (async () => {
+    await before
+    return applyChange(change)
+  })()
   changing = run.catch(() => {})
   return run
 }
