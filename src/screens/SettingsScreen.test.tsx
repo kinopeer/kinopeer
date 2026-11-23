@@ -1164,7 +1164,7 @@ describe('SettingsScreen: Telegram', () => {
     const defaults = screen.getByRole('region', { name: 'Download defaults' })
     const ids = within(defaults).getByRole('switch', { name: 'Add the TMDB id to folder names' })
     expect(ids).not.toBeChecked()
-    expect(within(defaults).getByText('Media servers match a folder by it more surely, as in “Dune (2021) {tmdb-438631}”.')).toBeInTheDocument()
+    expect(ids).toHaveAccessibleDescription('With the id, media servers find the right title more reliably, as in “Dune (2021) {tmdb-438631}”.')
     await userEvent.click(ids)
     expect(ids).toBeChecked()
     expect(getSettings().tmdbIds).toBe(true)

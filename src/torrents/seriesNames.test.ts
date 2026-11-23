@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { episodeName, episodeOf, filesTakenBy, placed, seriesNames, titleNames } from './seriesNames'
+import type { NamedFile } from './mediaNames'
 
 const MB = 1024 ** 2
 const file = (name: string, size = 700 * MB) => ({ name, size })
@@ -219,6 +220,39 @@ describe('seriesNames', () => {
     expect(again.named && again.renames).toEqual([])
     // One named without it, half in the folder with it, is split.
     expect(seriesNames([file(`${folder}/Season 01/${SHOW} S01E01.mkv`), file(`${SHOW}/Season 01/notes.nfo`, 1)], 'Breaking Bad', 2008, undefined, 1396)).toEqual({ named: false, reason: 'split' })
+  })
+
+  it('refuses a torrent half in the show’s folder with or without the TMDB id, whichever way the switch is', () => {
+    const pack = 'Breaking.Bad.S01.1080p-GRPA'
+    const folder = `${SHOW} {tmdb-1396}`
+    const naming = (files: NamedFile[], tmdbId?: number) => seriesNames(files, 'Breaking Bad', 2008, undefined, tmdbId)
+    // Named without the id until a rename stopped, then the switch turned on.
+    const before = [file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file(`${SHOW}/Season 01/notes.nfo`, 1), file(`${pack}/Breaking.Bad.S01E02.mkv`)]
+    expect(naming(before, 1396)).toEqual({ named: false, reason: 'split' })
+    // Named with it until a rename stopped, then the switch turned off.
+    const after = [file(`${folder}/Season 01/${SHOW} S01E01.mkv`), file(`${folder}/Season 01/notes.nfo`, 1), file(`${pack}/Breaking.Bad.S01E02.mkv`)]
+    expect(naming(after)).toEqual({ named: false, reason: 'split' })
+    // Half in each of the two folders, either way.
+    const both = [file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file(`${folder}/Season 01/${SHOW} S01E02.mkv`)]
+    expect(naming(both, 1396)).toEqual({ named: false, reason: 'split' })
+    expect(naming(both)).toEqual({ named: false, reason: 'split' })
+  })
+
+  it('renames a whole torrent from the show’s folder without the TMDB id into the one with it, and back', () => {
+    const folder = `${SHOW} {tmdb-1396}`
+    const naming = (files: NamedFile[], tmdbId?: number) => seriesNames(files, 'Breaking Bad', 2008, undefined, tmdbId)
+    const plain = [file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file(`${SHOW}/Season 01/notes.nfo`, 1)]
+    const on = naming(plain, 1396)
+    expect(on.named && on.renames).toEqual([
+      { from: `${SHOW}/Season 01/${SHOW} S01E01.mkv`, to: `${folder}/Season 01/${SHOW} S01E01.mkv` },
+      { from: `${SHOW}/Season 01/notes.nfo`, to: `${folder}/Season 01/notes.nfo` },
+    ])
+    const withId = [file(`${folder}/Season 01/${SHOW} S01E01.mkv`), file(`${folder}/Season 01/notes.nfo`, 1)]
+    const off = naming(withId)
+    expect(off.named && off.renames).toEqual([
+      { from: `${folder}/Season 01/${SHOW} S01E01.mkv`, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` },
+      { from: `${folder}/Season 01/notes.nfo`, to: `${SHOW}/Season 01/notes.nfo` },
+    ])
   })
 
   it('names the files of a pack by their paths below its folder, which tell seasons apart', () => {
