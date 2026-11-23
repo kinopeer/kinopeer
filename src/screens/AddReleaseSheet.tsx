@@ -34,6 +34,7 @@ import { unreachableText } from '../lib/unreachable'
 import { FilePicker } from './FilePicker'
 import { FreeUpSpace } from './FreeUpSpace'
 import { IndexerLink } from './IndexerLink'
+import { notNamedText } from './notNamedText'
 import { useNotificationsAvailable } from './useNotificationsAvailable'
 import './AddReleaseSheet.css'
 
@@ -271,7 +272,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const namesHint = !movieNamesPlan
     ? t('names.addNoFiles')
     : !movieNamesPlan.named
-      ? { 'no-video': t('names.noVideo'), 'several-videos': t('names.severalVideos'), disc: t('names.disc') }[movieNamesPlan.reason]
+      ? notNamedText(movieNamesPlan.reason, t)
       : mediaNames
         ? t('names.addAs', { name: movieNamesPlan.folder.to })
         : undefined

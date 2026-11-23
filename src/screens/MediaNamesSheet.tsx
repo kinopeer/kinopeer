@@ -8,6 +8,7 @@ import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { movieNames, originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
 import { readTorrentFile } from '../torrents/torrentFile'
+import { notNamedText } from './notNamedText'
 import './MediaNamesSheet.css'
 
 /** What the sheet sends: the media server's names, or the original ones back. */
@@ -77,7 +78,7 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
   const renames = mode === 'restore' ? (restore ?? []) : names?.named ? names.renames : []
 
   const footer = data && (
-    <div className="names-foot">
+    <div className="names-stack">
       {renames.length > 0 && (
         <Button variant="primary" size="lg" block loading={sending} disabled={sending || offline} onClick={() => onSend({ mode, renames })}>
           {mode === 'restore' ? t('names.restore') : t('names.rename')}
@@ -130,31 +131,24 @@ function NamesPreview({ names }: { names: MediaNames }) {
   const { t } = useTranslation()
   const id = useId()
   if (!names.named) {
-    const reason = { 'no-video': t('names.noVideo'), 'several-videos': t('names.severalVideos'), disc: t('names.disc') }[names.reason]
-    return <Banner tone="info" title={t('names.notNamed')}>{reason}</Banner>
+    return <Banner tone="info" title={t('names.notNamed')}>{notNamedText(names.reason, t)}</Banner>
   }
   if (!names.renames.length) return <Banner tone="info" icon="check-circle" title={t('names.already')} />
   const { folder, files } = names
   return (
     <>
-      <section className="names-group" aria-labelledby={`${id}-folder`}>
+      <section className="names-stack" aria-labelledby={`${id}-folder`}>
         <h3 id={`${id}-folder`} className="ks-label">
           {t('common.folder')}
         </h3>
         <Rename from={folder.from} to={folder.to} />
       </section>
       {files.length > 0 && (
-        <section className="names-group" aria-labelledby={`${id}-files`}>
+        <section className="names-stack" aria-labelledby={`${id}-files`}>
           <h3 id={`${id}-files`} className="ks-label">
             {t('names.files')}
           </h3>
-          <ul className="names-list">
-            {files.map((file) => (
-              <li key={file.from}>
-                <Rename from={file.from} to={file.to} />
-              </li>
-            ))}
-          </ul>
+          <RenamesList renames={files} />
         </section>
       )}
       <p className="t-cap c2">{t('names.others')}</p>
@@ -162,10 +156,10 @@ function NamesPreview({ names }: { names: MediaNames }) {
   )
 }
 
-/** Every rename by its whole path, as the way back changes folders as well as names. */
+/** Renames, each old over new: the files naming renames, or every file the way back renames, by its whole path. */
 function RenamesList({ renames }: { renames: FileRename[] }) {
   return (
-    <ul className="names-list">
+    <ul className="names-stack names-list">
       {renames.map((rename) => (
         <li key={rename.from}>
           <Rename from={rename.from} to={rename.to} />
