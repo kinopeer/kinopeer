@@ -46,7 +46,8 @@
     "qbtFailed": "Couldn’t reach qBittorrent. Try again.",
     "qbtFailed_kinopeer": "Couldn’t reach Kinopeer. Try again.",
     "qbittorrent": "qBittorrent",
-    "tmdb": "TMDB"
+    "tmdb": "TMDB",
+    "approximately": "≈ {{value}}"
   },
   "noAnswer": {
     "qbittorrent": "qBittorrent isn’t answering",
@@ -403,6 +404,24 @@
     "selectedSummary": "{{selected}} of {{count}} · {{size}}",
     "diskUsage": "Selected size against free space"
   },
+  "freeUp": {
+    "title": "Free up space",
+    "counter": "Selected {{selected}} of {{needed}} needed",
+    "enough": "Enough space for this download",
+    "progress": "Selected space against what’s needed",
+    "backToAdd": "Back to the download",
+    "delete_one": "Delete {{count}} torrent",
+    "delete_other": "Delete {{count}} torrents",
+    "loading": "Loading torrents…",
+    "empty": "qBittorrent has no torrents.",
+    "elsewhere": "May be on another disk",
+    "elsewhereHint": "qBittorrent tells the free space only on the disk of its default folder, so these don’t count toward it.",
+    "sort": {
+      "size": "On disk",
+      "added": "Added",
+      "ratio": "Ratio"
+    }
+  },
   "torrent": {
     "loading": "Loading torrent",
     "notFoundTitle": "Torrent not found",
@@ -440,6 +459,7 @@
     "deleteBodyMany_other": "{{count}} torrents will be removed from qBittorrent.",
     "deleteFiles": "Also delete files · {{size}}",
     "deleteFilesHint": "Files are removed from disk permanently.",
+    "deleteWithFiles": "Files are deleted too · {{size}}",
     "files": "Files",
     "priorityOf": "Priority: {{name}}",
     "prioritySkip": "Skip",

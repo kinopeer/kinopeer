@@ -18,6 +18,10 @@ export interface FilePickerProps {
   onChange: (skipped: ReadonlySet<number>) => void
   /** Free space where the torrent goes, as qBittorrent reports it; 0 or less means it can't tell. */
   free?: number
+  /** `free` is an estimate: qBittorrent hasn't measured the disk since a delete. */
+  estimate?: boolean
+  /** Opens Free up space, offered while the selected files don't fit. */
+  onFreeUp?: () => void
   subtitle: string
   onDone: () => void
 }
@@ -31,7 +35,7 @@ function treeOf(meta: TorrentMeta): FileFolder {
 }
 
 /** Full-height sheet to pick which files of a torrent to download, as a folder tree. */
-export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, onDone }: FilePickerProps) {
+export function FilePicker({ meta, skipped, onChange, free: reported, estimate, onFreeUp, subtitle, onDone }: FilePickerProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const tree = useMemo(() => treeOf(meta), [meta])
@@ -125,8 +129,17 @@ export function FilePicker({ meta, skipped, onChange, free: reported, subtitle, 
             </span>
             {free !== undefined && (
               <span className={tooBig ? 't-cap ks-num c-err' : 't-cap ks-num c3'}>
-                {tooBig ? t('add.notEnough') : t('common.freeSpace', { size: format.size(free) })}
+                {tooBig
+                  ? t('add.notEnough')
+                  : t('common.freeSpace', {
+                      size: estimate ? t('common.approximately', { value: format.size(free) }) : format.size(free),
+                    })}
               </span>
+            )}
+            {tooBig && onFreeUp && (
+              <Button variant="ghost" size="sm" onClick={onFreeUp}>
+                {t('freeUp.title')}
+              </Button>
             )}
           </div>
           {free !== undefined && (
