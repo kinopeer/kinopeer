@@ -408,19 +408,8 @@
     "title": "Free up space",
     "counter": "Selected {{selected}} of {{needed}} needed",
     "enough": "Enough space for this download",
-    "progress": "Selected space against what’s needed",
-    "backToAdd": "Back to the download",
-    "delete_one": "Delete {{count}} torrent",
-    "delete_other": "Delete {{count}} torrents",
-    "loading": "Loading torrents…",
-    "empty": "qBittorrent has no torrents.",
     "elsewhere": "May be on another disk",
-    "elsewhereHint": "qBittorrent tells the free space only on the disk of its default folder, so these don’t count toward it.",
-    "sort": {
-      "size": "On disk",
-      "added": "Added",
-      "ratio": "Ratio"
-    }
+    "elsewhereHint": "Outside qBittorrent’s default folder, so not counted."
   },
   "torrent": {
     "loading": "Loading torrent",

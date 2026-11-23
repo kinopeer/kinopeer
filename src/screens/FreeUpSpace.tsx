@@ -5,7 +5,6 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Checkbox } from '../components/Checkbox'
 import { IconButton } from '../components/IconButton'
-import { ProgressBar } from '../components/ProgressBar'
 import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { SortDirectionButton } from '../components/SortDirectionButton'
@@ -17,6 +16,9 @@ import { FREE_UP_SORTS, FREE_UP_USUALLY_DESCENDING, countedSpace, groupForFreeUp
 import { useMainData } from '../torrents/useMainData'
 import { useDeleteTorrents } from './useDeleteTorrents'
 import './FreeUpSpace.css'
+
+/** Each sort's name, the one Downloads, the releases or the torrent page give it. */
+const SORT_LABELS = { size: 'fields.size', added: 'fields.date', ratio: 'torrent.ratio' } as const
 
 export interface FreeUpSpaceProps {
   /** The step is shown; while it isn't, only a delete's confirmation sent from it stays. */
@@ -133,28 +135,9 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
               </span>
               {freeText && <span className="t-cap ks-num c3">{freeText}</span>}
             </div>
-            {missing !== undefined && missing > 0 && (
-              <ProgressBar
-                value={Math.min(1, chosenSpace / missing)}
-                status={chosenSpace >= missing ? 'seeding' : 'downloading'}
-                label={t('freeUp.progress')}
-              />
-            )}
-            {chosen.length === 0 && missing === 0 ? (
-              <Button variant="primary" block onClick={onBack}>
-                {t('freeUp.backToAdd')}
-              </Button>
-            ) : (
-              <Button
-                variant="danger"
-                block
-                icon="trash"
-                disabled={chosen.length === 0 || offline}
-                onClick={() => deleting.open(chosen)}
-              >
-                {chosen.length > 0 ? t('freeUp.delete', { count: chosen.length }) : t('torrent.delete')}
-              </Button>
-            )}
+            <Button variant="danger" block icon="trash" disabled={chosen.length === 0 || offline} onClick={() => deleting.open(chosen)}>
+              {t('torrent.delete')}
+            </Button>
           </div>
         }
       >
@@ -162,7 +145,7 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
           <div className="fu-sort">
             <Segmented
               label={t('common.sort')}
-              options={FREE_UP_SORTS.map((key) => ({ value: key, label: t(`freeUp.sort.${key}`) }))}
+              options={FREE_UP_SORTS.map((key) => ({ value: key, label: t(SORT_LABELS[key]) }))}
               value={order.key}
               onChange={(key) => setOrder(usualOrder(key, FREE_UP_USUALLY_DESCENDING))}
             />
@@ -176,10 +159,10 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
           {loading && (
             <div className="fu-loading" role="status">
               <span className="ks-spin ca" />
-              <span className="c2">{t('freeUp.loading')}</span>
+              <span className="c2">{t('downloads.loading')}</span>
             </div>
           )}
-          {none && <p className="t-body c2">{t('freeUp.empty')}</p>}
+          {none && <p className="t-body c2">{t('downloads.emptyTitle')}</p>}
           {groups.counted.length > 0 && <ul className="fu-list">{groups.counted.map(row)}</ul>}
           {groups.elsewhere.length > 0 && (
             <section className="fu-group" aria-labelledby={elsewhereId}>

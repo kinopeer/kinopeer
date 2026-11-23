@@ -138,14 +138,13 @@ describe('Free up space', () => {
     expect(within(sheet).getByText(/^Selected 0\sB of 10\.0\sGB needed$/)).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Show.S01.1080p-GRPB' }))
     expect(within(sheet).getByText(/^Selected 12\.0\sGB of 10\.0\sGB needed$/)).toBeInTheDocument()
-    expect(within(sheet).getByRole('progressbar', { name: 'Selected space against what’s needed' })).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: 'Delete 2 torrents' })).toBeEnabled()
+    expect(within(sheet).getByRole('button', { name: 'Delete' })).toBeEnabled()
   })
 
   it('remembers its own sort, apart from Downloads’', async () => {
     renderSheet()
     const sheet = await openStep()
-    await userEvent.click(within(sheet).getByRole('radio', { name: 'Added' }))
+    await userEvent.click(within(sheet).getByRole('radio', { name: 'Date' }))
     // The oldest first, which is the usual direction for a date here.
     expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC', 'Movie.2024.2160p-GRPA'])
     await userEvent.click(within(sheet).getByRole('button', { name: 'Ascending' }))
@@ -160,7 +159,7 @@ describe('Free up space', () => {
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Movie.2024.2160p-GRPA' }))
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Archive.1999.1080p-GRPD' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete 2 torrents' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete' }))
 
     const confirm = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
     // The files go: said, not asked.
@@ -173,7 +172,7 @@ describe('Free up space', () => {
     expect(await within(step()).findByText(/^≈ 70\.0\sGB free$/)).toBeInTheDocument()
     expect(within(step()).getByText('Enough space for this download')).toBeInTheDocument()
     expect(names(within(step()).getAllByRole('list')[0])).toEqual(['Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
-    await userEvent.click(within(step()).getByRole('button', { name: 'Back to the download' }))
+    await userEvent.click(within(step()).getByRole('button', { name: 'Back' }))
 
     const back = addSheet()
     expect(within(back).queryByText('Not enough free space')).not.toBeInTheDocument()
@@ -184,7 +183,7 @@ describe('Free up space', () => {
     renderSheet()
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Show.S02E01.720p-GRPC' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete 1 torrent' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete' }))
     await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Delete' }))
     expect(await within(step()).findByText(/^≈ 44\.0\sGB free$/)).toBeInTheDocument()
     // Still short: the warning says so with the estimate.
@@ -205,7 +204,7 @@ describe('Free up space', () => {
     renderSheet()
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Movie.2024.2160p-GRPA' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete 1 torrent' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Delete' }))
     const confirm = screen.getByRole('alertdialog')
     await userEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
     await userEvent.click(within(confirm).getByRole('button', { name: 'Cancel' }))
@@ -230,7 +229,7 @@ describe('Free up space', () => {
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Movie.2024.2160p-GRPA' }))
     getMainData.mockRejectedValue(qbittorrentDown())
-    await waitFor(() => expect(within(step()).getByRole('button', { name: 'Delete 1 torrent' })).toBeDisabled(), { timeout: 4000 })
+    await waitFor(() => expect(within(step()).getByRole('button', { name: 'Delete' })).toBeDisabled(), { timeout: 4000 })
     expect(within(step()).getByRole('alert', { name: saying(/^Couldn’t reach qBittorrent/) })).toBeInTheDocument()
   })
 
@@ -238,7 +237,7 @@ describe('Free up space', () => {
     getMainData.mockResolvedValue(mainData([], { free_space_on_disk: FREE }))
     renderSheet()
     const sheet = await openStep()
-    expect(within(sheet).getByText('qBittorrent has no torrents.')).toBeInTheDocument()
+    expect(within(sheet).getByText('No downloads yet')).toBeInTheDocument()
     expect(within(sheet).queryByRole('list')).not.toBeInTheDocument()
   })
 })
