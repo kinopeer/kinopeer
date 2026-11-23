@@ -3,13 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { renameFiles, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { folderTakenBy, movieName } from '../torrents/mediaNames'
+import { folderTakenBy, titleName, torrentsIn } from '../torrents/mediaNames'
 import type { TitleMatch } from '../torrents/titleLookup'
 import { MediaNamesSheet, type NamesChange } from './MediaNamesSheet'
 import { useTorrentSheet } from './useTorrentSheet'
 
 export interface MediaNames {
-  /** Opens "Name for a media server" for a torrent in `torrents` matched to a movie. */
+  /** Opens "Name for a media server" for a torrent in `torrents` matched to a movie or a series. */
   open: (hash: string) => void
   /** The sheet, for the screen to render. */
   element: ReactNode
@@ -28,7 +28,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
   /** Every torrent qBittorrent lists, when the screen shows fewer: another one may be in the folder naming would use. */
   listed?: Record<string, Torrent>
   offline: boolean
-  /** The title the torrent is matched to: only a movie's files are named. */
+  /** The title the torrent is matched to: a movie's or a series' files are named by it. */
   matchOf: (torrent: Torrent) => TitleMatch | null | undefined
 }): MediaNames {
   const { t } = useTranslation()
@@ -43,20 +43,28 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
     else if (!settled.showing) toast.show(t('names.failedClosed', { title }), { icon: 'alert' })
   }
 
+  /** The sheet for a matched torrent: a movie's folder is its own, while a series' seasons share the show's, so the sheet reads the files of the torrents there and checks them against its own. */
+  const sheet = (shown: Torrent, match: TitleMatch) => {
+    const folder = titleName(match.title, match.year, match.type)
+    const others = Object.values(listed ?? {})
+    return (
+      <MediaNamesSheet
+        key={shown.hash}
+        torrent={shown}
+        type={match.type}
+        title={match.title}
+        year={match.year}
+        taken={match.type === 'movie' ? folderTakenBy(others, shown, folder)?.name : undefined}
+        neighbours={match.type === 'tv' ? torrentsIn(others, shown, folder) : []}
+        offline={offline}
+        pending={pending(shown.hash)}
+        failed={failure !== undefined}
+        onSend={(change) => void rename(shown, change)}
+        onClose={close}
+      />
+    )
+  }
   const match = torrent && matchOf(torrent)
-  const element = torrent && match?.type === 'movie' && (
-    <MediaNamesSheet
-      key={torrent.hash}
-      torrent={torrent}
-      title={match.title}
-      year={match.year}
-      taken={folderTakenBy(Object.values(listed ?? {}), torrent, movieName(match.title, match.year))?.name}
-      offline={offline}
-      pending={pending(torrent.hash)}
-      failed={failure !== undefined}
-      onSend={(change) => void rename(torrent, change)}
-      onClose={close}
-    />
-  )
+  const element = torrent && match && sheet(torrent, match)
   return { open, element }
 }

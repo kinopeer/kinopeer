@@ -28,7 +28,7 @@ export interface FileRename {
 }
 
 /** Why a torrent's files aren't named for a media server. */
-export type NotNamedReason = 'no-video' | 'several-videos' | 'disc'
+export type NotNamedReason = 'no-video' | 'several-videos' | 'disc' | 'no-episodes' | 'same-place' | 'split'
 
 export type MediaNames =
   | {
@@ -37,32 +37,34 @@ export type MediaNames =
       renames: FileRename[]
       /** The torrent's folder before and after: `from` undefined for files that had none. */
       folder: { from?: string; to: string }
-      /** The files whose own name changes, by their names alone (no folders), the main video first. */
+      /** The files whose own name changes: a movie's by their names alone (no folders), the main video first; a series' by their paths below the torrent's folder and the show's. */
       files: { from: string; to: string }[]
+      /** A series' videos whose episode couldn't be read: they keep their names. */
+      unread?: string[]
     }
   | { named: false; reason: NotNamedReason }
 
 const VIDEO = new Set(['avi', 'divx', 'flv', 'm2ts', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'mpg', 'ogm', 'ts', 'webm', 'wmv'])
 
 /** A path through a folder of a disc's structure, which a player reads as a whole: renaming a file in it breaks it. */
-const DISC_FOLDER = /(^|\/)(bdmv|video_ts)\//i
+export const DISC_FOLDER = /(^|\/)(bdmv|video_ts)\//i
 
 /** "sample" as a word of a video's path: something always follows it there, the type at least. */
-const SAMPLE = /(^|[^a-z0-9])sample[^a-z0-9]/i
+export const SAMPLE = /(^|[^a-z0-9])sample[^a-z0-9]/i
 
 /** Another video at least this part of the main one's size is a part or a version of the movie, not an extra. */
 const SECOND_VIDEO_SHARE = 0.25
 
-const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
+export const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 /** A file's type, from its own name: none for a name with no dot, or with one only in front (`.mkv`). */
-const extension = (path: string) => {
+export const extension = (path: string) => {
   const name = base(path)
   const dot = name.lastIndexOf('.')
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
 }
 
-const isVideo = (path: string) => VIDEO.has(extension(path))
+export const isVideo = (path: string) => VIDEO.has(extension(path))
 
 /**
  * Characters media servers or the file systems a library sits on (Windows, SMB shares) don't take in
@@ -79,23 +81,26 @@ function safeName(text: string): string {
   )
 }
 
-/** The movie's folder and video file name, without the extension: `Title (Year)`, or the title alone without a year. */
-export function movieName(title: string, year?: number): string {
-  const name = safeName(title) || 'Movie'
+/**
+ * The movie's or the show's folder, and a movie's video file name, without the extension: `Title (Year)`,
+ * or the title alone without a year; `Movie` or `Show` for a title made only of what a name can't take.
+ */
+export function titleName(title: string, year?: number, type: 'movie' | 'tv' = 'movie'): string {
+  const name = safeName(title) || (type === 'movie' ? 'Movie' : 'Show')
   return year ? `${name} (${year})` : name
 }
 
-const parent = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0))
-const stem = (name: string) => (extension(name) ? name.slice(0, name.lastIndexOf('.')) : name)
+export const parent = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0))
+export const stem = (name: string) => (extension(name) ? name.slice(0, name.lastIndexOf('.')) : name)
 
 /** The folder every file is in, when they share one: the torrent's own folder as qBittorrent lays it out. */
-function rootFolder(paths: readonly string[]): string | undefined {
+export function rootFolder(paths: readonly string[]): string | undefined {
   const first = paths[0]?.split('/')[0]
   return first !== undefined && paths.every((path) => path.startsWith(`${first}/`)) ? first : undefined
 }
 
 /** A path below the torrent's folder, or the whole path when it has none. */
-const belowRoot = (path: string, root: string | undefined) => (root !== undefined && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path)
+export const belowRoot = (path: string, root: string | undefined) => (root !== undefined && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path)
 
 
 /**
@@ -112,7 +117,7 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
   const second = others.find((file) => !SAMPLE.test(file.name))
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
-  const name = movieName(title, year)
+  const name = titleName(title, year)
   const mainFolder = parent(main.name)
   const mainStem = stem(base(main.name))
   const renames: FileRename[] = []
@@ -175,9 +180,11 @@ export interface PlacedTorrent {
  * folder that differs only in case on a disk that ignores it (Windows, macOS) is taken too.
  */
 export function folderTakenBy<T extends PlacedTorrent>(torrents: Iterable<T>, own: PlacedTorrent, folder: string): T | undefined {
+  return torrentsIn(torrents, own, folder)[0]
+}
+
+/** The other torrents whose files are at or under `folder` in this one's save path, as `folderTakenBy` reads them. */
+export function torrentsIn<T extends PlacedTorrent>(torrents: Iterable<T>, own: PlacedTorrent, folder: string): T[] {
   const target = `${own.save_path.replace(/[\\/]+$/, '')}/${folder}`.toLowerCase()
-  for (const torrent of torrents) {
-    if (torrent.hash !== own.hash && isUnder(torrent.content_path.toLowerCase(), target)) return torrent
-  }
-  return undefined
+  return [...torrents].filter((torrent) => torrent.hash !== own.hash && isUnder(torrent.content_path.toLowerCase(), target))
 }

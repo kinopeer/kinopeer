@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, everyTitleShown, openApp, settle, showWholePage } from './app.ts'
-import { DUNE, GUESSED, TORRENTS } from './fixtures.ts'
+import { BRIDGE_HEADERS, DESKTOP, everyTitleShown, openApp, settle, showWholePage } from './app.ts'
+import { DUNE, GB, GUESSED, TORRENTS, torrentFiles } from './fixtures.ts'
 
 test('downloading series with its files, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/a2')
@@ -92,6 +92,26 @@ test('naming a movie for a media server, dark, Russian', async ({ page }) => {
   await expect(sheet.getByRole('button', { name: 'Переименовать' })).toBeVisible()
   await settle(page)
   await expect(page).toHaveScreenshot('names-dark-ru.png')
+})
+
+test.describe('light, English', () => {
+  test.use({ locale: 'en-US' })
+
+  test('naming a series for a media server, with a video whose episode isn’t read', async ({ page }) => {
+    await openApp(page, '/torrent/a2', { theme: 'light', lang: 'en' })
+    // The Shōgun release with an extra beside its episodes, which naming leaves as it is and lists.
+    const files = torrentFiles()
+    const extra = { index: files.length, name: 'Shogun.S01.2160p/Extras/Making of.mkv', size: 2 * GB, progress: 1, priority: 1 }
+    await page.route('**/qbt/api/v2/torrents/files?*', (route) => route.fulfill({ json: [...files, extra], headers: BRIDGE_HEADERS }))
+    await page.getByRole('button', { name: /^More actions/ }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Name for a media server' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Name for a media server' })
+    const unread = sheet.getByRole('region', { name: 'Episode not read' })
+    await unread.scrollIntoViewIfNeeded()
+    await expect(unread).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('names-series-light-en.png')
+  })
 })
 
 test.describe('desktop drawer', () => {

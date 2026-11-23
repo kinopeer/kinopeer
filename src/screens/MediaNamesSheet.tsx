@@ -6,7 +6,8 @@ import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
-import { movieNames, originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
+import { originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
+import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
 import { readTorrentFile } from '../torrents/torrentFile'
 import { notNamedText } from './notNamedText'
 import './MediaNamesSheet.css'
@@ -24,11 +25,14 @@ export interface NamesChange {
 
 export interface MediaNamesSheetProps {
   torrent: Torrent
-  /** The movie the torrent is matched to, in the app's TMDB language: the names are made of it. */
+  type: 'movie' | 'tv'
+  /** The movie or the series the torrent is matched to, in the app's TMDB language: the names are made of it. */
   title: string
   year?: number
-  /** Another torrent in the folder naming would put this one's files in (`folderTakenBy`): its name. Nothing is named then. */
+  /** A movie's: another torrent in the folder naming would put this one's files in (`folderTakenBy`), by its name. Nothing is named then. None for a series. */
   taken?: string
+  /** A series': the other torrents in the show's folder (`torrentsIn`), whose files the sheet reads and checks its own against (`filesTakenBy`). None for a movie. */
+  neighbours: readonly Pick<Torrent, 'hash' | 'name' | 'save_path'>[]
   /** qBittorrent is unreachable: nothing can be sent. */
   offline: boolean
   /** What's being sent for this torrent, from this sheet or one closed before it opened. */
@@ -41,6 +45,8 @@ export interface MediaNamesSheetProps {
 
 interface Loaded {
   files: TorrentFile[]
+  /** The neighbours' files, each `placed` under its torrent's save path; undefined for one whose files couldn't be read. */
+  neighbours: { torrent: MediaNamesSheetProps['neighbours'][number]; files: string[] | undefined }[]
   /** The renames back to the metadata's names; undefined when the export couldn't be read. */
   original: FileRename[] | undefined
 }
@@ -50,25 +56,48 @@ interface Loaded {
  * hash covers the names it had before any rename). The export failing leaves naming as it is: only
  * the way back is missing, and the sheet says so.
  */
-async function load(torrent: Torrent, signal: AbortSignal): Promise<Loaded> {
-  const [files, original] = await Promise.all([
+async function load(torrent: Torrent, neighbours: MediaNamesSheetProps['neighbours'], signal: AbortSignal): Promise<Loaded> {
+  const [files, original, theirs] = await Promise.all([
     getTorrentFiles(torrent.hash, signal),
     exportTorrent(torrent.hash, signal)
       .then((bytes) => readTorrentFile(bytes))
       .catch(() => undefined),
+    Promise.all(
+      neighbours.map((other) =>
+        getTorrentFiles(other.hash, signal).then(
+          (listed) => ({ torrent: other, files: listed.map((file) => placed(other.save_path, file.name)) }),
+          () => ({ torrent: other, files: undefined }),
+        ),
+      ),
+    ),
   ])
   // Another torrent's metadata, or one that doesn't list these files, names nothing back.
   const meta = original?.infoHash === torrent.hash ? original : undefined
-  return { files, original: meta && originalNames(files, meta) }
+  return { files, neighbours: theirs, original: meta && originalNames(files, meta) }
 }
 
 /**
- * "Name for a media server": what naming a movie's files would rename, old name over new, or why
+ * What naming does with the files loaded: the names, and the torrent in the way, a movie's from the
+ * screen (`taken`), a series' found among its neighbours' files.
+ */
+function planNames(data: Loaded, torrent: Torrent, title: { type: 'movie' | 'tv'; title: string; year?: number }, takenFolder: string | undefined) {
+  // A series' files in no folder of the torrent's read their season from its name.
+  const names = titleNames(title, data.files, torrent.name)
+  // Each torrent's files under its own save path, so a neighbour saved in the show's folder lines up.
+  const named = names.named ? namedPaths(data.files, names.renames).map((path) => placed(torrent.save_path, path)) : undefined
+  const taken = takenFolder ?? (named && filesTakenBy(named, data.neighbours)?.name)
+  return { names, taken }
+}
+
+/**
+ * "Name for a media server": what naming a movie's or a series' files would rename, old name over new, or why
  * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
  */
-export function MediaNamesSheet({ torrent, title, year, taken, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
+export function MediaNamesSheet({ torrent, type, title, year, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
   const { t } = useTranslation()
-  const loaded = useRequest(`qbt|names|${torrent.hash}`, (signal) => load(torrent, signal))
+  // A neighbour's files are placed under its save path as they load: one moved loads them again.
+  const around = neighbours.map((other) => `${other.hash}@${other.save_path}`).join('|')
+  const loaded = useRequest(`qbt|names|${torrent.hash}|${around}`, (signal) => load(torrent, neighbours, signal))
   // Opened while a restore is in flight, it shows the restore, as the sheet that sent it did.
   const [mode, setMode] = useState<NamesMode>(pending?.mode ?? 'name')
   const sending = pending !== undefined
@@ -81,7 +110,9 @@ export function MediaNamesSheet({ torrent, title, year, taken, offline, pending,
     return () => clearTimeout(timer)
   }, [failed, retry])
   const data = loaded.data
-  const names = data && movieNames(data.files, title, year)
+  const plan = data && planNames(data, torrent, { type, title, year }, takenFolder)
+  const names = plan?.names
+  const taken = plan?.taken
   const restore = data?.original?.length ? data.original : undefined
   // What's being sent is what the sheet shows, whatever the files' names read now.
   const renames = pending ? pending.renames : mode === 'restore' ? (restore ?? []) : names?.named && !taken ? names.renames : []
@@ -128,7 +159,7 @@ export function MediaNamesSheet({ torrent, title, year, taken, offline, pending,
         )}
         {/* While renames are on their way, the sheet shows them, not names qBittorrent may have half applied. */}
         {data && (pending || mode === 'restore') && <RenamesList renames={renames} />}
-        {data && !pending && mode === 'name' && names && <NamesPreview names={names} taken={taken} />}
+        {data && !pending && mode === 'name' && names && <NamesPreview type={type} names={names} taken={taken} />}
         {data && mode === 'name' && data.original === undefined && <p className="t-cap c3">{t('names.originalUnread')}</p>}
         {failed && <Banner tone="error">{t('names.failed')}</Banner>}
       </div>
@@ -137,7 +168,7 @@ export function MediaNamesSheet({ torrent, title, year, taken, offline, pending,
 }
 
 /** What naming does: the folder, then each file whose own name changes; or why nothing is named. */
-function NamesPreview({ names, taken }: { names: MediaNames; taken?: string }) {
+function NamesPreview({ type, names, taken }: { type: 'movie' | 'tv'; names: MediaNames; taken?: string }) {
   const { t } = useTranslation()
   const id = useId()
   if (!names.named) {
@@ -145,9 +176,13 @@ function NamesPreview({ names, taken }: { names: MediaNames; taken?: string }) {
   }
   if (!names.renames.length) return <Banner tone="info" icon="check-circle" title={t('names.already')} />
   if (taken) {
-    return <Banner tone="info" title={t('names.notNamed')}>{t('names.taken', { folder: names.folder.to, name: taken })}</Banner>
+    return (
+      <Banner tone="info" title={t('names.notNamed')}>
+        {t(type === 'movie' ? 'names.taken' : 'names.takenFiles', { folder: names.folder.to, name: taken })}
+      </Banner>
+    )
   }
-  const { folder, files } = names
+  const { folder, files, unread = [] } = names
   return (
     <>
       <section className="names-stack" aria-labelledby={`${id}-folder`}>
@@ -164,7 +199,21 @@ function NamesPreview({ names, taken }: { names: MediaNames; taken?: string }) {
           <RenamesList renames={files} />
         </section>
       )}
-      <p className="t-cap c2">{t('names.others')}</p>
+      {unread.length > 0 && (
+        <section className="names-stack" aria-labelledby={`${id}-unread`}>
+          <h3 id={`${id}-unread`} className="ks-label">
+            {t('names.unread')}
+          </h3>
+          <ul className="names-stack names-list">
+            {unread.map((path) => (
+              <li key={path} className="t-mono c3 names-from">
+                {path}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <p className="t-cap c2">{type === 'movie' ? t('names.others') : t('names.othersSeries')}</p>
     </>
   )
 }

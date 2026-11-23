@@ -1,30 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { GB, MB } from '../test/fixtures'
-import { folderTakenBy, movieName, movieNames, originalNames } from './mediaNames'
+import { folderTakenBy, titleName, movieNames, originalNames } from './mediaNames'
 
 const file = (name: string, size = 1 * MB) => ({ name, size })
 
-describe('movieName', () => {
+describe('titleName', () => {
   it('is the title with its year', () => {
-    expect(movieName('Dune: Part Two', 2024)).toBe('Dune - Part Two (2024)')
-    expect(movieName('Дюна', 2021)).toBe('Дюна (2021)')
+    expect(titleName('Dune: Part Two', 2024)).toBe('Dune - Part Two (2024)')
+    expect(titleName('Дюна', 2021)).toBe('Дюна (2021)')
   })
 
   it('is the title alone when the year isn’t known', () => {
-    expect(movieName('Untitled Project')).toBe('Untitled Project')
+    expect(titleName('Untitled Project')).toBe('Untitled Project')
   })
 
   it('leaves out what media servers and file systems don’t take', () => {
-    expect(movieName('What? <Why> "Who" a/b\\c|d*e', 2000)).toBe('What Why Who abcde (2000)')
-    expect(movieName('Time:Code', 2000)).toBe('TimeCode (2000)')
-    expect(movieName('Ends with dots...', 2000)).toBe('Ends with dots (2000)')
-    expect(movieName('  Spaced   out  ', 2000)).toBe('Spaced out (2000)')
+    expect(titleName('What? <Why> "Who" a/b\\c|d*e', 2000)).toBe('What Why Who abcde (2000)')
+    expect(titleName('Time:Code', 2000)).toBe('TimeCode (2000)')
+    expect(titleName('Ends with dots...', 2000)).toBe('Ends with dots (2000)')
+    expect(titleName('  Spaced   out  ', 2000)).toBe('Spaced out (2000)')
     // A leading dot hides a folder on Linux, and library scans skip hidden ones.
-    expect(movieName('...And Justice for All', 1979)).toBe('And Justice for All (1979)')
+    expect(titleName('...And Justice for All', 1979)).toBe('And Justice for All (1979)')
   })
 
   it('still names a title made only of such characters', () => {
-    expect(movieName('???', 2000)).toBe('Movie (2000)')
+    expect(titleName('???', 2000)).toBe('Movie (2000)')
+    expect(titleName('???', 2000, 'tv')).toBe('Show (2000)')
   })
 })
 

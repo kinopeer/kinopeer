@@ -131,7 +131,7 @@ describe('addRelease', () => {
       multiFile: true,
     }
     const MOVIE_FILES = MOVIE.files.map((file, index) => ({ index, name: `Arrival.2016.1080p/${file.path}`, size: file.size, progress: 0, priority: 1 as const }))
-    const NAMES = { title: 'Arrival', year: 2016 }
+    const NAMES = { type: 'movie' as const, title: 'Arrival', year: 2016 }
     const ADDED = torrent('def456', { save_path: '/media/movies', content_path: '/media/movies/Arrival.2016.1080p' })
 
     beforeEach(() => {
@@ -192,7 +192,7 @@ describe('addRelease', () => {
       getTorrents.mockResolvedValue([other, ADDED])
       const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait).catch((caught: unknown) => caught)
       expect(error).toBeInstanceOf(MediaNamesError)
-      expect((error as MediaNamesError).taken).toEqual({ name: 'Arrival.2016.2160p', folder: 'Arrival (2016)' })
+      expect((error as MediaNamesError).taken).toEqual({ name: 'Arrival.2016.2160p', folder: 'Arrival (2016)', shared: false })
       expect(renameFiles).not.toHaveBeenCalled()
       expect(startTorrents).toHaveBeenCalledWith(['def456'])
     })
@@ -215,6 +215,64 @@ describe('addRelease', () => {
       await addRelease({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, { ...OPTIONS, mediaNames: NAMES })
       expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ stopped: false }))
       expect(getTorrentFiles).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('naming a series for a media server', () => {
+    const SHOW = 'Breaking Bad (2008)'
+    const PACK = 'Breaking.Bad.S02.1080p-GRPA'
+    const META = { infoHash: 'bb2', name: PACK, files: [{ path: 'Breaking.Bad.S02E01.mkv', size: 700 }], totalSize: 700, multiFile: true }
+    const OWN = [{ index: 0, name: `${PACK}/Breaking.Bad.S02E01.mkv`, size: 700, progress: 0, priority: 1 as const }]
+    const NAMES = { type: 'tv' as const, title: 'Breaking Bad', year: 2008 }
+    const ADDED = torrent('bb2', { name: PACK, save_path: '/media/tv', content_path: `/media/tv/${PACK}` })
+    const SEASON1 = torrent('bb1', { name: SHOW, save_path: '/media/tv', content_path: `/media/tv/${SHOW}` })
+    const theirs = (files: string[] | Error) => (hash: string) =>
+      hash === 'bb2'
+        ? Promise.resolve(OWN)
+        : files instanceof Error
+          ? Promise.reject(files)
+          : Promise.resolve(files.map((name, index) => ({ index, name, size: 1, progress: 1, priority: 1 as const })))
+
+    beforeEach(() => {
+      getTorrents.mockResolvedValue([SEASON1, ADDED])
+    })
+
+    it('names the episodes into the show’s folder another season is in, reading that torrent’s files, then starts', async () => {
+      getTorrentFiles.mockImplementation(theirs([`${SHOW}/Season 01/${SHOW} S01E01.mkv`]))
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: META, skip: [] }, wait)
+      expect(getTorrentFiles).toHaveBeenCalledWith('bb1')
+      expect(renameFiles).toHaveBeenCalledWith('bb2', [{ from: OWN[0].name, to: `${SHOW}/Season 02/${SHOW} S02E01.mkv` }])
+      expect(startTorrents).toHaveBeenCalledWith(['bb2'])
+    })
+
+    it.each([
+      ['has a file naming would use', [`${SHOW}/Season 02/${SHOW} S02E01.mkv`]],
+      ['has files qBittorrent doesn’t list', new qbt.QbittorrentError('Not found', 404)],
+    ])('names nothing where another torrent in the show’s folder %s, starts it and says which', async (_, files) => {
+      getTorrentFiles.mockImplementation(theirs(files))
+      const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: META, skip: [] }, wait).catch((caught: unknown) => caught)
+      expect((error as MediaNamesError).taken).toEqual({ name: SHOW, folder: SHOW, shared: true })
+      expect(renameFiles).not.toHaveBeenCalled()
+      expect(startTorrents).toHaveBeenCalledWith(['bb2'])
+    })
+
+    it('finds a file of another torrent saved in the show’s folder itself, by its place on disk', async () => {
+      const inside = torrent('bb9', { name: 'Season 02', save_path: `/media/tv/${SHOW}/`, content_path: `/media/tv/${SHOW}/Season 02` })
+      getTorrents.mockResolvedValue([inside, ADDED])
+      getTorrentFiles.mockImplementation((hash) =>
+        Promise.resolve(hash === 'bb2' ? OWN : [{ index: 0, name: `Season 02/${SHOW} S02E01.mkv`, size: 1, progress: 1, priority: 1 as const }]),
+      )
+      const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: META, skip: [] }, wait).catch((caught: unknown) => caught)
+      expect((error as MediaNamesError).taken).toEqual({ name: 'Season 02', folder: SHOW, shared: true })
+      expect(renameFiles).not.toHaveBeenCalled()
+    })
+
+    it('reads the season of an episode in no folder from the release’s name', async () => {
+      const single = { ...META, name: 'Episode 3.mkv', files: [{ path: 'Episode 3.mkv', size: 700 }], multiFile: false }
+      getTorrents.mockResolvedValue([torrent('bb2', { save_path: '/media/tv', content_path: '/media/tv/Episode 3.mkv' })])
+      getTorrentFiles.mockResolvedValue([{ ...OWN[0], name: 'Episode 3.mkv' }])
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: { ...NAMES, hint: 'Breaking.Bad.S04.1080p-GRPA' } }, { meta: single, skip: [] }, wait)
+      expect(renameFiles).toHaveBeenCalledWith('bb2', [{ from: 'Episode 3.mkv', to: `${SHOW}/Season 04/${SHOW} S04E03.mkv` }])
     })
   })
 })

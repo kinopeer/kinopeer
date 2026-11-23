@@ -306,8 +306,13 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(onMediaNames).toHaveBeenCalled()
   })
 
-  it('doesn’t offer Name for a media server for a series or a torrent without a movie', () => {
-    for (const match of [{ ...MATCH, type: 'tv' as const }, null, undefined]) {
+  it('offers Name for a media server for a series too', () => {
+    renderActions({ match: { ...MATCH, type: 'tv' }, onMediaNames: vi.fn() })
+    expect(screen.getByRole('menuitem', { name: 'Name for a media server' })).toBeInTheDocument()
+  })
+
+  it('doesn’t offer Name for a media server for a torrent without a title', () => {
+    for (const match of [null, undefined]) {
       const { unmount } = renderActions({ match, onMediaNames: vi.fn() })
       expect(screen.queryByRole('menuitem', { name: 'Name for a media server' })).not.toBeInTheDocument()
       unmount()

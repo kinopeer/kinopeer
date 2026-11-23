@@ -430,6 +430,14 @@
     "addAs": "Folder and video: “{{name}}”",
     "taken": "Another torrent, “{{name}}”, is in the folder “{{folder}}” already. Naming this one too would mix their files.",
     "addTaken": "Added, but its files weren’t named. $t(names.taken)",
+    "noEpisodes": "No episode could be read from the videos’ names.",
+    "samePlace": "Naming would put two of its files in one place, or one where another file is now, such as a file of the torrent’s folder and one of the same name in a season’s folder.",
+    "split": "Some of its files are in the show’s folder already and some aren’t, as a rename that stopped partway leaves them.",
+    "othersSeries": "Other files keep their names and stay with the show, in its folder.",
+    "unread": "Episode not read",
+    "addAsSeries": "The show’s folder: “{{name}}”",
+    "takenFiles": "Another torrent, “{{name}}”, is in the folder “{{folder}}”, and its files may be where naming would put this one’s.",
+    "addTakenFiles": "Added, but its files weren’t named. $t(names.takenFiles)",
     "addFailed": "Added, but its files weren’t named. Name them from the torrent’s More menu."
   },
   "freeUp": {

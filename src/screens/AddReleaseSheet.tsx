@@ -22,7 +22,7 @@ import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
-import { movieNames } from '../torrents/mediaNames'
+import { titleNames } from '../torrents/seriesNames'
 import { parseMagnet } from '../torrents/magnet'
 import { tmdbTagFor } from '../torrents/parseName'
 import { torrentId } from '../torrents/sameTorrent'
@@ -140,20 +140,20 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
-  // A movie's files named for a media server (series are a follow-up), from the .torrent's files as
-  // qBittorrent lays them out by default; a magnet link's aren't known until the torrent starts.
-  const movieNamesPlan = useMemo(
+  // The files named for a media server, from the .torrent's files as qBittorrent lays them out by
+  // default; a magnet link's aren't known until the torrent starts.
+  const namesPlan = useMemo(
     () =>
-      title.type === 'movie' && meta
-        ? movieNames(
+      meta
+        ? titleNames(
+            { type: title.type, title: title.name, year: title.year },
             meta.files.map((file) => ({ name: meta.multiFile ? `${meta.name}/${file.path}` : file.path, size: file.size })),
-            title.name,
-            title.year,
+            release.title,
           )
         : undefined,
-    [title.type, title.name, title.year, meta],
+    [title.type, title.name, title.year, meta, release.title],
   )
-  const namable = movieNamesPlan?.named === true
+  const namable = namesPlan?.named === true
   const mediaNames = namable && (chosenNames ?? settings.mediaNames)
 
   const categories = where.data?.categories ?? []
@@ -202,7 +202,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           sequential,
           firstLastPieces,
           topOfQueue,
-          mediaNames: mediaNames ? { title: title.name, year: title.year } : undefined,
+          mediaNames: mediaNames ? { type: title.type, title: title.name, year: title.year, hint: release.title } : undefined,
         },
         meta && { meta, skip: [...skipped] },
       )
@@ -214,7 +214,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         setAdding(false)
         setAddedUnnamed(true)
         if (there) setRefusedAsAdded(there)
-        setAddError(error.taken ? t('names.addTaken', error.taken) : t('names.addFailed'))
+        const { taken } = error
+        setAddError(taken ? t(taken.shared ? 'names.addTakenFiles' : 'names.addTaken', { name: taken.name, folder: taken.folder }) : t('names.addFailed'))
         return
       }
       if (!(error instanceof TorrentRefusedError)) {
@@ -270,19 +271,19 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     )
   }
 
-  const namesHint = !movieNamesPlan
+  const namesHint = !namesPlan
     ? t('names.addNoFiles')
-    : !movieNamesPlan.named
-      ? notNamedText(movieNamesPlan.reason, t)
+    : !namesPlan.named
+      ? notNamedText(namesPlan.reason, t)
       : mediaNames
-        ? t('names.addAs', { name: movieNamesPlan.folder.to })
+        ? t(title.type === 'movie' ? 'names.addAs' : 'names.addAsSeries', { name: namesPlan.folder.to })
         : undefined
   const toggles: { label: string; checked: boolean; set: (on: boolean) => void; hint?: string; disabled?: boolean }[] = [
     { label: t('add.startPaused'), checked: paused, set: setPaused },
     { label: t('add.sequential'), checked: sequential, set: setSequential },
     { label: t('add.firstLastPieces'), checked: firstLastPieces, set: setFirstLast },
     ...(notifications ? [{ label: t('add.notify'), checked: notify, set: setNotify }] : []),
-    ...(title.type === 'movie' ? [{ label: t('add.mediaNames'), checked: mediaNames, set: setNames, hint: namesHint, disabled: !namable }] : []),
+    { label: t('add.mediaNames'), checked: mediaNames, set: setNames, hint: namesHint, disabled: !namable },
     { label: t('add.addTop'), checked: topOfQueue, set: setTopOfQueue },
   ]
 

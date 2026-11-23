@@ -621,6 +621,31 @@ describe('DownloadsScreen', () => {
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
 
+  it('reads the files of another season in the show’s folder before naming a series’ episodes from the row menu', async () => {
+    searchTitles.mockImplementation(async (query) => searchPage(query.startsWith('Andor') ? [ANDOR_TITLE] : []))
+    const show = 'Andor (2022)'
+    getMainData.mockResolvedValue(
+      mainData([
+        torrent('andor', { name: 'Andor.S02.1080p', save_path: '/tv', content_path: '/tv/Andor.S02.1080p' }),
+        torrent('andor1', { name: 'Andor.S01.1080p', tags: 'tmdb:tv:83867', save_path: '/tv', content_path: `/tv/${show}` }),
+      ]),
+    )
+    vi.mocked(api.getTorrentFiles).mockImplementation(async (hash) => [
+      { index: 0, name: hash === 'andor' ? 'Andor.S02.1080p/Andor.S02E01.mkv' : `${show}/Season 02/${show} S02E01.mkv`, size: 1, progress: 1, priority: 1 },
+    ])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Andor' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(
+      await within(sheet).findByRole('status', {
+        name: saying(`Another torrent, “Andor.S01.1080p”, is in the folder “${show}”, and its files may be where naming would put this one’s.`),
+      }),
+    ).toBeInTheDocument()
+    expect(api.getTorrentFiles).toHaveBeenCalledWith('andor1', expect.anything())
+  })
+
   it('picks a title from the row menu, Match title in the accent, for a torrent with none', async () => {
     renderScreen()
     // Every torrent's lookup has answered (TMDB found nothing) before the menu opens.

@@ -404,8 +404,153 @@ describe('useMediaNames', () => {
     expect(renameFiles).toHaveBeenCalledTimes(2)
   })
 
-  it('opens nothing for a torrent that isn’t matched to a movie', async () => {
-    renderNames({ ...DUNE_MATCH, type: 'tv' })
+  describe('a series', () => {
+    const BB: TitleMatch = { type: 'tv', id: 1396, title: 'Breaking Bad', year: 2008, posterPath: null }
+    const SHOW = 'Breaking Bad (2008)'
+    const PACK = 'Breaking.Bad.S02.1080p-GRPA'
+    const file = (index: number, name: string): TorrentFile => ({ index, name, size: 700e6, progress: 1, priority: 1 })
+    const season2 = torrent('s2'.repeat(20), { name: PACK, save_path: '/data/tv', content_path: `/data/tv/${PACK}` })
+    const season1 = torrent('s1'.repeat(20), { name: SHOW, save_path: '/data/tv', content_path: `/data/tv/${SHOW}` })
+    const own = [file(0, `${PACK}/Breaking.Bad.S02E01.mkv`), file(1, `${PACK}/Breaking.Bad.S02E02.mkv`), file(2, `${PACK}/Extras/Making of.mkv`)]
+
+    beforeEach(() => {
+      exportTorrent.mockRejectedValue(new api.QbittorrentError('Missing metadata', 409))
+    })
+
+    const filesBy = (theirs: TorrentFile[] | Error) => (hash: string) =>
+      hash === season2.hash ? Promise.resolve(own) : theirs instanceof Error ? Promise.reject(theirs) : Promise.resolve(theirs)
+
+    it('shows the episodes naming renames, and the videos whose episode it can’t read, and renames them', async () => {
+      getTorrentFiles.mockImplementation(filesBy([]))
+      const { open } = renderNames(BB, { [season2.hash]: season2 })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('region', { name: 'Folder' })).toHaveTextContent(`${PACK}becomes ${SHOW}`)
+      const files = within(within(sheet).getByRole('region', { name: 'Files' })).getAllByRole('listitem')
+      expect(files.map((item) => item.textContent)).toEqual([
+        `Breaking.Bad.S02E01.mkvbecomes Season 02/${SHOW} S02E01.mkv`,
+        `Breaking.Bad.S02E02.mkvbecomes Season 02/${SHOW} S02E02.mkv`,
+      ])
+      // Below the torrent's folder, as the episodes are.
+      const unread = within(within(sheet).getByRole('region', { name: 'Episode not read' })).getAllByRole('listitem')
+      expect(unread.map((item) => item.textContent)).toEqual(['Extras/Making of.mkv'])
+      expect(within(sheet).getByText('Other files keep their names and stay with the show, in its folder.')).toBeInTheDocument()
+      await userEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
+      expect(renameFiles).toHaveBeenCalledWith(season2.hash, [
+        { from: own[0].name, to: `${SHOW}/Season 02/${SHOW} S02E01.mkv` },
+        { from: own[1].name, to: `${SHOW}/Season 02/${SHOW} S02E02.mkv` },
+        { from: own[2].name, to: `${SHOW}/Season 02/Extras/Making of.mkv` },
+      ])
+    })
+
+    it('reads the season of an episode in no folder from the torrent’s name', async () => {
+      const single = torrent('e3'.repeat(20), { name: 'Breaking.Bad.S04.1080p-GRPA', save_path: '/data/tv', content_path: '/data/tv/Episode 3.mkv' })
+      getTorrentFiles.mockResolvedValue([file(0, 'Episode 3.mkv')])
+      const { open } = renderNames(BB, { [single.hash]: single })
+      const sheet = await open(single.hash)
+      const files = within(await within(sheet).findByRole('region', { name: 'Files' })).getAllByRole('listitem')
+      expect(files.map((item) => item.textContent)).toEqual([`Episode 3.mkvbecomes Season 04/${SHOW} S04E03.mkv`])
+    })
+
+    it('names a season into the show’s folder another season is in, reading that torrent’s files', async () => {
+      getTorrentFiles.mockImplementation(filesBy([file(0, `${SHOW}/Season 01/${SHOW} S01E01.mkv`)]))
+      const { open } = renderNames(BB, { [season2.hash]: season2, [season1.hash]: season1 })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+      expect(getTorrentFiles).toHaveBeenCalledWith(season1.hash, expect.anything())
+    })
+
+    it.each([
+      ['has a file naming would use', [file(0, `${SHOW}/Season 02/${SHOW} S02E01.mkv`)]],
+      ['has files the sheet can’t read', new api.QbittorrentError('Not found', 404)],
+    ])('names nothing where another torrent in the show’s folder %s', async (_, theirs) => {
+      getTorrentFiles.mockImplementation(filesBy(theirs))
+      const { open } = renderNames(BB, { [season2.hash]: season2, [season1.hash]: season1 })
+      const sheet = await open(season2.hash)
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “${SHOW}”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+    })
+
+    it('finds a file of another torrent saved in the show’s folder itself, by its place on disk', async () => {
+      const inside = torrent('s9'.repeat(20), { name: 'Season 02', save_path: `/data/tv/${SHOW}`, content_path: `/data/tv/${SHOW}/Season 02` })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `Season 02/${SHOW} S02E01.mkv`)])))
+      const { open } = renderNames(BB, { [season2.hash]: season2, [inside.hash]: inside })
+      const sheet = await open(season2.hash)
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “Season 02”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
+    })
+
+    it('looks for the other seasons in a “Show” folder for a title made only of what a name can’t take', async () => {
+      const untitled: TitleMatch = { ...BB, title: '???' }
+      const other = torrent('s8'.repeat(20), { name: 'Other season', save_path: '/data/tv', content_path: '/data/tv/Show (2008)' })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, 'Show (2008)/Season 02/Show (2008) S02E01.mkv')])))
+      const { open } = renderNames(untitled, { [season2.hash]: season2, [other.hash]: other })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('status', { name: saying(/^Another torrent, “Other season”, is in the folder “Show \(2008\)”/) })).toBeInTheDocument()
+    })
+
+    it('reads the files of a torrent that comes into the show’s folder while the sheet is open', async () => {
+      getTorrentFiles.mockImplementation(filesBy([file(0, `${SHOW}/Season 02/${SHOW} S02E01.mkv`)]))
+      const { open, rerender } = renderNames(BB, { [season2.hash]: season2 })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+      rerender({ torrents: { [season2.hash]: season2, [season1.hash]: season1 } })
+      expect(await within(sheet).findByRole('status', { name: saying(`Another torrent, “${SHOW}”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`) })).toBeInTheDocument()
+      expect(getTorrentFiles).toHaveBeenCalledWith(season1.hash, expect.anything())
+    })
+
+    it('reads a neighbour’s files again when it moves to another place in the show’s folder while the sheet is open', async () => {
+      const away = torrent('s9'.repeat(20), { name: 'Season 02', save_path: `/data/tv/${SHOW}/Old`, content_path: `/data/tv/${SHOW}/Old/Season 02` })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `Season 02/${SHOW} S02E01.mkv`)])))
+      const { open, rerender } = renderNames(BB, { [season2.hash]: season2, [away.hash]: away })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+      const moved = { ...away, save_path: `/data/tv/${SHOW}`, content_path: `/data/tv/${SHOW}/Season 02` }
+      rerender({ torrents: { [season2.hash]: season2, [moved.hash]: moved } })
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “Season 02”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
+    })
+
+    it('names nothing for a torrent a rename left partway, split between the show’s folder and its own, and offers the way back', async () => {
+      // The Dune torrent's files with its video renamed into a show's folder, the rest not.
+      exportTorrent.mockImplementation(() => Promise.resolve(duneTorrent().slice().buffer))
+      getTorrentFiles.mockResolvedValue(duneFiles().map((file, index) => (index === 0 ? { ...file, name: `${SHOW}/Season 01/${SHOW} S01E01.mkv` } : file)))
+      const { open } = renderNames(BB)
+      const sheet = await open()
+      expect(await within(sheet).findByRole('status', { name: saying(/^The files can’t be named.*Some of its files are in the show’s folder already/) })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: 'Restore original names' })).toBeEnabled()
+    })
+
+    it('reads no other torrent’s files for a movie, and lists no unread episodes', async () => {
+      const other = torrent('b'.repeat(40), { name: 'Elsewhere', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/Elsewhere` })
+      const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+      const sheet = await open(DUNE.hash)
+      await within(sheet).findByRole('button', { name: 'Rename' })
+      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+      expect(within(sheet).queryByRole('region', { name: 'Episode not read' })).not.toBeInTheDocument()
+    })
+
+    it('reads no files of a torrent in a movie’s folder either: the movie names nothing', async () => {
+      const other = torrent('b'.repeat(40), { name: 'Another copy', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/${NAMED}` })
+      const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+      const sheet = await open(DUNE.hash)
+      expect(await within(sheet).findByRole('status', { name: saying(/^Another torrent, “Another copy”/) })).toBeInTheDocument()
+      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('opens nothing for a torrent that isn’t matched to a title', async () => {
+    renderNames(null)
     await userEvent.click(screen.getByRole('button', { name: `Open ${DUNE.hash}` }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
