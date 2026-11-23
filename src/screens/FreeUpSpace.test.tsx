@@ -297,7 +297,9 @@ describe('Free up space', () => {
     const sheet = await openStep()
     expect(within(sheet).getByText('qBittorrent’s default folder isn’t known, so none of them count.')).toBeInTheDocument()
     await act(async () => answer())
-    expect(within(step()).queryByText('qBittorrent’s default folder isn’t known, so none of them count.')).not.toBeInTheDocument()
+    const elsewhere = within(step()).getByRole('region', { name: 'May be on another disk' })
+    expect(within(elsewhere).getByText('Outside qBittorrent’s default folder, so not counted.')).toBeInTheDocument()
+    expect(within(elsewhere).queryByText('qBittorrent’s default folder isn’t known, so none of them count.')).not.toBeInTheDocument()
     expect(names(within(step()).getAllByRole('list')[0])).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
   })
 
