@@ -27,13 +27,15 @@ export interface DeleteTorrents {
  * after has the final word, and the screen hears of it while it's here. A failure stays in the
  * confirmation that shows the torrents, else it's a toast, which the next try takes back.
  */
-export function useDeleteTorrents({ torrents, titleOf, onDeleted }: {
+export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: filesAlways }: {
   /** The screen's torrents: the confirmation is for some of them, and closes when they're gone. */
   torrents: Record<string, Torrent> | undefined
   /** What a torrent is called on the screen. */
   titleOf: (torrent: Torrent) => string
-  /** After qBittorrent deleted torrents this screen sent, while the screen is here. */
-  onDeleted?: () => void
+  /** After qBittorrent deleted torrents this screen sent, while the screen is here: those it deleted. */
+  onDeleted?: (deleted: readonly Torrent[]) => void
+  /** Their files are always deleted too, so the confirmation says so rather than asking. */
+  withFiles?: boolean
 }): DeleteTorrents {
   const { t } = useTranslation()
   const toast = useToast()
@@ -96,7 +98,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted }: {
         ? t(withFiles ? 'downloads.deletedManyFiles' : 'downloads.deletedMany', { count: sent.length })
         : t(withFiles ? 'downloads.deletedFiles' : 'downloads.deleted'),
     )
-    deleted.current?.()
+    deleted.current?.(targets.filter((target) => sent.includes(target.hash)))
   }
 
   const open = (targets: readonly Torrent[]) => {
@@ -110,6 +112,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted }: {
       title={titleOf(shown[0])}
       busy={shown.some((item) => busy(item.hash))}
       failed={failed}
+      withFiles={filesAlways}
       onConfirm={(withFiles) => void remove(shown, withFiles)}
       onClose={() => setConfirming(null)}
     />

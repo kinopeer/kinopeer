@@ -1,0 +1,54 @@
+.fu-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.fu-sort {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.fu-sort .ks-seg {
+  flex: 1;
+}
+
+.fu-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.fu-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 56px;
+  margin-left: -10px; /* the checkbox's touch target reaches past the text's edge */
+  border-bottom: 1px solid var(--border);
+}
+
+.fu-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) 0;
+}
+
+.fu-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.fu-group-head {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-2);
+}
+
+.fu-group-head h3 {
+  margin: 0;
+}

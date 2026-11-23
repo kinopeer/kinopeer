@@ -16,6 +16,8 @@ export interface DeleteTorrentDialogProps {
   busy: boolean
   /** The last delete failed while this showed the torrents. */
   failed: boolean
+  /** The files are deleted too, without asking: the dialog says so in place of the checkbox. */
+  withFiles?: boolean
   onConfirm: (withFiles: boolean) => void
   onClose: () => void
 }
@@ -25,11 +27,20 @@ export interface DeleteTorrentDialogProps {
  * files" each time. The files are deleted too only when the user checks the box. `useDeleteTorrents`
  * renders it and sends the delete.
  */
-export function DeleteTorrentDialog({ torrents, title, busy, failed, onConfirm, onClose }: DeleteTorrentDialogProps) {
+export function DeleteTorrentDialog({
+  torrents,
+  title,
+  busy,
+  failed,
+  withFiles: filesAlways = false,
+  onConfirm,
+  onClose,
+}: DeleteTorrentDialogProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const id = useId()
-  const [withFiles, setWithFiles] = useState(false)
+  const [chosen, setWithFiles] = useState(false)
+  const withFiles = filesAlways || chosen
 
   const many = torrents.length > 1
   const downloaded = torrents.reduce((sum, torrent) => sum + torrent.size * torrent.progress, 0)
@@ -56,25 +67,32 @@ export function DeleteTorrentDialog({ torrents, title, busy, failed, onConfirm, 
       <p className="t-body c2">
         {many ? t('torrent.deleteBodyMany', { count: torrents.length }) : t('torrent.deleteBody', { title })}
       </p>
-      <div className="delete-files">
-        <Checkbox
-          id={`${id}-files`}
-          checked={withFiles}
-          onChange={setWithFiles}
-          label={filesLabel}
-          aria-describedby={withFiles ? `${id}-hint` : undefined}
-        />
-        <div className="delete-files-text">
-          <label htmlFor={`${id}-files`} className="t-label">
-            {filesLabel}
-          </label>
-          {withFiles && (
-            <div id={`${id}-hint`} className="t-cap c-err delete-hint">
-              {t('torrent.deleteFilesHint')}
-            </div>
-          )}
+      {filesAlways ? (
+        <div className="delete-files-always">
+          <p className="t-label">{t('torrent.deleteWithFiles', { size: format.size(downloaded) })}</p>
+          <p className="t-cap c-err delete-hint">{t('torrent.deleteFilesHint')}</p>
         </div>
-      </div>
+      ) : (
+        <div className="delete-files">
+          <Checkbox
+            id={`${id}-files`}
+            checked={withFiles}
+            onChange={setWithFiles}
+            label={filesLabel}
+            aria-describedby={withFiles ? `${id}-hint` : undefined}
+          />
+          <div className="delete-files-text">
+            <label htmlFor={`${id}-files`} className="t-label">
+              {filesLabel}
+            </label>
+            {withFiles && (
+              <div id={`${id}-hint`} className="t-cap c-err delete-hint">
+                {t('torrent.deleteFilesHint')}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
     </Dialog>
   )

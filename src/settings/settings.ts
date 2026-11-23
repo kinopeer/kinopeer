@@ -11,6 +11,7 @@ import {
   type RememberedFilters,
   type Sort,
 } from '../releases/filterReleases'
+import { DEFAULT_FREE_UP_ORDER, knownFreeUpOrder, type FreeUpSort } from '../torrents/freeUpSpace'
 import { knownOrder, type DownloadSort } from '../torrents/sort'
 
 /**
@@ -43,6 +44,10 @@ export interface Settings {
   downloadsSort: DownloadSort
   /** Its direction; set together with the sort. */
   downloadsSortDescending: boolean
+  /** How the torrents to free space from are ordered, apart from the downloads list. */
+  freeUpSort: FreeUpSort
+  /** Its direction; set together with the sort. */
+  freeUpSortDescending: boolean
   /** The release filters picked last, which the next title's search starts from. */
   releaseFilters: RememberedFilters
   /** How releases are ordered. */
@@ -61,6 +66,8 @@ export const DEFAULT_SETTINGS: Settings = {
   downloadsDesktopView: 'grid',
   downloadsSort: 'priority',
   downloadsSortDescending: false,
+  freeUpSort: DEFAULT_FREE_UP_ORDER.key,
+  freeUpSortDescending: DEFAULT_FREE_UP_ORDER.descending,
   releaseFilters: NO_REMEMBERED_FILTERS,
   releaseSort: DEFAULT_SORT,
 }
@@ -89,12 +96,15 @@ function read(): Settings {
     lastStored = localStorage.getItem(SETTINGS_STORAGE_KEY)
     const stored = JSON.parse(lastStored ?? '{}') as Partial<Settings>
     const order = knownOrder(stored.downloadsSort, stored.downloadsSortDescending)
+    const freeUp = knownFreeUpOrder(stored.freeUpSort, stored.freeUpSortDescending)
     return {
       ...DEFAULT_SETTINGS,
       ...stored,
       // Checked here, so a value from another version or a hand edit can't break a screen that reads them.
       downloadsSort: order.key,
       downloadsSortDescending: order.descending,
+      freeUpSort: freeUp.key,
+      freeUpSortDescending: freeUp.descending,
       releaseFilters: knownReleaseFilters(stored.releaseFilters),
       releaseSort: knownReleaseSort(stored.releaseSort),
     }
