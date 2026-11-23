@@ -100,8 +100,8 @@ export function TorrentActionsSheet({
   const limits = ownLimits(torrent)
   const limitsHint = limits ? describeLimits(limits, 'value', t, format) : undefined
   const hintId = useId()
-  // A movie's files only (series are a follow-up), once qBittorrent knows them.
-  const offersNames = !!onMediaNames && match?.type === 'movie'
+  // For a torrent matched to a movie or a series, once qBittorrent knows its files.
+  const offersNames = !!onMediaNames && !!match
   const namesHint = noMetadata ? t('torrent.recheckNoMetadata') : undefined
 
   const toggle = () => {

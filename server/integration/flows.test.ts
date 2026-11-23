@@ -110,7 +110,7 @@ describe('naming a movie for a media server', () => {
 
     await addRelease(
       { kind: 'torrent', file },
-      { tags: [tmdbTag('movie', 693134)], paused: false, sequential: false, firstLastPieces: false, topOfQueue: false, mediaNames: { title: 'Dune: Part Two', year: 2024 } },
+      { tags: [tmdbTag('movie', 693134)], paused: false, sequential: false, firstLastPieces: false, topOfQueue: false, mediaNames: { type: 'movie', title: 'Dune: Part Two', year: 2024 } },
       { meta, skip: [] },
       () => Promise.resolve(),
     )
@@ -141,7 +141,7 @@ describe('naming a movie for a media server', () => {
 
     const adding = addRelease(
       { kind: 'torrent', file: new File([duneTorrent().slice()], 'dune.torrent') },
-      { tags: [], paused: false, sequential: false, firstLastPieces: false, topOfQueue: false, mediaNames: { title: 'Dune: Part Two', year: 2024 } },
+      { tags: [], paused: false, sequential: false, firstLastPieces: false, topOfQueue: false, mediaNames: { type: 'movie', title: 'Dune: Part Two', year: 2024 } },
       { meta, skip: [] },
       () => Promise.resolve(),
     )

@@ -22,6 +22,7 @@ import {
   belowRoot,
   extension,
   isVideo,
+  movieNames,
   parent,
   rootFolder,
   stem,
@@ -187,4 +188,20 @@ export function filesTakenBy<T>(paths: readonly string[], others: readonly { tor
   const ours = paths.map((path) => path.toLowerCase())
   const clash = (a: string, b: string) => a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)
   return others.find(({ files }) => !files || files.some((file) => ours.some((path) => clash(path, file.toLowerCase()))))?.torrent
+}
+
+/** Where each file is once the renames are applied: what `filesTakenBy` compares. */
+export function namedPaths(files: readonly NamedFile[], renames: readonly FileRename[]): string[] {
+  const to = new Map(renames.map((rename) => [rename.from, rename.to]))
+  return files.map((file) => to.get(file.name) ?? file.name)
+}
+
+/** What naming for a media server does with a torrent of this title: a movie's main video, or a series' episodes. */
+export function titleNames(
+  title: { type: 'movie' | 'tv'; title: string; year?: number },
+  files: readonly NamedFile[],
+  /** The torrent's name, for a series' files in no folder of the torrent's. */
+  hint?: string,
+): MediaNames {
+  return title.type === 'movie' ? movieNames(files, title.title, title.year) : seriesNames(files, title.title, title.year, hint)
 }

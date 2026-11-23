@@ -7,9 +7,11 @@ import {
   renameFiles,
   setFilePriority,
   startTorrents,
+  type Torrent,
   type TorrentFile,
 } from '../api/qbittorrent'
-import { folderTakenBy, movieNames } from '../torrents/mediaNames'
+import { folderTakenBy, torrentsIn, type FileRename } from '../torrents/mediaNames'
+import { filesTakenBy, namedPaths, titleNames } from '../torrents/seriesNames'
 import type { TorrentMeta } from '../torrents/torrentFile'
 
 export interface AddReleaseOptions {
@@ -20,17 +22,30 @@ export interface AddReleaseOptions {
   sequential: boolean
   firstLastPieces: boolean
   topOfQueue: boolean
-  /** Name the movie's files for a media server (`movieNames`) once added; needs the torrent's files (`FileSelection`). */
-  mediaNames?: { title: string; year?: number }
+  /** Name the files for a media server (`titleNames`) once added; needs the torrent's files (`FileSelection`). */
+  mediaNames?: {
+    type: 'movie' | 'tv'
+    title: string
+    year?: number
+    /** The release's name, which a series' files in no folder of the torrent's read their season from. */
+    hint?: string
+  }
+}
+
+/** Another torrent in the way of naming: in a movie's folder, or with files where a series' would go (`shared`). */
+export interface NamesTaken {
+  name: string
+  folder: string
+  shared?: boolean
 }
 
 /**
  * The torrent was added, but its files weren't named for a media server: `taken` when another torrent
- * is in the folder naming would use (`folderTakenBy`), else `cause` says why it failed.
+ * is in the way (`folderTakenBy`, `filesTakenBy`), else `cause` says why it failed.
  */
 export class MediaNamesError extends Error {
-  readonly taken?: { name: string; folder: string }
-  constructor(cause: unknown, taken?: { name: string; folder: string }) {
+  readonly taken?: NamesTaken
+  constructor(cause: unknown, taken?: NamesTaken) {
     super('The torrent was added, but its files were not named', { cause })
     this.name = 'MediaNamesError'
     this.taken = taken
@@ -77,6 +92,15 @@ function skippedIds(selection: FileSelection, files: TorrentFile[]): number[] {
 }
 
 /**
+ * The torrent among a show's folder's others (`torrentsIn`) with files where naming would put this
+ * one's: the seasons of a show share its folder. One whose files can't be read is taken as one in the way.
+ */
+async function filesTaken<T extends Torrent>(files: TorrentFile[], renames: FileRename[], others: T[]): Promise<T | undefined> {
+  const theirs = await Promise.all(others.map((torrent) => getTorrentFiles(torrent.hash).then((listed) => listed.map((file) => file.name), () => undefined)))
+  return filesTakenBy(namedPaths(files, renames), others.map((torrent, index) => ({ torrent, files: theirs[index] })))
+}
+
+/**
  * Sends a release to qBittorrent. With files to skip or to name, it adds the torrent stopped, sets
  * those files to "do not download" and names the movie's files for a media server, then starts it
  * (unless it should stay paused), so nothing unwanted downloads in between and nothing downloads
@@ -113,14 +137,17 @@ export async function addRelease(
   if (options.mediaNames) {
     // Naming alone stopped a torrent that would have started at once: whatever fails here, it starts.
     try {
-      const names = movieNames(files ?? (await filesOf(hash, wait)), options.mediaNames.title, options.mediaNames.year)
+      const listed = files ?? (await filesOf(hash, wait))
+      const names = titleNames(options.mediaNames, listed, options.mediaNames.hint)
       if (names.named && names.renames.length) {
-        // Where qBittorrent put it, and whether another torrent is in the folder naming would use there.
+        // Where qBittorrent put it, and whether another torrent is in the way of naming there.
         const torrents = await getTorrents()
         const own = torrents.find((torrent) => torrent.hash === hash)
         if (!own) throw new QbittorrentError('qBittorrent did not list the torrent', 404)
-        const other = folderTakenBy(torrents, own, names.folder.to)
-        if (other) failure = new MediaNamesError(undefined, { name: other.name, folder: names.folder.to })
+        const folder = names.folder.to
+        const shared = options.mediaNames.type === 'tv'
+        const other = shared ? await filesTaken(listed, names.renames, torrentsIn(torrents, own, folder)) : folderTakenBy(torrents, own, folder)
+        if (other) failure = new MediaNamesError(undefined, { name: other.name, folder, shared })
         else await renameFiles(hash, names.renames)
       }
     } catch (error) {

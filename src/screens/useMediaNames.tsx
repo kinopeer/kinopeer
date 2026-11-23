@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { renameFiles, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
-import { folderTakenBy, titleName } from '../torrents/mediaNames'
+import { folderTakenBy, titleName, torrentsIn } from '../torrents/mediaNames'
 import type { TitleMatch } from '../torrents/titleLookup'
 import { MediaNamesSheet, type NamesChange } from './MediaNamesSheet'
 import { useTorrentSheet } from './useTorrentSheet'
@@ -28,7 +28,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
   /** Every torrent qBittorrent lists, when the screen shows fewer: another one may be in the folder naming would use. */
   listed?: Record<string, Torrent>
   offline: boolean
-  /** The title the torrent is matched to: only a movie's files are named. */
+  /** The title the torrent is matched to: a movie's or a series' files are named by it. */
   matchOf: (torrent: Torrent) => TitleMatch | null | undefined
 }): MediaNames {
   const { t } = useTranslation()
@@ -44,13 +44,19 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
   }
 
   const match = torrent && matchOf(torrent)
-  const element = torrent && match?.type === 'movie' && (
+  const folder = match ? titleName(match.title, match.year) : undefined
+  const others = torrent && folder !== undefined ? Object.values(listed ?? {}) : []
+  const element = torrent && match && folder !== undefined && (
     <MediaNamesSheet
       key={torrent.hash}
       torrent={torrent}
+      type={match.type}
       title={match.title}
       year={match.year}
-      taken={folderTakenBy(Object.values(listed ?? {}), torrent, titleName(match.title, match.year))?.name}
+      // A movie's folder is its own; a series' seasons share the show's, so the sheet reads the
+      // files of the torrents there and checks them against its own.
+      taken={match.type === 'movie' ? folderTakenBy(others, torrent, folder)?.name : undefined}
+      neighbours={match.type === 'tv' ? torrentsIn(others, torrent, folder) : []}
       offline={offline}
       pending={pending(torrent.hash)}
       failed={failure !== undefined}

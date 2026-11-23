@@ -9,7 +9,7 @@ import * as settingsApi from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
-import { DUNE_TORRENT, mainData, searchPage, torrent } from '../test/fixtures'
+import { DUNE_TORRENT, details, mainData, searchPage, torrent } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/useTitleMatches'
@@ -67,7 +67,7 @@ const serverSettings = (notifications: boolean): ServerSettings => ({
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
-  return { ...actual, getMovie: vi.fn(), searchTitles: vi.fn() }
+  return { ...actual, getMovie: vi.fn(), getTv: vi.fn(), searchTitles: vi.fn() }
 })
 
 vi.mock('../api/matches', async (importOriginal) => ({
@@ -445,6 +445,29 @@ describe('TorrentScreen', () => {
       }),
     ).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+  })
+
+  it('reads the files of another season in the show’s folder before naming a series’ episodes', async () => {
+    getTorrentTrackers.mockResolvedValue([])
+    vi.mocked(tmdb.getTv).mockResolvedValue(details('tv', 1396, 'en') as Awaited<ReturnType<typeof tmdb.getTv>>)
+    const show = 'Breaking Bad (2008)'
+    const season2 = torrent('bb2', { name: 'Breaking.Bad.S02.1080p-GRPA', tags: 'tmdb:tv:1396', save_path: '/data/tv', content_path: '/data/tv/Breaking.Bad.S02.1080p-GRPA' })
+    const season1 = torrent('bb1', { name: show, tags: 'tmdb:tv:1396', save_path: '/data/tv', content_path: `/data/tv/${show}` })
+    getMainData.mockResolvedValue(mainData([season2, season1]))
+    getTorrentFiles.mockImplementation(async (hash) => [
+      { index: 0, name: hash === 'bb2' ? 'Breaking.Bad.S02.1080p-GRPA/Breaking.Bad.S02E01.mkv' : `${show}/Season 02/${show} S02E01.mkv`, size: 1, progress: 1, priority: 1 },
+    ])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen('bb2')
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Breaking Bad' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Breaking Bad' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(
+      await within(sheet).findByRole('status', {
+        name: saying(`Another torrent, “${show}”, is in the folder “${show}”, and its files may be where naming would put this one’s.`),
+      }),
+    ).toBeInTheDocument()
+    expect(getTorrentFiles).toHaveBeenCalledWith('bb1', expect.anything())
   })
 
   it('moves the files from the More menu', async () => {

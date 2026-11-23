@@ -683,7 +683,7 @@ describe('AddReleaseSheet', () => {
       await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
       expect(addRelease).toHaveBeenCalledWith(
         expect.anything(),
-        expect.objectContaining({ mediaNames: { title: 'Arrival', year: 2016 } }),
+        expect.objectContaining({ mediaNames: { type: 'movie', title: 'Arrival', year: 2016, hint: RELEASE.title } }),
         { meta: MOVIE_META, skip: [] },
       )
     })
@@ -693,7 +693,7 @@ describe('AddReleaseSheet', () => {
       readTorrentFile.mockResolvedValue(MOVIE_META)
       renderSheet(RELEASE, undefined, MOVIE_TITLE)
       await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: { title: 'Arrival', year: 2016 } }), expect.anything())
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: { type: 'movie', title: 'Arrival', year: 2016, hint: RELEASE.title } }), expect.anything())
     })
 
     it('can’t be turned on for a magnet link, whose files aren’t known, and names nothing whatever the default', async () => {
@@ -721,15 +721,28 @@ describe('AddReleaseSheet', () => {
       expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: undefined }), expect.anything())
     })
 
-    it('isn’t offered for a series', async () => {
-      updateSettings({ mediaNames: true })
-      // Files a movie's naming would take, so only the title's type keeps them as they are.
-      readTorrentFile.mockResolvedValue(MOVIE_META)
+    it('offers it for a series, names the show’s folder, and has its episodes named', async () => {
+      readTorrentFile.mockResolvedValue(META)
       renderSheet()
       const sheet = await openOptions()
-      expect(within(sheet).queryByRole('switch', { name: 'Name files for a media server' })).not.toBeInTheDocument()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).toBeEnabled()
+      await userEvent.click(names)
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad”')
       await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
-      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: undefined }), expect.anything())
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: { type: 'tv', title: 'Breaking Bad', year: undefined, hint: RELEASE.title } }), {
+        meta: META,
+        skip: [],
+      })
+    })
+
+    it('says why a series’ files can’t be named when no episode is read', async () => {
+      readTorrentFile.mockResolvedValue({ ...META, files: [{ path: '01.mkv', size: 10e9 }, { path: '02.mkv', size: 10e9 }] })
+      renderSheet()
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).toBeDisabled()
+      expect(names).toHaveAccessibleDescription('No episode could be read from the videos’ names.')
     })
 
     it('says the torrent was added but its files weren’t named, and opens it', async () => {
@@ -753,6 +766,19 @@ describe('AddReleaseSheet', () => {
       await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
       expect(
         await screen.findByRole('alert', { name: saying('Added, but its files weren’t named. Another torrent, “Arrival.2016.2160p”, is in the folder “Arrival (2016)” already. Naming this one too would mix their files.') }),
+      ).toBeInTheDocument()
+    })
+
+    it('says which torrent in the show’s folder may have files where a series’ would go', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue(META)
+      addRelease.mockRejectedValue(new adding.MediaNamesError(undefined, { name: 'Breaking Bad', folder: 'Breaking Bad', shared: true }))
+      renderSheet()
+      await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+      expect(
+        await screen.findByRole('alert', {
+          name: saying('Added, but its files weren’t named. Another torrent, “Breaking Bad”, is in the folder “Breaking Bad”, and its files may be where naming would put this one’s.'),
+        }),
       ).toBeInTheDocument()
     })
 
