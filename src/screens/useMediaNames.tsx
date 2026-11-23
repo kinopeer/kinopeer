@@ -22,9 +22,11 @@ export interface MediaNames {
  * it's a toast. Nothing to refresh: the torrents' poll has no file names, and the Files section
  * polls its own.
  */
-export function useMediaNames({ torrents, offline, matchOf }: {
+export function useMediaNames({ torrents, listed = torrents, offline, matchOf }: {
   /** The screen's torrents: the sheet is for one of them, and closes when it's gone. */
   torrents: Record<string, Torrent> | undefined
+  /** Every torrent qBittorrent lists, when the screen shows fewer: another one may be in the folder naming would use. */
+  listed?: Record<string, Torrent>
   offline: boolean
   /** The title the torrent is matched to: only a movie's files are named. */
   matchOf: (torrent: Torrent) => TitleMatch | null | undefined
@@ -48,7 +50,7 @@ export function useMediaNames({ torrents, offline, matchOf }: {
       torrent={torrent}
       title={match.title}
       year={match.year}
-      taken={folderTakenBy(Object.values(torrents ?? {}), torrent, movieName(match.title, match.year))?.name}
+      taken={folderTakenBy(Object.values(listed ?? {}), torrent, movieName(match.title, match.year))?.name}
       offline={offline}
       pending={pending(torrent.hash)}
       failed={failure !== undefined}

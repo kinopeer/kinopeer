@@ -9,7 +9,7 @@ import * as settingsApi from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
-import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
+import { DUNE_TORRENT, mainData, searchPage, torrent } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/useTitleMatches'
@@ -427,6 +427,24 @@ describe('TorrentScreen', () => {
     const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
     expect(await within(sheet).findByText('Dune - Part Two (2024).mkv')).toBeInTheDocument()
     expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
+  })
+
+  it('names nothing while another torrent qBittorrent lists is in the folder naming would use, and says which', async () => {
+    getTorrentTrackers.mockResolvedValue([])
+    const other = torrent('other', { name: 'Dune.Part.Two.2024.1080p', save_path: '/data/movies', content_path: '/data/movies/Dune - Part Two (2024)' })
+    getMainData.mockResolvedValue(mainData([DUNE_TORRENT, other]))
+    vi.mocked(api.getTorrentFiles).mockResolvedValue([{ index: 0, name: 'Dune.Part.Two.2024.mkv', size: 5e9, progress: 0, priority: 1 }])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(
+      await within(sheet).findByRole('status', {
+        name: saying('Another torrent, “Dune.Part.Two.2024.1080p”, is in the folder “Dune - Part Two (2024)” already. Naming this one too would mix their files.'),
+      }),
+    ).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
   })
 
   it('moves the files from the More menu', async () => {

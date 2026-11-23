@@ -203,6 +203,10 @@ describe('addRelease', () => {
       const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait).catch((caught: unknown) => caught)
       expect(error).toBeInstanceOf(MediaNamesError)
       expect((error as MediaNamesError).taken).toBeUndefined()
+      // qBittorrent's own word, not a slip of the code's reading a torrent it doesn't have.
+      const { cause } = error as MediaNamesError
+      expect(cause).toBeInstanceOf(qbt.QbittorrentError)
+      expect((cause as qbt.QbittorrentError).status).toBe(404)
       expect(renameFiles).not.toHaveBeenCalled()
       expect(startTorrents).toHaveBeenCalledWith(['def456'])
     })
