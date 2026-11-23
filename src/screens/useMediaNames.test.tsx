@@ -227,10 +227,11 @@ describe('useMediaNames', () => {
     expect(getTorrentFiles).toHaveBeenCalledTimes(1)
     await act(async () => vi.advanceTimersByTime(1))
     expect(getTorrentFiles).toHaveBeenCalledTimes(2)
-    // The video is named: only the folder is left, once the answer is in.
-    await act(async () => {})
+    // The video is named: only the folder is left, once the answer is in. Reading it hashes the export
+    // with Web Crypto, which settles outside the microtask queue, so the test waits for it with real timers.
+    vi.useRealTimers()
+    expect(await within(sheet).findByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument()
-    expect(within(sheet).getByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     expect(screen.queryByRole('status', { name: saying(/Couldn’t rename/) })).not.toBeInTheDocument()
   })
 
