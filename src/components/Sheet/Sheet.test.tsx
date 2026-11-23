@@ -1,6 +1,6 @@
 import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
@@ -60,16 +60,41 @@ describe('Sheet', () => {
   it.each([
     ['on a phone', () => {}],
     ['on desktop', stubDesktop],
-  ])('has one close button %s, in the title row after its own action, which closes it', async (_, layout) => {
+  ])('has one close button %s, which closes it', async (_, layout) => {
     layout()
     const onClose = renderSheet({ action: <button type="button">Reset</button> })
-    const row = screen.getByRole('heading', { name: 'Add release' }).closest('.ks-sheet-head')
-    const close = screen.getByRole('button', { name: 'Close' })
     expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1)
-    expect(row?.lastElementChild).toBe(close)
-    expect(close.previousElementSibling).toBe(screen.getByRole('button', { name: 'Reset' }))
-    await userEvent.click(close)
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  describe('as it opens, focuses the first control but its close button, which comes before the fields', () => {
+    const open = (props: Partial<Parameters<typeof Sheet>[0]>, content: ReactNode) =>
+      render(
+        <Sheet open onClose={vi.fn()} title="Speed limits" {...props}>
+          {content}
+        </Sheet>,
+      )
+
+    it('a field', () => {
+      open({}, <input aria-label="Download limit" />)
+      expect(screen.getByRole('textbox', { name: 'Download limit' })).toHaveFocus()
+    })
+
+    it('a control before the title, as the first thing in it', () => {
+      open({ leading: <button type="button">Back</button> }, <input aria-label="Folder" />)
+      expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus()
+    })
+
+    it('not a control that can’t take focus', () => {
+      open({ action: <button type="button" disabled>Reset</button> }, <input aria-label="Folder" />)
+      expect(screen.getByRole('textbox', { name: 'Folder' })).toHaveFocus()
+    })
+
+    it('the close button when there’s nothing else', () => {
+      open({}, <p>Nothing to do</p>)
+      expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
+    })
   })
 
   it('stays open when a dialog inside it is cancelled', () => {
