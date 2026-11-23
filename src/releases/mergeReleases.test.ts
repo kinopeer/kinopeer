@@ -21,8 +21,9 @@ describe('mergeReleases', () => {
   it('keeps the same torrent from another indexer, as a single search lists it', () => {
     const first = release('a', { infoHash: 'abcdef', indexer: 'Indexer A' })
     const other = release('b', { infoHash: 'abcdef', indexer: 'Indexer B' })
-    const sameGuid = release('a', { indexer: 'Indexer B' })
-    expect(mergeReleases([[first, release('c')], [other, sameGuid]])).toEqual([first, release('c'), other, sameGuid])
+    const hashless = release('c')
+    const sameGuid = release('c', { indexer: 'Indexer B' })
+    expect(mergeReleases([[first, hashless], [other, sameGuid]])).toEqual([first, hashless, other, sameGuid])
   })
 
   it('tells releases without a hash apart by Prowlarr’s guid, which each search gives the same, unlike the download link', () => {
