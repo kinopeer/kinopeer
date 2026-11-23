@@ -11,6 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 - When a download doesn't fit, Free up space in the add sheet's warning (and in the file picker) lists qBittorrent's torrents with what each has on disk, to pick and delete with their files, with a counter of the space picked against the space needed. Torrents outside qBittorrent's default folder are listed apart, as they may be on another disk, and don't count. The free space after a delete shows as an estimate ("≈") until qBittorrent measures it again, within 30 seconds. The list's sort is remembered in this browser, apart from Downloads'. ([#580](https://github.com/kinopeer/kinopeer/issues/580))
 - The release filters show how many releases each value would leave, the other filters as they are, and dim a value that would leave none, on the phone's filters sheet and in the desktop popovers. ([#583](https://github.com/kinopeer/kinopeer/issues/583))
 - A title whose original name isn't in Latin or Cyrillic script (Korean, Japanese, Chinese, Thai…) is searched for releases by its English name too, since many indexers list it that way, and the two searches show as one list, each release once. ([#581](https://github.com/kinopeer/kinopeer/issues/581))
+- The releases' search query can be edited: a field above the filters shows the query Kinopeer built, a submitted edit searches by that text, the address keeps it, and Reset query brings the built one back. ([#582](https://github.com/kinopeer/kinopeer/issues/582))
 
 ### Changed
 

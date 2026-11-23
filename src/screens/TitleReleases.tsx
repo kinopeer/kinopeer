@@ -16,6 +16,7 @@ import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
+import { ReleaseQueryField } from './ReleaseQueryField'
 import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases, type Releases } from './useReleases'
 import './ReleasesScreen.css'
@@ -86,6 +87,10 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
         </h2>
         {status === 'ready' && <ReleasesCount releases={releases} />}
         {(status === 'loading' || status === 'ready') && sorting}
+      </div>
+
+      <div className="title-rel-query">
+        <ReleaseQueryField releases={releases} />
       </div>
 
       {/* The bar is there from the start, skeletons of the filters while the search runs, so the

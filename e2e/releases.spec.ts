@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { GB, NOW, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
 
 /**
@@ -95,6 +95,30 @@ test.describe('releases, phone', () => {
     await openReleases(page, { releaseFilters: REMEMBERED })
     await expect(page.getByText('Запомненные фильтры не применены: Дубляж')).toBeVisible()
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
+  })
+
+  // A query edited and searched, with Reset query in the field (#582).
+  test('an edited query', async ({ page }) => {
+    await openReleases(page)
+    const field = page.getByRole('searchbox', { name: 'Поисковый запрос' })
+    await field.fill('Shogun 2024 2160p')
+    await field.press('Enter')
+    await expect(page.getByRole('button', { name: 'Сбросить запрос' })).toBeVisible()
+    await expect(page.getByText(RELEASES[0].title)).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('query-edited-dark-ru.png')
+  })
+
+  // The query field scrolls away under the title bar; the bar and the filter chips stay pinned (#582).
+  test('the title bar and the filters stay at the top while the list scrolls', async ({ page }) => {
+    await emulateNotch(page)
+    await openReleases(page)
+    await page.evaluate(() => window.scrollTo(0, 400))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(400)
+    await expect(page.getByRole('searchbox', { name: 'Поисковый запрос' })).not.toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Назад' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: /^Фильтры/ })).toBeInViewport()
+    await expect(page).toHaveScreenshot('list-scrolled-safe-area-dark-ru.png')
   })
 
   // A release qBittorrent has: its card opens the torrent in place of adding it (#375).

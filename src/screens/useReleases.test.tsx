@@ -1,5 +1,6 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
-import type { ReactNode } from 'react'
+import { act, renderHook as render, waitFor, type RenderHookOptions } from '@testing-library/react'
+import type { ComponentType, ReactNode } from 'react'
+import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -13,7 +14,21 @@ import { MainDataProvider } from '../torrents/MainDataProvider'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { POLL_INTERVAL_MS } from '../torrents/pollIntervals'
 import { useMainData } from '../torrents/useMainData'
+import { ROUTER_OPTIONS } from '../lib/routerOptions'
 import { useReleases } from './useReleases'
+
+/** `renderHook` under a router at `at`, the hook reading the edited query from the address; inside `wrapper` when given. */
+function renderHook<Result, Props>(hook: (props: Props) => Result, options: RenderHookOptions<Props> = {}, at = '/') {
+  const Inner = (options.wrapper ?? (({ children }) => children)) as ComponentType<{ children: ReactNode }>
+  return render(hook, {
+    ...options,
+    wrapper: ({ children }) => (
+      <MemoryRouter initialEntries={[at]} {...ROUTER_OPTIONS}>
+        <Inner>{children}</Inner>
+      </MemoryRouter>
+    ),
+  })
+}
 
 vi.mock('../api/prowlarr', async (importOriginal) => {
   const actual = await importOriginal<typeof prowlarr>()
@@ -310,6 +325,23 @@ describe('useReleases', () => {
       const { result } = renderHook(() => useReleases(parasite))
       await waitFor(() => expect(result.current.status).toBe('error'))
       expect(result.current.rows).toEqual([])
+    })
+
+    it('searches by an edited query alone, asking TMDB nothing (#582)', async () => {
+      const { result } = renderHook(() => useReleases(parasite), {}, '/?q=%20Parasite%202019%20')
+      await waitFor(() => expect(result.current.status).toBe('ready'))
+      expect(tmdb.getMovie).not.toHaveBeenCalled()
+      expect(prowlarr.searchReleases).toHaveBeenCalledTimes(1)
+      expect(prowlarr.searchReleases).toHaveBeenCalledWith('Parasite 2019', expect.anything())
+      expect(result.current).toMatchObject({ query: 'Parasite 2019', edited: true })
+    })
+
+    it('takes an empty edited query for none (#582)', async () => {
+      vi.mocked(tmdb.getMovie).mockResolvedValue(english)
+      const { result } = renderHook(() => useReleases(parasite), {}, '/?q=%20')
+      await waitFor(() => expect(result.current.status).toBe('ready'))
+      expect(result.current.edited).toBe(false)
+      expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2)
     })
 
     it('asks TMDB nothing for an original in Latin script', async () => {

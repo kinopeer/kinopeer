@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -233,6 +233,42 @@ describe('TitleScreen on desktop', () => {
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' })
     // Pressed again, it only scrolls: the releases already found aren't searched again.
     expect(searchReleases).toHaveBeenCalledTimes(1)
+  })
+
+  it('searches by the query edited above the filters, and Reset brings the built one back (#582)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const field = () => screen.getByRole('searchbox', { name: 'Search query' })
+    expect(field()).toHaveValue('Dune Part Two 2024')
+
+    searchReleases.mockResolvedValue([DUNE_RELEASES[0]])
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Dune 2{Enter}')
+    expect(await screen.findByText('1 of 1 release')).toBeInTheDocument()
+    expect(searchReleases).toHaveBeenLastCalledWith('Dune 2', expect.anything())
+    expect(where()).toBe('/title/movie/693134/releases')
+
+    searchReleases.mockResolvedValue(DUNE_RELEASES)
+    await userEvent.click(screen.getByRole('button', { name: 'Reset query' }))
+    expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+    expect(field()).toHaveValue('Dune Part Two 2024')
+  })
+
+  it('goes back to Search from releases opened from a link, after the query was edited (#582)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search query' }), ' remux{Enter}')
+    await waitFor(() => expect(searchReleases).toHaveBeenLastCalledWith('Dune Part Two 2024 remux', expect.anything()))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(where()).toBe('/search')
+  })
+
+  it('searches by the query in the address (#582)', async () => {
+    renderAt('/title/movie/693134/releases?q=Dune%202')
+    await screen.findByText('3 of 3 releases')
+    expect(searchReleases).toHaveBeenCalledTimes(1)
+    expect(searchReleases).toHaveBeenCalledWith('Dune 2', expect.anything())
+    expect(screen.getByRole('searchbox', { name: 'Search query' })).toHaveValue('Dune 2')
   })
 
   it('shows in the popovers how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
