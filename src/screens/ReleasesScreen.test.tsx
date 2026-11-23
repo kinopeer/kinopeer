@@ -8,10 +8,12 @@ import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
+import { counted, labelOf } from '../test/filterChips'
 import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
 import { Opened, opened, renderWithRouter, saying } from '../test/render'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { ReleasesScreen } from './ReleasesScreen'
+
 
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
@@ -114,11 +116,27 @@ describe('ReleasesScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
     const indexers = within(sheet.getByRole('group', { name: 'Indexer' }))
-    expect(indexers.getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C', 'Indexer D'])
-    await userEvent.click(indexers.getByRole('button', { name: 'Indexer D' }))
+    expect(indexers.getAllByRole('button').map(labelOf)).toEqual(['Indexer C', 'Indexer D'])
+    await userEvent.click(indexers.getByRole('button', { name: counted('Indexer D') }))
     await userEvent.click(sheet.getByRole('button', { name: 'Show 1' }))
     expect(names()).toEqual([DUNE_RELEASES[0].title])
     expect(screen.getByRole('button', { name: 'Remove filter Indexer D' })).toBeInTheDocument()
+  })
+
+  it('shows how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
+    const chips = (name: string) => within(sheet.getByRole('group', { name })).getAllByRole('button')
+    expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 3', '10+ 3', '50+ 2', '100+ 2'])
+    await userEvent.click(sheet.getByRole('button', { name: counted('100+') }))
+    // The 720p release has 12 seeds.
+    expect(chips('Resolution').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
+    expect(sheet.getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
+    expect(sheet.getByRole('button', { name: '1080p 1' })).not.toHaveClass('is-dim')
+    // Still a choice: it leaves nothing, as it says.
+    await userEvent.click(sheet.getByRole('button', { name: '720p 0' }))
+    expect(sheet.getByRole('button', { name: 'Show 0' })).toBeInTheDocument()
   })
 
   it('filters in the sheet and removes filters from the list', async () => {
@@ -127,8 +145,8 @@ describe('ReleasesScreen', () => {
     const sheet = screen.getByRole('dialog', { name: 'Filters' })
     // Only values the results have are offered.
     const resolution = within(sheet).getByRole('group', { name: 'Resolution' })
-    expect(within(resolution).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['2160p', '1080p', '720p'])
-    await userEvent.click(within(resolution).getByRole('button', { name: '2160p' }))
+    expect(within(resolution).getAllByRole('button').map(labelOf)).toEqual(['2160p', '1080p', '720p'])
+    await userEvent.click(within(resolution).getByRole('button', { name: counted('2160p') }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Show 1' }))
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -151,7 +169,7 @@ describe('ReleasesScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Фильтры' }))
     const sheet = screen.getByRole('dialog', { name: 'Фильтры' })
     const source = within(within(sheet).getByRole('group', { name: 'Источник' }))
-    await userEvent.click(source.getByRole('button', { name: 'Экранка' }))
+    await userEvent.click(source.getByRole('button', { name: counted('Экранка') }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Показать 1' }))
     expect(screen.getByRole('button', { name: 'Убрать фильтр Экранка' })).toBeInTheDocument()
   })
@@ -163,17 +181,17 @@ describe('ReleasesScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = screen.getByRole('dialog', { name: 'Filters' })
     const group = (name: string) => within(within(sheet).getByRole('group', { name }))
-    const options = (name: string) => group(name).getAllByRole('button').map((chip) => chip.textContent)
+    const options = (name: string) => group(name).getAllByRole('button').map(labelOf)
     // Under the filter's name the option says just Not stated; chips outside the group name the filter.
     expect(options('Resolution')).toEqual(['2160p', '1080p', '720p', 'Not stated'])
     expect(options('Source')).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
     // The remux and the 720p rip name no voice-over either.
     expect(options('Audio')).toEqual(['Dubbed', 'Not stated'])
 
-    await userEvent.click(group('Resolution').getByRole('button', { name: 'Not stated' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: '1080p' }))
-    await userEvent.click(group('Source').getByRole('button', { name: 'Not stated' }))
-    await userEvent.click(group('Audio').getByRole('button', { name: 'Not stated' }))
+    await userEvent.click(group('Resolution').getByRole('button', { name: counted('Not stated') }))
+    await userEvent.click(within(sheet).getByRole('button', { name: counted('1080p') }))
+    await userEvent.click(group('Source').getByRole('button', { name: counted('Not stated') }))
+    await userEvent.click(group('Audio').getByRole('button', { name: counted('Not stated') }))
     await userEvent.click(within(sheet).getByRole('button', { name: 'Show 1' }))
     expect(names()).toEqual([bare.title])
     expect(screen.getByRole('button', { name: 'Source not stated' })).toHaveAttribute('aria-pressed', 'true')
@@ -192,11 +210,11 @@ describe('ReleasesScreen', () => {
   it('says when filters hide everything', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '100+' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('100+') }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 2' }))
     await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dubbed' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '720p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('Dubbed') }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('720p') }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 0' }))
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
   })
@@ -207,11 +225,11 @@ describe('ReleasesScreen', () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByRole('button', { name: '1 indexer didn’t answer' })
     await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '100+' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('100+') }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 2' }))
     await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Dubbed' }))
-    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: '720p' }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('Dubbed') }))
+    await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: counted('720p') }))
     await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Show 0' }))
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: saying('1 indexer didn’t answer: Indexer B') })).toBeInTheDocument()
@@ -387,10 +405,10 @@ describe('ReleasesScreen', () => {
       const first = renderAt('/title/movie/693134/releases')
       await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
       const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
-      await userEvent.click(sheet.getByRole('button', { name: '2160p' }))
-      await userEvent.click(sheet.getByRole('button', { name: '1080p' }))
-      await userEvent.click(sheet.getByRole('button', { name: '100+' }))
-      await userEvent.click(within(sheet.getByRole('group', { name: 'Indexer' })).getByRole('button', { name: 'Indexer D' }))
+      await userEvent.click(sheet.getByRole('button', { name: counted('2160p') }))
+      await userEvent.click(sheet.getByRole('button', { name: counted('1080p') }))
+      await userEvent.click(sheet.getByRole('button', { name: counted('100+') }))
+      await userEvent.click(within(sheet.getByRole('group', { name: 'Indexer' })).getByRole('button', { name: counted('Indexer D') }))
       await userEvent.click(sheet.getByRole('radio', { name: 'Size' }))
       first.unmount()
 
@@ -410,7 +428,7 @@ describe('ReleasesScreen', () => {
       const first = renderAt('/title/movie/693134/releases')
       expect(await screen.findByText('Remembered filters not applied: WEB-DL')).toBeInTheDocument()
       await userEvent.click(screen.getByRole('button', { name: 'Filters 1' }))
-      await userEvent.click(within(screen.getByRole('group', { name: 'Source' })).getByRole('button', { name: 'BluRay' }))
+      await userEvent.click(within(screen.getByRole('group', { name: 'Source' })).getByRole('button', { name: counted('BluRay') }))
       first.unmount()
 
       searchReleases.mockResolvedValue([DUNE_RELEASES[1], DUNE_RELEASES[2]])

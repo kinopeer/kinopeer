@@ -39,6 +39,13 @@
 
 .ks-chip.is-on .n { color: inherit; }
 
+.ks-chip.is-dim:not(.is-on) {
+  color: var(--disabled);
+  border-color: var(--border);
+}
+
+.ks-chip.is-dim:not(.is-on) .n { color: inherit; }
+
 .ks-chip:disabled {
   color: var(--disabled);
   border-color: var(--border);
