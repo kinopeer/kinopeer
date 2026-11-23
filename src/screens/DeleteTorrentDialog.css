@@ -16,3 +16,10 @@
   cursor: pointer;
 }
 
+
+/* The files go too, said rather than asked: the line and its warning. */
+.delete-files-always {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}

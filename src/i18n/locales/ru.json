@@ -46,7 +46,8 @@
     "qbtFailed": "Не удалось связаться с qBittorrent. Попробуйте ещё раз.",
     "qbtFailed_kinopeer": "Не удалось связаться с Kinopeer. Попробуйте ещё раз.",
     "qbittorrent": "qBittorrent",
-    "tmdb": "TMDB"
+    "tmdb": "TMDB",
+    "approximately": "≈ {{value}}"
   },
   "noAnswer": {
     "qbittorrent": "qBittorrent не отвечает",
@@ -436,6 +437,14 @@
     "selectedSummary": "{{selected}} из {{count}} · {{size}}",
     "diskUsage": "Объём выбранного относительно свободного места"
   },
+  "freeUp": {
+    "title": "Освободить место",
+    "counter": "Выбрано {{selected}} из нужных {{needed}}",
+    "enough": "Места для этой загрузки хватает",
+    "elsewhere": "Может быть на другом диске",
+    "elsewhereHint": "Вне папки qBittorrent по умолчанию, поэтому не учитываются.",
+    "folderUnknown": "Папка qBittorrent по умолчанию неизвестна, поэтому ни один не учитывается."
+  },
   "torrent": {
     "loading": "Загружаем торрент",
     "notFoundTitle": "Торрент не найден",
@@ -475,6 +484,7 @@
     "deleteBodyMany_other": "{{count}} торрента будут удалены из qBittorrent.",
     "deleteFiles": "Удалить и файлы · {{size}}",
     "deleteFilesHint": "Файлы будут безвозвратно удалены с диска.",
+    "deleteWithFiles": "Файлы тоже удалятся · {{size}}",
     "files": "Файлы",
     "priorityOf": "Приоритет: {{name}}",
     "prioritySkip": "Не качать",

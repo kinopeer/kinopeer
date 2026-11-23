@@ -38,4 +38,22 @@ describe('Banner', () => {
     expect(onSecondaryAction).toHaveBeenCalledOnce()
     expect(onAction).not.toHaveBeenCalled()
   })
+
+  // The classes are the component's contract with its stylesheet (the design system's ks-banner).
+  it('takes its tone’s class, the warning being the plain banner', () => {
+    const { container, rerender } = render(<Banner tone="error">Failed</Banner>)
+    expect(container.firstElementChild).toHaveClass('ks-banner', 'ks-banner-error')
+    rerender(<Banner tone="warning">Low</Banner>)
+    expect(container.firstElementChild).toHaveClass('ks-banner')
+    expect(container.firstElementChild?.className).not.toMatch(/ks-banner-/)
+  })
+
+  it('puts its actions under the text with two of them or when asked, not with one', () => {
+    const { container, rerender } = render(<Banner actionLabel="Retry" onAction={vi.fn()} />)
+    expect(container.firstElementChild).not.toHaveClass('wraps-actions')
+    rerender(<Banner actionLabel="Free up space" onAction={vi.fn()} wrapActions />)
+    expect(container.firstElementChild).toHaveClass('wraps-actions')
+    rerender(<Banner actionLabel="Retry" onAction={vi.fn()} secondaryActionLabel="Open again" onSecondaryAction={vi.fn()} />)
+    expect(container.firstElementChild).toHaveClass('wraps-actions')
+  })
 })

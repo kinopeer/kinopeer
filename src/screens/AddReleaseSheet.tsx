@@ -27,9 +27,11 @@ import { tmdbTagFor } from '../torrents/parseName'
 import { torrentId } from '../torrents/sameTorrent'
 import { categoryType } from '../torrents/titleLookup'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
+import { estimatedFreeSpace, withFreed, type FreedSpace } from '../torrents/freeUpSpace'
 import { useFreeSpace } from '../torrents/useMainData'
 import { unreachableText } from '../lib/unreachable'
 import { FilePicker } from './FilePicker'
+import { FreeUpSpace } from './FreeUpSpace'
 import { IndexerLink } from './IndexerLink'
 import { useNotificationsAvailable } from './useNotificationsAvailable'
 import './AddReleaseSheet.css'
@@ -99,11 +101,20 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   // under a finger when it does, and out of a sheet without a torrent to send.
   const offered = !added && prepared.data !== undefined && !existing.loading
   const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
-  const free = useFreeSpace()
+  const reported = useFreeSpace()
+  // What deletes from Free up space freed, until qBittorrent measures the disk again.
+  const [freed, setFreed] = useState<FreedSpace>()
+  // A new figure has measured what was freed: the hold goes, so it can't come back with an old figure.
+  if (freed && freed.reported !== reported) setFreed(undefined)
+  const { free, estimate } = estimatedFreeSpace(freed, reported)
 
   const meta = prepared.data?.meta
   const [skipped, setSkipped] = useState<ReadonlySet<number>>(new Set())
-  const [view, setView] = useState<'options' | 'files'>('options')
+  const [view, setView] = useState<'options' | 'files' | 'free'>('options')
+  // Where Free up space goes back to: the sheet or the file picker it was opened from.
+  const [freeFrom, setFreeFrom] = useState<'options' | 'files'>()
+  // The file picker's open folders, so it opens again as it was left, after Free up space too.
+  const [pickerFolders, setPickerFolders] = useState<ReadonlySet<string>>()
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [chosenCategory, setChosenCategory] = useState<string>()
   const [savePath, setSavePath] = useState('')
@@ -144,12 +155,14 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   // qBittorrent reports the free space where its default save path is. A warning, not a block: the
   // space may be freed before the download finishes, or the save path may be on another disk. Only by
   // known sizes: a read .torrent's files or a link's release size, not an unreadable .torrent's.
+  // An estimate after a delete is marked as one until qBittorrent measures again.
+  const shownSize = (bytes: number) => (estimate ? t('common.approximately', { value: format.size(bytes) }) : format.size(bytes))
   const knownSize =
     meta !== undefined ||
     (__WEBUI__ ? prepared.data !== undefined && prepared.data.source.kind !== 'torrent' : prepared.data?.source.kind === 'magnet')
   const lowSpace =
     knownSize && free !== undefined && selectedSize > free
-      ? { free: format.size(free), missing: format.size(selectedSize - free) }
+      ? { free: shownSize(free), missing: format.size(selectedSize - free) }
       : undefined
 
   const add = async () => {
@@ -185,16 +198,43 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     }
   }
 
+  const freeUp = (from: 'options' | 'files') => {
+    setFreeFrom(from)
+    setView('free')
+  }
+  // Once opened, rendered with every view, so a delete sent from it that settles after Back still counts.
+  const freeUpStep = freeFrom && (
+    <FreeUpSpace
+      open={view === 'free'}
+      size={selectedSize}
+      free={free}
+      estimate={estimate}
+      defaultSavePath={where.data?.defaultPath}
+      subtitle={release.title}
+      onFreed={(bytes) => setFreed((held) => withFreed(held, reported, bytes))}
+      onBack={() => setView(freeFrom)}
+    />
+  )
+
+  // The step after the view, in the same place whichever shows, so it isn't mounted again.
+  if (view === 'free') return <>{null}{freeUpStep}</>
   if (view === 'files' && meta) {
     return (
-      <FilePicker
-        meta={meta}
-        skipped={skipped}
-        onChange={setSkipped}
-        free={free}
-        subtitle={release.title}
-        onDone={() => setView('options')}
-      />
+      <>
+        <FilePicker
+          meta={meta}
+          skipped={skipped}
+          onChange={setSkipped}
+          free={free}
+          estimate={estimate}
+          subtitle={release.title}
+          openFolders={pickerFolders}
+          onOpenFolders={setPickerFolders}
+          onFreeUp={() => freeUp('files')}
+          onDone={() => setView('options')}
+        />
+        {freeUpStep}
+      </>
     )
   }
 
@@ -207,6 +247,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   ]
 
   return (
+    <>
     <Sheet
       open
       onClose={onClose}
@@ -285,7 +326,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
               </span>
               <span className="t-cap c3 ks-num">
                 {format.size(selectedSize)}
-                {free !== undefined && ` · ${t('common.freeSpace', { size: format.size(free) })}`}
+                {free !== undefined && ` · ${t('common.freeSpace', { size: shownSize(free) })}`}
               </span>
             </span>
             <span className="t-label ca add-change">{t('common.change')}</span>
@@ -301,7 +342,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
               )
             : prepared.data?.source.kind === 'magnet' && <p className="t-cap c3">{t('add.magnetFiles')}</p>)}
         {offered && lowSpace && (
-          <Banner icon="disk" title={t('add.notEnough')}>
+          <Banner icon="disk" title={t('add.notEnough')} actionLabel={t('freeUp.title')} onAction={() => freeUp('options')} wrapActions>
             {t('add.lowSpace', lowSpace)}{' '}
             {fileCount > 1 ? t('add.lowSpaceSkip') : t('add.lowSpaceFree')}
           </Banner>
@@ -364,5 +405,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         )}
       </div>
     </Sheet>
+    {freeUpStep}
+    </>
   )
 }

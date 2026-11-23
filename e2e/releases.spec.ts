@@ -1,7 +1,32 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
-import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
+import { GB, NOW, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
+
+/**
+ * qBittorrent's torrents for Free up space (#580): three on the default save path's disk, under
+ * /downloads, and one elsewhere, which may be another disk.
+ */
+const daysAgo = (days: number) => NOW / 1000 - days * 86_400
+const TO_FREE_UP: AppOptions = {
+  freeSpace: 48 * GB,
+  torrents: [
+    torrent('dune', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', size: 76 * GB, progress: 1, ratio: 1.42, added_on: daysAgo(200), save_path: '/downloads/movies', content_path: '/downloads/movies/dune' }),
+    torrent('oppenheimer', { name: 'Oppenheimer.2023.1080p.BluRay.x264-GRPB', size: 18 * GB, progress: 1, ratio: 0.31, added_on: daysAgo(45), save_path: '/downloads/movies', content_path: '/downloads/movies/oppenheimer' }),
+    torrent('bear', { name: 'The.Bear.S03.1080p.WEB-DL-GRPC', size: 24 * GB, progress: 0.5, added_on: daysAgo(3), save_path: '/downloads/tv', content_path: '/downloads/tv/bear' }),
+    torrent('archive', { name: 'Blade.Runner.1982.Final.Cut.1080p.BluRay-GRPD', size: 32 * GB, progress: 1, ratio: 4.1, added_on: daysAgo(700), save_path: '/mnt/archive', content_path: '/mnt/archive/archive' }),
+  ],
+}
+
+/** The add sheet over too little space, then Free up space from its warning, one torrent picked. */
+async function freeUpSpace(page: Page, open: () => Promise<void>) {
+  await open()
+  await page.getByRole('button', { name: 'Освободить место' }).click()
+  const step = page.getByRole('dialog', { name: 'Освободить место' })
+  await expect(step.getByRole('region', { name: 'Может быть на другом диске' })).toBeVisible()
+  await step.getByRole('checkbox', { name: /^Oppenheimer/ }).check()
+  await settle(page)
+}
 
 /** A remembered 2160p, which these releases have, and a dub, which none of them has. */
 const REMEMBERED = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
@@ -139,6 +164,14 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('add-low-space-dark-ru.png')
   })
 
+  test('freeing up space for a release', async ({ page }) => {
+    await freeUpSpace(page, async () => {
+      await openReleases(page, TO_FREE_UP)
+      await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
+    })
+    await expect(page).toHaveScreenshot('add-free-up-dark-ru.png')
+  })
+
   // qBittorrent has the torrent already: the sheet says so and opens it in place of Download (#375).
   test('adding a release already in downloads', async ({ page }) => {
     const inDownloads = torrent(shogunInfoHash(), { name: RELEASES[0].title, progress: 0.4 })
@@ -184,6 +217,14 @@ test.describe('releases, desktop', () => {
     await expectActionColumnAt(page.getByRole('table').getByRole('link', { name: 'В загрузках' }))
     await expectActionColumnAt(page.getByRole('table').getByRole('button', { name: 'Добавить' }).first())
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
+  })
+
+  test('freeing up space for a release', async ({ page }) => {
+    await freeUpSpace(page, async () => {
+      await findReleases(page, TO_FREE_UP)
+      await page.getByRole('table').getByRole('button', { name: 'Добавить' }).first().click()
+    })
+    await expect(page).toHaveScreenshot('desktop-add-free-up-dark-ru.png')
   })
 
   // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.
