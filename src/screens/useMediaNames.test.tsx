@@ -563,7 +563,7 @@ describe('useMediaNames', () => {
       getTorrentFiles.mockResolvedValue(duneFiles().map((file, index) => (index === 0 ? { ...file, name: `${SHOW}/Season 01/${SHOW} S01E01.mkv` } : file)))
       const { open } = renderNames(BB)
       const sheet = await open()
-      expect(await within(sheet).findByRole('status', { name: saying(/^The files can’t be named.*Some of its files are in the show’s folder already/) })).toBeInTheDocument()
+      expect(await within(sheet).findByRole('status', { name: saying(/^The files can’t be named.*Its files are split between the show’s folder and another/) })).toBeInTheDocument()
       expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
       expect(within(sheet).getByRole('button', { name: 'Restore original names' })).toBeEnabled()
     })

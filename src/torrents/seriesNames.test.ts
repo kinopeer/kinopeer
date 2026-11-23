@@ -236,6 +236,12 @@ describe('seriesNames', () => {
     const both = [file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file(`${folder}/Season 01/${SHOW} S01E02.mkv`)]
     expect(naming(both, 1396)).toEqual({ named: false, reason: 'split' })
     expect(naming(both)).toEqual({ named: false, reason: 'split' })
+    // A folder named like the show's with what isn't an id after it isn't the show's: these are named.
+    for (const other of [`${SHOW} {tmdb-x1}`, `${SHOW} {tmdb-1396}x`, `${SHOW} {tmdb-}`]) {
+      const files = [file(`${other}/notes.nfo`, 1), file(`${pack}/Breaking.Bad.S01E02.mkv`)]
+      expect(naming(files, 1396).named, other).toBe(true)
+      expect(naming(files).named, other).toBe(true)
+    }
   })
 
   it('renames a whole torrent from the show’s folder without the TMDB id into the one with it, and back', () => {
