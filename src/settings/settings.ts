@@ -36,6 +36,8 @@ export interface Settings {
   notify: boolean
   /** New movie downloads get their files named for a media server; off, as most people have none. */
   mediaNames: boolean
+  /** Naming for a media server adds the title's TMDB id to its folder (`{tmdb-ID}`); off, keeping the names people read. */
+  tmdbIds: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown on a phone or tablet. */
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   firstLastPieces: false,
   notify: false,
   mediaNames: false,
+  tmdbIds: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
@@ -86,6 +89,7 @@ const SERVER_KEY_SET: Record<ServerKey, true> = {
   firstLastPieces: true,
   notify: true,
   mediaNames: true,
+  tmdbIds: true,
 }
 const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 

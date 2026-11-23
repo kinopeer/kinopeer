@@ -1159,6 +1159,18 @@ describe('SettingsScreen: Telegram', () => {
     expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ mediaNames: true })
   })
 
+  it('saves the TMDB id in folder names with the download defaults, off until turned on', async () => {
+    renderScreen()
+    const defaults = screen.getByRole('region', { name: 'Download defaults' })
+    const ids = within(defaults).getByRole('switch', { name: 'Add the TMDB id to folder names' })
+    expect(ids).not.toBeChecked()
+    expect(within(defaults).getByText('Media servers match a folder by it more surely, as in “Dune (2021) {tmdb-438631}”.')).toBeInTheDocument()
+    await userEvent.click(ids)
+    expect(ids).toBeChecked()
+    expect(getSettings().tmdbIds).toBe(true)
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ tmdbIds: true })
+  })
+
   it('has no Telegram card for a server that doesn’t know Telegram', async () => {
     renderScreen()
     await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })
@@ -1713,6 +1725,15 @@ describe('SettingsScreen in the WebUI build', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Start paused' }))
     expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
     expect(getSettings().startPaused).toBe(true)
+  })
+
+  it('says so for the TMDB id in folder names too, which goes through the same save', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(serverSettings.saveDownloadDefaults).mockRejectedValue(new serverSettings.SettingsError(409, 'store-full'))
+    renderScreen()
+    await userEvent.click(screen.getByRole('switch', { name: 'Add the TMDB id to folder names' }))
+    expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
+    expect(getSettings().tmdbIds).toBe(true)
   })
 
   it("says so for a category too, which goes through the same save", async () => {

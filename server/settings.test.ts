@@ -424,6 +424,15 @@ describe('settingsMiddleware: download defaults', () => {
     expect(store.current.downloads).toEqual({ mediaNames: true })
   })
 
+  it('keeps the TMDB id in folder names among them, and refuses one that isn’t on or off', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinopeer(store)
+    expect((await patchDownloads(app, { tmdbIds: 'yes' })).status).toBe(400)
+    const saved = await patchDownloads(app, { tmdbIds: true })
+    expect(((await saved.json()) as ServerSettings).downloads).toEqual({ tmdbIds: true })
+    expect(store.current.downloads).toEqual({ tmdbIds: true })
+  })
+
   it('keeps the secrets next to them', async () => {
     const store = new SettingsStore(dir)
     await store.update({ tmdbApiKey: 'abc' })

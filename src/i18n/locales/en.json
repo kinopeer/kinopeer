@@ -278,6 +278,8 @@
     "qbittorrentSheetTitle": "qBittorrent connection",
     "qbittorrentSaved": "qBittorrent connection saved",
     "downloadDefaults": "Download defaults",
+    "tmdbIds": "Add the TMDB id to folder names",
+    "tmdbIdsHint": "Media servers match a folder by it more surely, as in “Dune (2021) {tmdb-438631}”.",
     "moviesCategory": "Movies category",
     "seriesCategory": "Series category",
     "categoryAuto": "Automatic ({{name}})",

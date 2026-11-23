@@ -299,6 +299,8 @@
     "qbittorrentSheetTitle": "Подключение к qBittorrent",
     "qbittorrentSaved": "Подключение к qBittorrent сохранено",
     "downloadDefaults": "Загрузка по умолчанию",
+    "tmdbIds": "Добавлять TMDB id в имена папок",
+    "tmdbIdsHint": "По нему медиасервер точнее узнаёт папку, например «Дюна (2021) {tmdb-438631}».",
     "moviesCategory": "Категория фильмов",
     "seriesCategory": "Категория сериалов",
     "categoryAuto": "Автоматически ({{name}})",

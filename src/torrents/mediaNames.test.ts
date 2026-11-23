@@ -27,6 +27,12 @@ describe('titleName', () => {
     expect(titleName('???', 2000)).toBe('Movie (2000)')
     expect(titleName('???', 2000, 'tv')).toBe('Show (2000)')
   })
+
+  it('ends with the title’s TMDB id in curly braces when given one, as Plex and Jellyfin both read it', () => {
+    expect(titleName('Dune: Part Two', 2024, 'movie', 693134)).toBe('Dune - Part Two (2024) {tmdb-693134}')
+    expect(titleName('Untitled Project', undefined, 'movie', 7)).toBe('Untitled Project {tmdb-7}')
+    expect(titleName('???', 2008, 'tv', 1396)).toBe('Show (2008) {tmdb-1396}')
+  })
 })
 
 describe('movieNames', () => {
@@ -56,6 +62,24 @@ describe('movieNames', () => {
         { from: `${release}.mkv`, to: 'Dune - Part Two (2024).mkv' },
         { from: `${release}.ru.forced.srt`, to: 'Dune - Part Two (2024).ru.forced.srt' },
         { from: `${release}.nfo`, to: 'Dune - Part Two (2024).nfo' },
+      ],
+    })
+  })
+
+  it('puts the TMDB id on the movie’s folder and its video, and on the files named after it', () => {
+    const files = [file(`${release}/${release}.mkv`, 18 * GB), file(`${release}/${release}.ru.srt`), file(`${release}/notes.nfo`)]
+    const named = 'Dune - Part Two (2024) {tmdb-693134}'
+    expect(movieNames(files, 'Dune: Part Two', 2024, 693134)).toEqual({
+      named: true,
+      renames: [
+        { from: files[0].name, to: `${named}/${named}.mkv` },
+        { from: files[1].name, to: `${named}/${named}.ru.srt` },
+        { from: files[2].name, to: `${named}/notes.nfo` },
+      ],
+      folder: { from: release, to: named },
+      files: [
+        { from: `${release}.mkv`, to: `${named}.mkv` },
+        { from: `${release}.ru.srt`, to: `${named}.ru.srt` },
       ],
     })
   })

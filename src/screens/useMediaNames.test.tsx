@@ -6,6 +6,7 @@ import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { DUNE_TORRENT, duneFiles, duneTorrent, torrent } from '../test/fixtures'
 import { saying } from '../test/render'
+import { resetSettings, updateSettings } from '../settings/settings'
 import { readTorrentFile } from '../torrents/torrentFile'
 import type { TitleMatch } from '../torrents/titleLookup'
 import { RENAMES_SETTLE_MS } from './MediaNamesSheet'
@@ -80,7 +81,11 @@ beforeAll(async () => {
   DUNE = torrent(meta.infoHash, { name: RELEASE })
 })
 
+/** Settings' "Add the TMDB id to folder names" on. */
+const withTmdbIds = () => updateSettings({ tmdbIds: true })
+
 beforeEach(() => {
+  resetSettings()
   vi.resetAllMocks()
   getTorrentFiles.mockResolvedValue(duneFiles())
   exportTorrent.mockImplementation(() => Promise.resolve(duneTorrent().slice().buffer))
@@ -315,6 +320,24 @@ describe('useMediaNames', () => {
     expect(within(again).getByRole('button', { name: 'Rename' })).toBeDisabled()
   })
 
+  it('puts the title’s TMDB id on the folder and the video with Settings’ switch on', async () => {
+    withTmdbIds()
+    const { open } = renderNames()
+    const sheet = await open()
+    const named = `${NAMED} {tmdb-693134}`
+    expect(await within(sheet).findByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${named}`)
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
+    expect(renameFiles).toHaveBeenCalledWith(DUNE.hash, expect.arrayContaining([{ from: `${RELEASE}/${RELEASE}.mkv`, to: `${named}/${named}.mkv` }]))
+  })
+
+  it('looks for another torrent in the folder with the TMDB id, the one naming would use with Settings’ switch on', async () => {
+    withTmdbIds()
+    const other = torrent('b'.repeat(40), { name: 'Dune.Part.Two.2024.1080p', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/${NAMED} {tmdb-693134}` })
+    const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+    const sheet = await open(DUNE.hash)
+    expect(await within(sheet).findByRole('status', { name: saying(/^Another torrent, “Dune\.Part\.Two\.2024\.1080p”, is in the folder “Dune - Part Two \(2024\) \{tmdb-693134\}”/) })).toBeInTheDocument()
+  })
+
   it('names nothing while another torrent is in the folder naming would use, and says which', async () => {
     const other = torrent('b'.repeat(40), { name: 'Dune.Part.Two.2024.1080p', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/${NAMED}` })
     const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
@@ -457,6 +480,16 @@ describe('useMediaNames', () => {
       const sheet = await open(season2.hash)
       expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
       expect(getTorrentFiles).toHaveBeenCalledWith(season1.hash, expect.anything())
+    })
+
+    it('reads the other seasons in the show’s folder with the TMDB id, with Settings’ switch on', async () => {
+      withTmdbIds()
+      const folder = `${SHOW} {tmdb-1396}`
+      const other = torrent('s1'.repeat(20), { name: folder, save_path: '/data/tv', content_path: `/data/tv/${folder}` })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `${folder}/Season 02/${SHOW} S02E01.mkv`)])))
+      const { open } = renderNames(BB, { [season2.hash]: season2, [other.hash]: other })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('status', { name: saying(new RegExp(`is in the folder “${SHOW.replace(/[()]/g, '\\$&')} \\{tmdb-1396\\}”`)) })).toBeInTheDocument()
     })
 
     it.each([

@@ -33,6 +33,7 @@ import {
   type FileRename,
   type MediaNames,
   type NamedFile,
+  type NamingTitle,
 } from './mediaNames'
 
 /** A video's episode, or the episodes one file holds, in one season. */
@@ -136,7 +137,7 @@ const overlap = (a: Episode, b: Episode) => a.season === b.season && a.first <= 
  * qBittorrent lists them, or why none are named. `hint` is the torrent's name, for files in no
  * folder of the torrent's.
  */
-export function seriesNames(files: readonly NamedFile[], title: string, year?: number, hint?: string): MediaNames {
+export function seriesNames(files: readonly NamedFile[], title: string, year?: number, hint?: string, tmdbId?: number): MediaNames {
   if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
   const videos = files.filter((file) => isVideo(file.name))
   if (!videos.length) return { named: false, reason: 'no-video' }
@@ -157,7 +158,9 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
   }
   if (!read.size) return { named: false, reason: 'no-episodes' }
 
-  const show = titleName(title, year, 'tv')
+  // The id names the show's folder alone: both servers' docs show the episodes without it.
+  const show = titleName(title, year, 'tv', tmdbId)
+  const episodes = titleName(title, year, 'tv')
   // Some files in the show's folder and some not, as a rename that stopped partway leaves them:
   // naming them again would put the show's folder in itself.
   const inShow = (path: string) => path.includes('/') && path.split('/')[0].toLowerCase() === show.toLowerCase()
@@ -171,7 +174,7 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
     if (folder) return `Season ${pad(Number(folder[1] ?? folder[2] ?? folder[3]))}/${below.join('/')}`
     return season === undefined ? [first, ...below].join('/') : `Season ${pad(season)}/${[first, ...below].join('/')}`
   }
-  const episodeFile = (episode: Episode, suffix: string) => `Season ${pad(episode.season)}/${show} ${episodeName(episode)}${suffix}`
+  const episodeFile = (episode: Episode, suffix: string) => `Season ${pad(episode.season)}/${episodes} ${episodeName(episode)}${suffix}`
   const targets = files.map((file) => {
     let own: string | undefined
     const episode = read.get(file)
@@ -233,10 +236,12 @@ export function namedPaths(files: readonly NamedFile[], renames: readonly FileRe
 
 /** What naming for a media server does with a torrent of this title: a movie's main video, or a series' episodes. */
 export function titleNames(
-  title: { type: 'movie' | 'tv'; title: string; year?: number },
+  title: NamingTitle,
   files: readonly NamedFile[],
   /** The torrent's name, for a series' files in no folder of the torrent's. */
   hint?: string,
 ): MediaNames {
-  return title.type === 'movie' ? movieNames(files, title.title, title.year) : seriesNames(files, title.title, title.year, hint)
+  return title.type === 'movie'
+    ? movieNames(files, title.title, title.year, title.tmdbId)
+    : seriesNames(files, title.title, title.year, hint, title.tmdbId)
 }

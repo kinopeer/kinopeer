@@ -146,12 +146,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     () =>
       meta
         ? titleNames(
-            { type: title.type, title: title.name, year: title.year },
+            { type: title.type, title: title.name, year: title.year, tmdbId: settings.tmdbIds ? title.id : undefined },
             meta.files.map((file) => ({ name: meta.multiFile ? `${meta.name}/${file.path}` : file.path, size: file.size })),
             release.title,
           )
         : undefined,
-    [title.type, title.name, title.year, meta, release.title],
+    [title.type, title.name, title.year, title.id, settings.tmdbIds, meta, release.title],
   )
   const namable = namesPlan?.named === true
   const mediaNames = namable && (chosenNames ?? settings.mediaNames)
@@ -202,7 +202,9 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           sequential,
           firstLastPieces,
           topOfQueue,
-          mediaNames: mediaNames ? { type: title.type, title: title.name, year: title.year, hint: release.title } : undefined,
+          mediaNames: mediaNames
+            ? { type: title.type, title: title.name, year: title.year, tmdbId: settings.tmdbIds ? title.id : undefined, hint: release.title }
+            : undefined,
         },
         meta && { meta, skip: [...skipped] },
       )

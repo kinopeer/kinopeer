@@ -90,11 +90,12 @@ describe('readSettings', () => {
         'kinopeer.downloads.startPaused': true,
         'kinopeer.downloads.sequential': false,
         'kinopeer.downloads.mediaNames': true,
+        'kinopeer.downloads.tmdbIds': true,
       }),
     ).toEqual({
       tmdbKey: 'tmdb-key',
       prowlarr: { url: 'http://192.168.1.20:9696', apiKey: 'prowlarr-key' },
-      downloads: { movieCategory: 'Movies', tvCategory: null, startPaused: true, sequential: false, mediaNames: true },
+      downloads: { movieCategory: 'Movies', tvCategory: null, startPaused: true, sequential: false, mediaNames: true, tmdbIds: true },
     })
   })
 

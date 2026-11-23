@@ -6,7 +6,7 @@ import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
-import { originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
+import { originalNames, type FileRename, type MediaNames, type NamingTitle } from '../torrents/mediaNames'
 import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
 import { readTorrentFile } from '../torrents/torrentFile'
 import { notNamedText } from './notNamedText'
@@ -29,6 +29,8 @@ export interface MediaNamesSheetProps {
   /** The movie or the series the torrent is matched to, in the app's TMDB language: the names are made of it. */
   title: string
   year?: number
+  /** The title's TMDB id, when its folder's name carries it (Settings' `tmdbIds`). */
+  tmdbId?: number
   /** A movie's: another torrent in the folder naming would put this one's files in (`folderTakenBy`), by its name. Nothing is named then. None for a series. */
   taken?: string
   /** A series': the other torrents in the show's folder (`torrentsIn`), whose files the sheet reads and checks its own against (`filesTakenBy`). None for a movie. */
@@ -80,7 +82,7 @@ async function load(torrent: Torrent, neighbours: MediaNamesSheetProps['neighbou
  * What naming does with the files loaded: the names, and the torrent in the way, a movie's from the
  * screen (`taken`), a series' found among its neighbours' files.
  */
-function planNames(data: Loaded, torrent: Torrent, title: { type: 'movie' | 'tv'; title: string; year?: number }, takenFolder: string | undefined) {
+function planNames(data: Loaded, torrent: Torrent, title: NamingTitle, takenFolder: string | undefined) {
   // A series' files in no folder of the torrent's read their season from its name.
   const names = titleNames(title, data.files, torrent.name)
   // Each torrent's files under its own save path, so a neighbour saved in the show's folder lines up.
@@ -93,7 +95,7 @@ function planNames(data: Loaded, torrent: Torrent, title: { type: 'movie' | 'tv'
  * "Name for a media server": what naming a movie's or a series' files would rename, old name over new, or why
  * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
  */
-export function MediaNamesSheet({ torrent, type, title, year, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
+export function MediaNamesSheet({ torrent, type, title, year, tmdbId, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
   const { t } = useTranslation()
   // A neighbour's files are placed under its save path as they load: one moved loads them again.
   const around = neighbours.map((other) => `${other.hash}@${other.save_path}`).join('|')
@@ -110,7 +112,7 @@ export function MediaNamesSheet({ torrent, type, title, year, taken: takenFolder
     return () => clearTimeout(timer)
   }, [failed, retry])
   const data = loaded.data
-  const plan = data && planNames(data, torrent, { type, title, year }, takenFolder)
+  const plan = data && planNames(data, torrent, { type, title, year, tmdbId }, takenFolder)
   const names = plan?.names
   const taken = plan?.taken
   const restore = data?.original?.length ? data.original : undefined

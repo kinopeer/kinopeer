@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { episodeName, episodeOf, filesTakenBy, placed, seriesNames } from './seriesNames'
+import { episodeName, episodeOf, filesTakenBy, placed, seriesNames, titleNames } from './seriesNames'
 
 const MB = 1024 ** 2
 const file = (name: string, size = 700 * MB) => ({ name, size })
@@ -196,6 +196,31 @@ describe('seriesNames', () => {
     expect(named.named && named.renames).toContainEqual({ from: `${release}/a.S01E02.mkv`, to: `${SHOW}/Season 01/a.S01E02.mkv` })
   })
 
+  it('puts the TMDB id on the show’s folder alone, not on its episodes', () => {
+    const pack = 'Breaking.Bad.S01.1080p-GRPA'
+    const folder = `${SHOW} {tmdb-1396}`
+    const named = seriesNames([file(`${pack}/Breaking.Bad.S01E01.mkv`), file(`${pack}/Breaking.Bad.S01E01.en.srt`, 1), file(`${pack}/notes.nfo`, 1)], 'Breaking Bad', 2008, undefined, 1396)
+    expect(named).toEqual({
+      named: true,
+      renames: [
+        { from: `${pack}/Breaking.Bad.S01E01.mkv`, to: `${folder}/Season 01/${SHOW} S01E01.mkv` },
+        { from: `${pack}/Breaking.Bad.S01E01.en.srt`, to: `${folder}/Season 01/${SHOW} S01E01.en.srt` },
+        { from: `${pack}/notes.nfo`, to: `${folder}/Season 01/notes.nfo` },
+      ],
+      folder: { from: pack, to: folder },
+      files: [
+        { from: 'Breaking.Bad.S01E01.mkv', to: `Season 01/${SHOW} S01E01.mkv` },
+        { from: 'Breaking.Bad.S01E01.en.srt', to: `Season 01/${SHOW} S01E01.en.srt` },
+      ],
+      unread: [],
+    })
+    // A torrent in the show's folder with the id is in it: naming it again renames nothing.
+    const again = seriesNames(named.named ? named.renames.map((rename) => file(rename.to)) : [], 'Breaking Bad', 2008, undefined, 1396)
+    expect(again.named && again.renames).toEqual([])
+    // One named without it, half in the folder with it, is split.
+    expect(seriesNames([file(`${folder}/Season 01/${SHOW} S01E01.mkv`), file(`${SHOW}/Season 01/notes.nfo`, 1)], 'Breaking Bad', 2008, undefined, 1396)).toEqual({ named: false, reason: 'split' })
+  })
+
   it('names the files of a pack by their paths below its folder, which tell seasons apart', () => {
     const pack = 'Breaking.Bad.S01-S02.1080p-GRPA'
     const named = seriesNames([file(`${pack}/Season 1/Episode 1.mkv`), file(`${pack}/Season 2/Episode 1.mkv`)], 'Breaking Bad', 2008)
@@ -311,5 +336,18 @@ describe('filesTakenBy', () => {
     expect(filesTakenBy(ours, [{ torrent: 'a', files: undefined }])).toBe('a')
     expect(filesTakenBy(ours, [{ torrent: 'a', files: [`${SHOW}/Season 01/${SHOW} S01E01.mkv`, `${SHOW}/Season 01/info.nfo`] }])).toBeUndefined()
     expect(filesTakenBy(ours, [])).toBeUndefined()
+  })
+})
+
+describe('titleNames', () => {
+  const files = [file('Show.S01E01.mkv')]
+
+  it('names a movie or a series by its type, with the TMDB id when given one', () => {
+    const movie = titleNames({ type: 'movie', title: 'Arrival', year: 2016, tmdbId: 329865 }, [file('Arrival.2016.mkv')])
+    expect(movie.named && movie.folder.to).toBe('Arrival (2016) {tmdb-329865}')
+    const series = titleNames({ type: 'tv', title: 'Breaking Bad', year: 2008, tmdbId: 1396 }, files)
+    expect(series.named && series.renames).toEqual([{ from: 'Show.S01E01.mkv', to: `${SHOW} {tmdb-1396}/Season 01/${SHOW} S01E01.mkv` }])
+    const plain = titleNames({ type: 'tv', title: 'Breaking Bad', year: 2008 }, files)
+    expect(plain.named && plain.folder.to).toBe(SHOW)
   })
 })

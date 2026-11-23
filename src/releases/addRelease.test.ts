@@ -245,6 +245,15 @@ describe('addRelease', () => {
       expect(startTorrents).toHaveBeenCalledWith(['bb2'])
     })
 
+    it('names the show’s folder with the TMDB id, and looks for the other seasons in that one', async () => {
+      const folder = `${SHOW} {tmdb-1396}`
+      getTorrents.mockResolvedValue([torrent('bb1', { name: folder, save_path: '/media/tv', content_path: `/media/tv/${folder}` }), ADDED])
+      getTorrentFiles.mockImplementation(theirs([`${folder}/Season 01/${SHOW} S01E01.mkv`]))
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: { ...NAMES, tmdbId: 1396 } }, { meta: META, skip: [] }, wait)
+      expect(getTorrentFiles).toHaveBeenCalledWith('bb1')
+      expect(renameFiles).toHaveBeenCalledWith('bb2', [{ from: OWN[0].name, to: `${folder}/Season 02/${SHOW} S02E01.mkv` }])
+    })
+
     it.each([
       ['has a file naming would use', [`${SHOW}/Season 02/${SHOW} S02E01.mkv`]],
       ['has files qBittorrent doesn’t list', new qbt.QbittorrentError('Not found', 404)],

@@ -736,6 +736,22 @@ describe('AddReleaseSheet', () => {
       })
     })
 
+    it('names the show’s folder with the TMDB id with Settings’ switch on, and sends it', async () => {
+      updateSettings({ tmdbIds: true })
+      readTorrentFile.mockResolvedValue(META)
+      renderSheet()
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      await userEvent.click(names)
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad {tmdb-1396}”')
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ mediaNames: { type: 'tv', title: 'Breaking Bad', year: undefined, tmdbId: 1396, hint: RELEASE.title } }),
+        expect.anything(),
+      )
+    })
+
     it('reads the season of an episode in no folder from the release’s name', async () => {
       const release = { ...RELEASE, title: 'Breaking.Bad.S04.1080p-GRPA' }
       readTorrentFile.mockResolvedValue({ ...META, name: 'Episode 3.mkv', files: [{ path: 'Episode 3.mkv', size: 2e9 }], totalSize: 2e9, multiFile: false })

@@ -493,6 +493,14 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
           ))}
         </div>
         <p className="t-cap c3 settings-hint">{t('settings.defaultsHint')}</p>
+        {/* Not changed per download: it names the folder wherever naming runs, the torrent's page included. */}
+        <div className="ks-card settings-card">
+          <div className="settings-toggle">
+            <span className="t-body">{t('settings.tmdbIds')}</span>
+            <Toggle label={t('settings.tmdbIds')} checked={settings.tmdbIds} onChange={(on) => (__WEBUI__ ? updateShared : update)({ tmdbIds: on })} />
+          </div>
+        </div>
+        <p className="t-cap c3 settings-hint">{t('settings.tmdbIdsHint')}</p>
         {/* qBittorrent's own, set once: loaded when opened, so the page asks qBittorrent nothing more. */}
         <ul className="ks-card settings-rows">
           <AboutRow icon="folder" label={t('move.known')} hint={t('settings.foldersHint')} onClick={() => setEditingFolders(true)} />

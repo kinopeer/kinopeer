@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { renameFiles, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
+import { useSettings } from '../settings/settings'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { folderTakenBy, titleName, torrentsIn } from '../torrents/mediaNames'
 import type { TitleMatch } from '../torrents/titleLookup'
@@ -34,6 +35,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
   const { t } = useTranslation()
   const { torrent, open, close, pending, failure, send } = useTorrentSheet<NamesChange>(REQUEST_KINDS.names, torrents)
   const toast = useToast()
+  const [settings] = useSettings()
 
   const rename = async (target: Torrent, change: NamesChange) => {
     const title = matchOf(target)?.title ?? target.name
@@ -45,7 +47,8 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
 
   /** The sheet for a matched torrent: a movie's folder is its own, while a series' seasons share the show's, so the sheet reads the files of the torrents there and checks them against its own. */
   const sheet = (shown: Torrent, match: TitleMatch) => {
-    const folder = titleName(match.title, match.year, match.type)
+    const tmdbId = settings.tmdbIds ? match.id : undefined
+    const folder = titleName(match.title, match.year, match.type, tmdbId)
     const others = Object.values(listed ?? {})
     return (
       <MediaNamesSheet
@@ -54,6 +57,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
         type={match.type}
         title={match.title}
         year={match.year}
+        tmdbId={tmdbId}
         taken={match.type === 'movie' ? folderTakenBy(others, shown, folder)?.name : undefined}
         neighbours={match.type === 'tv' ? torrentsIn(others, shown, folder) : []}
         offline={offline}

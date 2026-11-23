@@ -84,10 +84,21 @@ function safeName(text: string): string {
 /**
  * The movie's or the show's folder, and a movie's video file name, without the extension: `Title (Year)`,
  * or the title alone without a year; `Movie` or `Show` for a title made only of what a name can't take.
+ * With the title's TMDB id, `Title (Year) {tmdb-ID}`: the form Plex's naming pages give, which
+ * Jellyfin's identifiers page takes as well (docs/SPEC.md's decision log, 2026-11-23).
  */
-export function titleName(title: string, year?: number, type: 'movie' | 'tv' = 'movie'): string {
+export function titleName(title: string, year?: number, type: 'movie' | 'tv' = 'movie', tmdbId?: number): string {
   const name = safeName(title) || (type === 'movie' ? 'Movie' : 'Show')
-  return year ? `${name} (${year})` : name
+  const dated = year ? `${name} (${year})` : name
+  return tmdbId === undefined ? dated : `${dated} {tmdb-${tmdbId}}`
+}
+
+/** A title as naming names it: `tmdbId`, when given, goes into its folder's name (`titleName`). */
+export interface NamingTitle {
+  type: 'movie' | 'tv'
+  title: string
+  year?: number
+  tmdbId?: number
 }
 
 export const parent = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0))
@@ -107,7 +118,7 @@ export const belowRoot = (path: string, root: string | undefined) => (root !== u
  * The renames that name a movie's files for a media server, from the torrent's files as qBittorrent
  * lists them (its content layout decides whether they're in a folder), or why they aren't named.
  */
-export function movieNames(files: readonly NamedFile[], title: string, year?: number): MediaNames {
+export function movieNames(files: readonly NamedFile[], title: string, year?: number, tmdbId?: number): MediaNames {
   if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
   const root = rootFolder(files.map((file) => file.name))
   const [main, ...others] = files.filter((file) => isVideo(file.name)).sort((a, b) => b.size - a.size)
@@ -117,7 +128,8 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
   const second = others.find((file) => !SAMPLE.test(file.name))
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
-  const name = titleName(title, year)
+  // The video is named as its folder, the id included, as both servers' docs show it.
+  const name = titleName(title, year, 'movie', tmdbId)
   const mainFolder = parent(main.name)
   const mainStem = stem(base(main.name))
   const renames: FileRename[] = []
