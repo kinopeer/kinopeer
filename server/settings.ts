@@ -587,7 +587,7 @@ const MAX_CATEGORY_LENGTH = 256
 type BooleanDefault = { [K in keyof DownloadDefaults]: DownloadDefaults[K] extends boolean ? K : never }[keyof DownloadDefaults]
 
 /** The on/off defaults: a Record, so a boolean added to DownloadDefaults fails typecheck until it's here. */
-const BOOLEAN_DEFAULTS: Record<BooleanDefault, true> = { startPaused: true, sequential: true, firstLastPieces: true, notify: true, mediaNames: true }
+const BOOLEAN_DEFAULTS: Record<BooleanDefault, true> = { startPaused: true, sequential: true, firstLastPieces: true, notify: true, mediaNames: true, tmdbIds: true }
 
 const isBooleanDefault = (key: string): key is BooleanDefault => Object.hasOwn(BOOLEAN_DEFAULTS, key)
 

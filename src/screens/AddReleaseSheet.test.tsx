@@ -101,35 +101,31 @@ const MOVIE_META = {
 function renderSheet(release = RELEASE, store?: MainDataStore, title: AddReleaseSheetProps['title'] = TV_TITLE) {
   const onAdded = vi.fn()
   const onClose = vi.fn()
-  const sheet = (
-    <AddReleaseSheet
-      release={release}
-      info={parseRelease(release.title)}
-      title={title}
-      onClose={onClose}
-      onAdded={onAdded}
-    />
-  )
-  const { unmount } = render(
+  const page = (shown: AddReleaseSheetProps['title']) => (
     <MemoryRouter initialEntries={[RELEASES_PAGE]} {...ROUTER_OPTIONS}>
       <Routes>
-        <Route path={RELEASES_PAGE} element={sheet} />
+        <Route
+          path={RELEASES_PAGE}
+          element={<AddReleaseSheet release={release} info={parseRelease(release.title)} title={shown} onClose={onClose} onAdded={onAdded} />}
+        />
         <Route path="/torrent/:hash" element={<Opened />} />
       </Routes>
-    </MemoryRouter>,
-    {
-      wrapper:
-        store &&
-        (({ children }: { children: ReactNode }) => (
-          <MainDataContext value={store}>
-            <Profiler id="sheet" onRender={commits}>
-              {children}
-            </Profiler>
-          </MainDataContext>
-        )),
-    },
+    </MemoryRouter>
   )
-  return { onAdded, onClose, unmount }
+  const { rerender, unmount } = render(page(title), {
+    wrapper:
+      store &&
+      (({ children }: { children: ReactNode }) => (
+        <MainDataContext value={store}>
+          <Profiler id="sheet" onRender={commits}>
+            {children}
+          </Profiler>
+        </MainDataContext>
+      )),
+  })
+  /** The sheet shown for another title, as the same sheet. */
+  const retitle = (shown: AddReleaseSheetProps['title']) => rerender(page(shown))
+  return { onAdded, onClose, unmount, retitle }
 }
 
 beforeEach(() => {
@@ -734,6 +730,29 @@ describe('AddReleaseSheet', () => {
         meta: META,
         skip: [],
       })
+    })
+
+    it('names the show’s folder with the TMDB id with Settings’ switch on, and sends it', async () => {
+      readTorrentFile.mockResolvedValue(META)
+      const { retitle } = renderSheet()
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      await userEvent.click(names)
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad”')
+      // Settings' switch turned while the sheet is open (another tab, the server's defaults loading).
+      act(() => updateSettings({ tmdbIds: true }))
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad {tmdb-1396}”')
+      // The same sheet for a title of another id.
+      retitle({ ...TV_TITLE, id: 1397 })
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad {tmdb-1397}”')
+      retitle(TV_TITLE)
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad {tmdb-1396}”')
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ mediaNames: { type: 'tv', title: 'Breaking Bad', year: undefined, tmdbId: 1396, hint: RELEASE.title } }),
+        expect.anything(),
+      )
     })
 
     it('reads the season of an episode in no folder from the release’s name', async () => {

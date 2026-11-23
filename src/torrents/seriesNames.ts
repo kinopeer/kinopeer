@@ -1,8 +1,9 @@
 /**
  * Names a series' episode files the way media servers look for them (Jellyfin's shows page): the
- * show in a folder `Show (Year)`, each season in `Season 01` (`Season 00` for specials), each episode
- * `Show (Year) S01E01.ext`, `S01E01-E02` for a file of several, and the files named after an episode
- * (subtitles, audio) with what follows its name. qBittorrent renames them in place, as for movies
+ * show in a folder `Show (Year)` (`Show (Year) {tmdb-ID}` with the title's TMDB id, which the episodes
+ * don't take), each season in `Season 01` (`Season 00` for specials), each episode `Show (Year) S01E01.ext`,
+ * `S01E01-E02` for a file of several, and the files named after an episode (subtitles, audio) with
+ * what follows its name. qBittorrent renames them in place, as for movies
  * (`mediaNames.ts`, docs/SPEC.md's decision log, 2026-11-23).
  *
  * The heuristic's scope, where it says nothing rather than guess: an episode is read from a video's
@@ -14,7 +15,8 @@
  * as another video, keeps its name, and the preview lists it; so does a sample ("sample" as a word in
  * its path), which isn't listed. Nothing is named when naming would put two files in one place or a
  * file where another one is now, or when some of the torrent's files are in the show's folder and
- * some not (a rename that stopped partway). The patterns follow Sonarr's parser
+ * some not, or some in it with the id and some without (a rename that stopped partway, the switch
+ * turned since). The patterns follow Sonarr's parser
  * (`src/NzbDrone.Core/Parser/Parser.cs`, GPL-3.0, as Kinopeer is), narrowed to these forms.
  */
 
@@ -33,6 +35,7 @@ import {
   type FileRename,
   type MediaNames,
   type NamedFile,
+  type NamingTitle,
 } from './mediaNames'
 
 /** A video's episode, or the episodes one file holds, in one season. */
@@ -136,7 +139,7 @@ const overlap = (a: Episode, b: Episode) => a.season === b.season && a.first <= 
  * qBittorrent lists them, or why none are named. `hint` is the torrent's name, for files in no
  * folder of the torrent's.
  */
-export function seriesNames(files: readonly NamedFile[], title: string, year?: number, hint?: string): MediaNames {
+export function seriesNames(files: readonly NamedFile[], title: string, year?: number, hint?: string, tmdbId?: number): MediaNames {
   if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
   const videos = files.filter((file) => isVideo(file.name))
   if (!videos.length) return { named: false, reason: 'no-video' }
@@ -157,11 +160,21 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
   }
   if (!read.size) return { named: false, reason: 'no-episodes' }
 
-  const show = titleName(title, year, 'tv')
+  // The id names the show's folder alone: both servers' docs show the episodes without it.
+  const show = titleName(title, year, 'tv', tmdbId)
+  const episodes = titleName(title, year, 'tv')
   // Some files in the show's folder and some not, as a rename that stopped partway leaves them:
-  // naming them again would put the show's folder in itself.
-  const inShow = (path: string) => path.includes('/') && path.split('/')[0].toLowerCase() === show.toLowerCase()
-  if (files.some((file) => inShow(file.name)) && files.some((file) => !inShow(file.name))) return { named: false, reason: 'split' }
+  // naming them again would put the show's folder in itself. The folder counts with an id and
+  // without one, since the switch may have turned since (with it off, the id isn't known here), and
+  // files in both are split too.
+  const plain = episodes.toLowerCase()
+  const showFolder = (path: string) => {
+    const first = path.includes('/') ? path.split('/')[0].toLowerCase() : undefined
+    if (first === undefined) return undefined
+    const withId = `${plain} {tmdb-`
+    return first === plain || (first.startsWith(withId) && /^\d+\}$/.test(first.slice(withId.length))) ? first : undefined
+  }
+  if (new Set(files.map((file) => showFolder(file.name))).size > 1) return { named: false, reason: 'split' }
   const season = single([...read.values()].map((episode) => episode.season))
   // A torrent of one season keeps its other files in that season's folder, so seasons that share
   // the show's folder don't share them; a season's folder of the torrent's becomes naming's own.
@@ -171,7 +184,7 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
     if (folder) return `Season ${pad(Number(folder[1] ?? folder[2] ?? folder[3]))}/${below.join('/')}`
     return season === undefined ? [first, ...below].join('/') : `Season ${pad(season)}/${[first, ...below].join('/')}`
   }
-  const episodeFile = (episode: Episode, suffix: string) => `Season ${pad(episode.season)}/${show} ${episodeName(episode)}${suffix}`
+  const episodeFile = (episode: Episode, suffix: string) => `Season ${pad(episode.season)}/${episodes} ${episodeName(episode)}${suffix}`
   const targets = files.map((file) => {
     let own: string | undefined
     const episode = read.get(file)
@@ -233,10 +246,12 @@ export function namedPaths(files: readonly NamedFile[], renames: readonly FileRe
 
 /** What naming for a media server does with a torrent of this title: a movie's main video, or a series' episodes. */
 export function titleNames(
-  title: { type: 'movie' | 'tv'; title: string; year?: number },
+  title: NamingTitle,
   files: readonly NamedFile[],
   /** The torrent's name, for a series' files in no folder of the torrent's. */
   hint?: string,
 ): MediaNames {
-  return title.type === 'movie' ? movieNames(files, title.title, title.year) : seriesNames(files, title.title, title.year, hint)
+  return title.type === 'movie'
+    ? movieNames(files, title.title, title.year, title.tmdbId)
+    : seriesNames(files, title.title, title.year, hint, title.tmdbId)
 }

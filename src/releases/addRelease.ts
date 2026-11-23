@@ -10,7 +10,7 @@ import {
   type Torrent,
   type TorrentFile,
 } from '../api/qbittorrent'
-import { folderTakenBy, torrentsIn, type FileRename } from '../torrents/mediaNames'
+import { folderTakenBy, torrentsIn, type FileRename, type NamingTitle } from '../torrents/mediaNames'
 import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
 import type { TorrentMeta } from '../torrents/torrentFile'
 
@@ -23,10 +23,7 @@ export interface AddReleaseOptions {
   firstLastPieces: boolean
   topOfQueue: boolean
   /** Name the files for a media server (`titleNames`) once added; needs the torrent's files (`FileSelection`). */
-  mediaNames?: {
-    type: 'movie' | 'tv'
-    title: string
-    year?: number
+  mediaNames?: NamingTitle & {
     /** The release's name, which a series' files in no folder of the torrent's read their season from. */
     hint?: string
   }
