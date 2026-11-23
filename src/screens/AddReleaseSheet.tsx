@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useLocation } from 'react-router'
 import { ProwlarrKeyReadError, fetchRelease, type Release, type ReleaseSource } from '../api/prowlarr'
@@ -18,11 +18,12 @@ import { Toggle } from '../components/Toggle'
 import { overPage } from '../lib/background'
 import { useFormatters } from '../lib/format'
 import { useRequest } from '../lib/useRequest'
-import { addRelease } from '../releases/addRelease'
+import { MediaNamesError, addRelease } from '../releases/addRelease'
 import type { ReleaseInfo } from '../releases/parseRelease'
 import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useSettings } from '../settings/settings'
 import { addFolder } from '../torrents/folders'
+import { movieNames } from '../torrents/mediaNames'
 import { parseMagnet } from '../torrents/magnet'
 import { tmdbTagFor } from '../torrents/parseName'
 import { torrentId } from '../torrents/sameTorrent'
@@ -39,7 +40,7 @@ export interface AddReleaseSheetProps {
   release: Release
   info: ReleaseInfo
   /** The TMDB title the release is for: tagged on the torrent and shown in the sheet. */
-  title: { type: MediaType; id: number; name: string; posterPath?: string | null }
+  title: { type: MediaType; id: number; name: string; year?: number; posterPath?: string | null }
   onClose: () => void
   /** After qBittorrent accepted the torrent. */
   onAdded: () => void
@@ -88,6 +89,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const { t, i18n } = useTranslation()
   const format = useFormatters()
   const location = useLocation()
+  const hintId = useId()
   const prepared = useRequest(`release|${release.id}`, (signal) => prepare(release, signal))
   const hash = infoHashOf(release, prepared.data)
   const id = torrentId(hash.infoHash)
@@ -114,6 +116,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [chosenSequential, setSequential] = useState<boolean>()
   const [chosenFirstLast, setFirstLast] = useState<boolean>()
   const [chosenNotify, setNotify] = useState<boolean>()
+  const [chosenNames, setNames] = useState<boolean>()
   const paused = chosenPaused ?? settings.startPaused
   const sequential = chosenSequential ?? settings.sequential
   const firstLastPieces = chosenFirstLast ?? settings.firstLastPieces
@@ -123,6 +126,23 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
+  // Added, but its files weren't named: the sheet opens the torrent, whose More menu names them.
+  const [addedUnnamed, setAddedUnnamed] = useState(false)
+  // A movie's files named for a media server (series are a follow-up), from the .torrent's files as
+  // qBittorrent lays them out by default; a magnet link's aren't known until the torrent starts.
+  const movieNamesPlan = useMemo(
+    () =>
+      title.type === 'movie' && meta
+        ? movieNames(
+            meta.files.map((file) => ({ name: meta.multiFile ? `${meta.name}/${file.path}` : file.path, size: file.size })),
+            title.name,
+            title.year,
+          )
+        : undefined,
+    [title.type, title.name, title.year, meta],
+  )
+  const namable = movieNamesPlan?.named === true
+  const mediaNames = namable && (chosenNames ?? settings.mediaNames)
 
   const categories = where.data?.categories ?? []
   // Until the user picks one: the default from Settings if qBittorrent still has it, else the first
@@ -168,11 +188,21 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           sequential,
           firstLastPieces,
           topOfQueue,
+          mediaNames: mediaNames ? { title: title.name, year: title.year } : undefined,
         },
         meta && { meta, skip: [...skipped] },
       )
       onAdded()
     } catch (error) {
+      if (error instanceof MediaNamesError) {
+        // qBittorrent has it, started as asked: the sheet says what didn't happen and opens it.
+        const there = id === undefined ? undefined : await inDownloads(id).catch(() => undefined)
+        setAdding(false)
+        setAddedUnnamed(true)
+        if (there) setRefusedAsAdded(there)
+        setAddError(t('names.addFailed'))
+        return
+      }
       if (!(error instanceof TorrentRefusedError)) {
         setAdding(false)
         setAddError(t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
@@ -199,11 +229,19 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
     )
   }
 
-  const toggles = [
+  const namesHint = !movieNamesPlan
+    ? t('names.addNoFiles')
+    : !movieNamesPlan.named
+      ? { 'no-video': t('names.noVideo'), 'several-videos': t('names.severalVideos'), disc: t('names.disc') }[movieNamesPlan.reason]
+      : mediaNames
+        ? t('names.addAs', { name: movieNamesPlan.folder.to })
+        : undefined
+  const toggles: { label: string; checked: boolean; set: (on: boolean) => void; hint?: string; disabled?: boolean }[] = [
     { label: t('add.startPaused'), checked: paused, set: setPaused },
     { label: t('add.sequential'), checked: sequential, set: setSequential },
     { label: t('add.firstLastPieces'), checked: firstLastPieces, set: setFirstLast },
     ...(notifications ? [{ label: t('add.notify'), checked: notify, set: setNotify }] : []),
+    ...(title.type === 'movie' ? [{ label: t('add.mediaNames'), checked: mediaNames, set: setNames, hint: namesHint, disabled: !namable }] : []),
     { label: t('add.addTop'), checked: topOfQueue, set: setTopOfQueue },
   ]
 
@@ -275,7 +313,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
                 : t('add.fetchFailed')}
           </Banner>
         )}
-        {added && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}
+        {added && !addedUnnamed && <Banner tone="info" icon="check-circle" title={t('add.alreadyAdded')} />}
         {offered && meta && fileCount > 1 && (
           <button type="button" className="ks-row-btn add-files" onClick={() => setView('files')}>
             <Icon name="folder" className="c2" />
@@ -352,10 +390,23 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
               spellCheck={false}
               onChange={(event) => setSavePath(event.target.value)}
             />
-            {toggles.map((toggle) => (
+            {toggles.map((toggle, index) => (
               <div key={toggle.label} className="add-toggle">
-                <span className="t-body">{toggle.label}</span>
-                <Toggle label={toggle.label} checked={toggle.checked} onChange={toggle.set} />
+                <span className="add-toggle-text">
+                  <span className="t-body">{toggle.label}</span>
+                  {toggle.hint && (
+                    <span id={`${hintId}-${index}`} className="t-cap c3">
+                      {toggle.hint}
+                    </span>
+                  )}
+                </span>
+                <Toggle
+                  label={toggle.label}
+                  checked={toggle.checked}
+                  disabled={toggle.disabled}
+                  aria-describedby={toggle.hint ? `${hintId}-${index}` : undefined}
+                  onChange={toggle.set}
+                />
               </div>
             ))}
           </Accordion>

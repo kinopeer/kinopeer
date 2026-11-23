@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as qbt from '../api/qbittorrent'
-import { addRelease, type AddReleaseOptions } from './addRelease'
+import { MediaNamesError, addRelease, type AddReleaseOptions } from './addRelease'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => {
   const actual = await importOriginal<typeof qbt>()
-  return { ...actual, addTorrents: vi.fn(), getTorrentFiles: vi.fn(), setFilePriority: vi.fn(), startTorrents: vi.fn() }
+  return { ...actual, addTorrents: vi.fn(), getTorrentFiles: vi.fn(), setFilePriority: vi.fn(), startTorrents: vi.fn(), renameFiles: vi.fn() }
 })
 
 const addTorrents = vi.mocked(qbt.addTorrents)
 const getTorrentFiles = vi.mocked(qbt.getTorrentFiles)
 const setFilePriority = vi.mocked(qbt.setFilePriority)
 const startTorrents = vi.mocked(qbt.startTorrents)
+const renameFiles = vi.mocked(qbt.renameFiles)
 
 const OPTIONS: AddReleaseOptions = { tags: ['tmdb:tv:1396'], category: 'TV', paused: false, sequential: false, firstLastPieces: false, topOfQueue: true }
 const FILE = new File([new Uint8Array([1])], 'bb.torrent')
@@ -23,6 +24,7 @@ const META = {
     { path: 'Season 2/e02.mkv', size: 20 },
   ],
   totalSize: 50,
+  multiFile: true,
 }
 const QBT_FILES = META.files.map((file, index) => ({
   index,
@@ -92,5 +94,66 @@ describe('addRelease', () => {
       qbt.QbittorrentError,
     )
     expect(startTorrents).not.toHaveBeenCalled()
+  })
+
+  describe('naming a movie for a media server', () => {
+    const MOVIE = {
+      infoHash: 'def456',
+      name: 'Arrival.2016.1080p',
+      files: [
+        { path: 'Arrival.2016.1080p.mkv', size: 8000 },
+        { path: 'Arrival.2016.1080p.en.srt', size: 10 },
+      ],
+      totalSize: 8010,
+      multiFile: true,
+    }
+    const MOVIE_FILES = MOVIE.files.map((file, index) => ({ index, name: `Arrival.2016.1080p/${file.path}`, size: file.size, progress: 0, priority: 1 as const }))
+    const NAMES = { title: 'Arrival', year: 2016 }
+
+    it('adds stopped, renames the files once qBittorrent lists them, then starts', async () => {
+      getTorrentFiles.mockResolvedValue(MOVIE_FILES)
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait)
+
+      expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ stopped: true }))
+      expect(setFilePriority).not.toHaveBeenCalled()
+      expect(renameFiles).toHaveBeenCalledWith('def456', [
+        { from: 'Arrival.2016.1080p/Arrival.2016.1080p.mkv', to: 'Arrival (2016)/Arrival (2016).mkv' },
+        { from: 'Arrival.2016.1080p/Arrival.2016.1080p.en.srt', to: 'Arrival (2016)/Arrival (2016).en.srt' },
+      ])
+      expect(renameFiles.mock.invocationCallOrder[0]).toBeLessThan(startTorrents.mock.invocationCallOrder[0])
+      expect(startTorrents).toHaveBeenCalledWith(['def456'])
+    })
+
+    it('skips files and names the rest in one go, leaving it paused when asked to', async () => {
+      getTorrentFiles.mockResolvedValue(MOVIE_FILES)
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, paused: true, mediaNames: NAMES }, { meta: MOVIE, skip: [1] }, wait)
+      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+      expect(setFilePriority).toHaveBeenCalledWith('def456', [1], 0)
+      expect(renameFiles).toHaveBeenCalledWith('def456', expect.arrayContaining([expect.objectContaining({ to: 'Arrival (2016)/Arrival (2016).mkv' })]))
+      expect(startTorrents).not.toHaveBeenCalled()
+    })
+
+    it('adds a torrent whose files aren’t named as it is', async () => {
+      getTorrentFiles.mockResolvedValue([{ index: 0, name: 'Arrival/cover.jpg', size: 10, progress: 0, priority: 1 }])
+      await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait)
+      expect(renameFiles).not.toHaveBeenCalled()
+      expect(startTorrents).toHaveBeenCalledWith(['def456'])
+    })
+
+    it('starts the torrent all the same when the renames fail, and says they did', async () => {
+      getTorrentFiles.mockResolvedValue(MOVIE_FILES)
+      const refused = new qbt.QbittorrentError('The file already exists', 409)
+      renameFiles.mockRejectedValue(refused)
+      const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait).catch((caught: unknown) => caught)
+      expect(error).toBeInstanceOf(MediaNamesError)
+      expect((error as MediaNamesError).cause).toBe(refused)
+      expect(startTorrents).toHaveBeenCalledWith(['def456'])
+    })
+
+    it('names nothing without the torrent’s files, as for a magnet link', async () => {
+      await addRelease({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' }, { ...OPTIONS, mediaNames: NAMES })
+      expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ stopped: false }))
+      expect(getTorrentFiles).not.toHaveBeenCalled()
+    })
   })
 })

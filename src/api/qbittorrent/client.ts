@@ -206,14 +206,39 @@ export async function getRefreshInterval(): Promise<number | undefined> {
 }
 
 /** Files of a torrent, in index order. Empty until a magnet link's metadata has arrived. */
-export async function getTorrentFiles(hash: string): Promise<TorrentFile[]> {
-  const response = await request('/torrents/files', { params: { hash } })
+export async function getTorrentFiles(hash: string, signal?: AbortSignal): Promise<TorrentFile[]> {
+  const response = await request('/torrents/files', { params: { hash }, signal })
   return (await response.json()) as TorrentFile[]
 }
 
 export async function setFilePriority(hash: string, ids: readonly number[], priority: FilePriority): Promise<void> {
   if (!ids.length) return
   await request('/torrents/filePrio', { method: 'POST', params: { hash, id: ids.join('|'), priority } })
+}
+
+/**
+ * Renames a torrent's files one after another, each by its path as qBittorrent lists it to a new one,
+ * which may put it in another folder (qBittorrent creates it and removes the folder a rename leaves
+ * empty). qBittorrent renames in place and the torrent keeps seeding. One call per file rather than
+ * `renameFolder`: qBittorrent applies a rename a moment after answering, and a folder's rename finds
+ * its files by the paths it has then, so a file renamed just before would get its old name back.
+ * qBittorrent answers 409 for a path it has no file at, or a new path another file has; the renames
+ * before it stay.
+ */
+export async function renameFiles(hash: string, renames: readonly { from: string; to: string }[]): Promise<void> {
+  for (const { from, to } of renames) {
+    await request('/torrents/renameFile', { method: 'POST', params: { hash, oldPath: from, newPath: to } })
+  }
+}
+
+/**
+ * The torrent's .torrent file, as qBittorrent exports it: its metadata as it came, with the file
+ * names it had before any rename (the info hash covers them). qBittorrent answers 409 for a torrent
+ * without metadata yet.
+ */
+export async function exportTorrent(hash: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  const response = await request('/torrents/export', { params: { hash }, signal })
+  return response.arrayBuffer()
 }
 
 /** Posts to a qBittorrent 5 endpoint, falling back to its 4.x name when that one doesn't exist. */

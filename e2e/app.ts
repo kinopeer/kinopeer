@@ -9,6 +9,9 @@ import {
   page as titlePage,
   posterSvg,
   shogunTorrent,
+  DUNE,
+  duneFiles,
+  duneTorrent,
   torrentFiles,
 } from './fixtures.ts'
 import { expect } from './test.ts'
@@ -72,6 +75,8 @@ export interface AppOptions {
   failingIndexers?: string[]
   /** Prowlarr finds nothing for the release search. */
   noReleases?: boolean
+  /** Prowlarr's release downloads as the Dune movie's .torrent, instead of the Shōgun series'. */
+  movieTorrent?: boolean
   /** What Prowlarr finds for the release search, instead of the fixtures' releases. */
   releases?: Release[]
   /** qBittorrent's free space in bytes, instead of the fixtures' 1.82 TB. */
@@ -115,6 +120,8 @@ const json = (route: Route, body: unknown, status = 200) =>
 async function mockServer(page: Page, options: AppOptions): Promise<void> {
   const torrents = options.torrents ?? TORRENTS
   let polls = 0
+  // The Dune movie's files as qBittorrent has them now: its renames go into them.
+  let duneNow = duneFiles()
 
   await page.route(
     (url) => url.pathname.startsWith('/qbt/'),
@@ -149,7 +156,20 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
           'TV Shows': { name: 'TV Shows', savePath: '/downloads/tv' },
         })
       }
-      if (pathname === '/qbt/api/v2/torrents/files') return json(route, torrentFiles())
+      if (pathname === '/qbt/api/v2/torrents/files') {
+        // The Dune movie's files for its torrent, which naming for a media server renames; the Shōgun series' for the rest.
+        return json(route, new URL(route.request().url()).searchParams.get('hash') === DUNE.hash ? duneNow : torrentFiles())
+      }
+      if (pathname === '/qbt/api/v2/torrents/renameFile') {
+        const form = new URLSearchParams(route.request().postData() ?? '')
+        duneNow = duneNow.map((file) => (file.name === form.get('oldPath') ? { ...file, name: form.get('newPath') ?? file.name } : file))
+        return route.fulfill({ headers: BRIDGE_HEADERS, body: '' })
+      }
+      // The Dune movie's .torrent, as it came: the original names. qBittorrent answers 409 for a torrent without metadata.
+      if (pathname === '/qbt/api/v2/torrents/export') {
+        if (new URL(route.request().url()).searchParams.get('hash') !== DUNE.hash) return route.fulfill({ status: 409, headers: BRIDGE_HEADERS, body: 'Missing metadata' })
+        return route.fulfill({ contentType: 'application/x-bittorrent', headers: BRIDGE_HEADERS, body: duneTorrent() })
+      }
       if (pathname === '/qbt/api/v2/torrents/trackers') {
         return json(route, [{ url: 'http://bt.example.org/announce', status: 2, msg: '' }])
       }
@@ -222,7 +242,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
       if (pathname === '/prowlarr/search') return json(route, options.noReleases ? [] : (options.releases ?? RELEASES))
       if (pathname === '/prowlarr/failing') return json(route, { indexers: options.failingIndexers ?? [] })
       if (pathname === '/prowlarr/download') {
-        return route.fulfill({ contentType: 'application/x-bittorrent', body: shogunTorrent() })
+        return route.fulfill({ contentType: 'application/x-bittorrent', body: options.movieTorrent ? duneTorrent() : shogunTorrent() })
       }
       return json(route, { error: 'not-found' }, 404)
     },

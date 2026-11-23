@@ -1,6 +1,7 @@
 import { useId, useState, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router'
+import { toTitle } from '../api/tmdb'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -211,7 +212,7 @@ export function AddingRelease({ releases, details }: { releases: Releases; detai
       key={adding.release.id}
       release={adding.release}
       info={adding.info}
-      title={{ type: details.type, id: details.id, name, posterPath: details.poster_path }}
+      title={{ type: details.type, id: details.id, name, year: toTitle(details, details.type).year, posterPath: details.poster_path }}
       onClose={() => releases.setAdding(undefined)}
       onAdded={() => navigate('/', { state: { added: name } })}
     />

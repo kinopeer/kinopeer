@@ -46,6 +46,8 @@ export interface DownloadDefaults {
   firstLastPieces: boolean
   /** New downloads added through Kinopeer tell when they finish (the `kinopeer:notify` tag), while a channel is set up. */
   notify: boolean
+  /** New movie downloads get their files named for a media server (`Title (Year)`); off, as most people have none. */
+  mediaNames: boolean
 }
 
 /** A TMDB key that serves calls without a saved one: TMDB_API_KEY, else Kinopeer's own. */

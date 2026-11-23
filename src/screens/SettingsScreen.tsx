@@ -206,8 +206,8 @@ function AboutRow({ icon, label, hint, href, onClick }: AboutRowProps) {
  * The download defaults that are on/off switches, in order; each is labelled by `add.<key>`. Notify
  * when finished shows only while a channel is set up, as the switch on a torrent's page.
  */
-const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces'] as const satisfies readonly (keyof Settings)[]
-const NOTIFY_SWITCHES = [...DEFAULT_SWITCHES, 'notify'] as const satisfies readonly (keyof Settings)[]
+const DEFAULT_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces', 'mediaNames'] as const satisfies readonly (keyof Settings)[]
+const NOTIFY_SWITCHES = ['startPaused', 'sequential', 'firstLastPieces', 'notify', 'mediaNames'] as const satisfies readonly (keyof Settings)[]
 
 export interface SettingsScreenProps {
   /**

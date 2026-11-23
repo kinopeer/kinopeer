@@ -1141,6 +1141,16 @@ describe('SettingsScreen: Telegram', () => {
     expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ notify: true })
   })
 
+  it('saves Name files for a media server as a download default, off until turned on, with or without a channel', async () => {
+    renderScreen()
+    const defaults = screen.getByRole('region', { name: 'Download defaults' })
+    const names = within(defaults).getByRole('switch', { name: 'Name files for a media server' })
+    expect(names).not.toBeChecked()
+    await userEvent.click(names)
+    expect(getSettings().mediaNames).toBe(true)
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ mediaNames: true })
+  })
+
   it('has no Telegram card for a server that doesn’t know Telegram', async () => {
     renderScreen()
     await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })

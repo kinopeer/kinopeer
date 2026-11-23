@@ -13,7 +13,7 @@ import { parseRelease } from '../releases/parseRelease'
 import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { MainDataContext, createMainDataStore, type MainDataStore } from '../torrents/useMainData'
-import { AddReleaseSheet } from './AddReleaseSheet'
+import { AddReleaseSheet, type AddReleaseSheetProps } from './AddReleaseSheet'
 import { torrent } from '../test/fixtures'
 import { ROUTER_OPTIONS } from '../lib/routerOptions'
 import { Opened, opened, qbittorrentDown, saying } from '../test/render'
@@ -28,7 +28,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => ({
   getMainData: vi.fn(),
   getTorrents: vi.fn(),
 }))
-vi.mock('../releases/addRelease', () => ({ addRelease: vi.fn() }))
+vi.mock('../releases/addRelease', async (importOriginal) => ({ ...(await importOriginal<typeof adding>()), addRelease: vi.fn() }))
 vi.mock('../torrents/torrentFile', async (importOriginal) => ({
   ...(await importOriginal<typeof torrentFile>()),
   readTorrentFile: vi.fn(),
@@ -61,6 +61,7 @@ const META = {
     { path: 'Season 2/e02.mkv', size: 20e9 },
   ],
   totalSize: 50e9,
+  multiFile: true,
 }
 
 /** The page's answer of the server's settings, with a channel to notify through or without. */
@@ -84,14 +85,27 @@ async function runningPoll() {
 
 const RELEASES_PAGE = '/title/tv/1396/releases'
 
-function renderSheet(release = RELEASE, store?: MainDataStore) {
+const TV_TITLE = { type: 'tv', id: 1396, name: 'Breaking Bad', posterPath: null } as const
+const MOVIE_TITLE = { type: 'movie', id: 329865, name: 'Arrival', year: 2016, posterPath: null } as const
+const MOVIE_META = {
+  infoHash: 'd4a8e0f6ba5bd0f53c3e2a3ba44a7a1e5d5e4f11',
+  name: 'Arrival.2016.1080p.BluRay-GRPA',
+  files: [
+    { path: 'Arrival.2016.1080p.BluRay-GRPA.mkv', size: 9e9 },
+    { path: 'Arrival.2016.1080p.BluRay-GRPA.en.srt', size: 1e5 },
+  ],
+  totalSize: 9.0001e9,
+  multiFile: true,
+}
+
+function renderSheet(release = RELEASE, store?: MainDataStore, title: AddReleaseSheetProps['title'] = TV_TITLE) {
   const onAdded = vi.fn()
   const onClose = vi.fn()
   const sheet = (
     <AddReleaseSheet
       release={release}
       info={parseRelease(release.title)}
-      title={{ type: 'tv', id: 1396, name: 'Breaking Bad', posterPath: null }}
+      title={title}
       onClose={onClose}
       onAdded={onAdded}
     />
@@ -647,6 +661,87 @@ describe('AddReleaseSheet', () => {
     expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+  })
+
+  describe('naming a movie for a media server', () => {
+    const openOptions = async () => {
+      const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+      await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
+      return sheet
+    }
+
+    it('offers it off by default for a movie, says the name once it’s on, and has the files named', async () => {
+      readTorrentFile.mockResolvedValue(MOVIE_META)
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).not.toBeChecked()
+      expect(names).toBeEnabled()
+      expect(names).not.toHaveAccessibleDescription()
+      await userEvent.click(names)
+      expect(names).toHaveAccessibleDescription('Folder and video: “Arrival (2016)”')
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ mediaNames: { title: 'Arrival', year: 2016 } }),
+        { meta: MOVIE_META, skip: [] },
+      )
+    })
+
+    it('starts from the default in Settings', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue(MOVIE_META)
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: { title: 'Arrival', year: 2016 } }), expect.anything())
+    })
+
+    it('can’t be turned on for a magnet link, whose files aren’t known, and names nothing whatever the default', async () => {
+      updateSettings({ mediaNames: true })
+      fetchRelease.mockResolvedValue({ kind: 'magnet', uri: 'magnet:?xt=urn:btih:abc' })
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).not.toBeChecked()
+      expect(names).toBeDisabled()
+      expect(names).toHaveAccessibleDescription('The files aren’t known until the torrent starts. Name them from its page then.')
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: undefined }), undefined)
+    })
+
+    it('says why a torrent’s files can’t be named, and names nothing', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue({ ...MOVIE_META, files: [{ path: 'CD1.avi', size: 7e8 }, { path: 'CD2.avi', size: 7e8 }] })
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).toBeDisabled()
+      expect(names).toHaveAccessibleDescription(/^Several large videos/)
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: undefined }), expect.anything())
+    })
+
+    it('isn’t offered for a series', async () => {
+      updateSettings({ mediaNames: true })
+      renderSheet()
+      const sheet = await openOptions()
+      expect(within(sheet).queryByRole('switch', { name: 'Name files for a media server' })).not.toBeInTheDocument()
+      await userEvent.click(within(sheet).getByRole('button', { name: /^Download/ }))
+      expect(addRelease).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ mediaNames: undefined }), expect.anything())
+    })
+
+    it('says the torrent was added but its files weren’t named, and opens it', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue(MOVIE_META)
+      addRelease.mockRejectedValue(new adding.MediaNamesError(new qbt.QbittorrentError('The file already exists', 409)))
+      getTorrents.mockResolvedValueOnce([]).mockResolvedValueOnce([torrent(MOVIE_META.infoHash)])
+      const { onAdded } = renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+      expect(await screen.findByRole('alert', { name: saying('Added, but its files weren’t named. Name them from the torrent’s More menu.') })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Open details' })).toHaveAttribute('href', `/torrent/${MOVIE_META.infoHash}`)
+      expect(screen.queryByRole('status', { name: saying('Already in downloads') })).not.toBeInTheDocument()
+      expect(onAdded).not.toHaveBeenCalled()
+    })
   })
 
   describe('a torrent qBittorrent already has', () => {

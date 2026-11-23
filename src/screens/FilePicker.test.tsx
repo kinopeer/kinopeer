@@ -14,6 +14,7 @@ const META: TorrentMeta = {
     { path: 'Season 2/e02.mkv', size: 20e9 },
   ],
   totalSize: 50e9,
+  multiFile: true,
 }
 
 function Harness({ free, onDone = vi.fn() }: { free?: number; onDone?: () => void }) {

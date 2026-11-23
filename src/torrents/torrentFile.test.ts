@@ -62,6 +62,7 @@ describe('readTorrentFile', () => {
         { path: 'Subs/rus.srt', size: 1024 },
       ],
       totalSize: 2_000_001_024,
+      multiFile: true,
     })
   })
 
@@ -87,7 +88,20 @@ describe('readTorrentFile', () => {
     const info: Value = { length: 5000, name: 'Arrival.2016.mkv', 'piece length': 16384, pieces }
     const meta = await readTorrentFile(encode({ info }).buffer as ArrayBuffer)
     expect(meta.files).toEqual([{ path: 'Arrival.2016.mkv', size: 5000 }])
+    expect(meta.multiFile).toBe(false)
     expect(meta.infoHash).toBe(await digest('SHA-1', info))
+  })
+
+  it('reads a torrent of one file in a folder as a folder, as qBittorrent lays it out', async () => {
+    const meta = await readTorrentFile(encode({ info: { name: 'Arrival', 'piece length': 16384, pieces, files: [{ length: 5000, path: ['Arrival.2016.mkv'] }] } }))
+    expect(meta.multiFile).toBe(true)
+  })
+
+  it('tells a v2-only torrent of one file from one in a folder', async () => {
+    const single = await readTorrentFile(encode({ info: { name: 'Arrival.mkv', 'meta version': 2, 'piece length': 16384, 'file tree': { 'Arrival.mkv': { '': { length: 300 } } } } }))
+    expect(single.multiFile).toBe(false)
+    const folder = await readTorrentFile(encode({ info: { name: 'Arrival', 'meta version': 2, 'piece length': 16384, 'file tree': { Subs: { 'ru.srt': { '': { length: 3 } } } } } }))
+    expect(folder.multiFile).toBe(true)
   })
 
   it('reads a v2-only torrent and truncates its SHA-256 hash', async () => {
@@ -104,6 +118,7 @@ describe('readTorrentFile', () => {
       { path: 'S01E01.mkv', size: 300 },
     ])
     expect(meta.infoHash).toBe((await digest('SHA-256', info)).slice(0, 40))
+    expect(meta.multiFile).toBe(true)
   })
 
   it('rejects files that are not torrents', async () => {

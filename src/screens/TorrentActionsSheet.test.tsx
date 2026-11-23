@@ -293,6 +293,35 @@ describe('TorrentActionsSheet on desktop', () => {
     renderActions({ offline: true })
     expect(screen.getByRole('menuitem', { name: 'Move files…' })).toBeDisabled()
   })
+
+  it('offers Name for a media server after Move files for a torrent matched to a movie, and opens it', async () => {
+    const onMediaNames = vi.fn()
+    renderActions({ onMediaNames })
+    const items = within(screen.getByRole('menu')).getAllByRole('menuitem')
+    const names = screen.getByRole('menuitem', { name: 'Name for a media server' })
+    expect(items.indexOf(names)).toBe(items.indexOf(screen.getByRole('menuitem', { name: 'Move files…' })) + 1)
+    await userEvent.click(names)
+    expect(onMediaNames).toHaveBeenCalled()
+  })
+
+  it('doesn’t offer Name for a media server for a series or a torrent without a movie', () => {
+    for (const match of [{ ...MATCH, type: 'tv' as const }, null, undefined]) {
+      const { unmount } = renderActions({ match, onMediaNames: vi.fn() })
+      expect(screen.queryByRole('menuitem', { name: 'Name for a media server' })).not.toBeInTheDocument()
+      unmount()
+    }
+  })
+
+  it('needs qBittorrent and the torrent’s files to name them, saying why under the item', () => {
+    const { unmount } = renderActions({ offline: true, onMediaNames: vi.fn() })
+    expect(screen.getByRole('menuitem', { name: 'Name for a media server' })).toBeDisabled()
+    unmount()
+
+    renderActions({ torrent: { ...TORRENT, total_size: -1 }, onMediaNames: vi.fn() })
+    const names = screen.getByRole('menuitem', { name: 'Name for a media server' })
+    expect(names).toBeDisabled()
+    expect(names).toHaveAccessibleDescription('Once the magnet link has its metadata')
+  })
 })
 
 describe('TorrentActionsSheet on a phone', () => {
@@ -347,6 +376,19 @@ describe('TorrentActionsSheet on a phone', () => {
     unknown.unmount()
     renderActions({ match: null })
     expect(screen.getByRole('button', { name: 'Match title' })).toHaveClass('ks-row-btn', 'is-highlight')
+  })
+
+  it('offers Name for a media server on a phone too, off without the torrent’s files', async () => {
+    const onMediaNames = vi.fn()
+    const { unmount } = renderActions({ onMediaNames })
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Inception' })).getByRole('button', { name: 'Name for a media server' }))
+    expect(onMediaNames).toHaveBeenCalled()
+    unmount()
+
+    renderActions({ torrent: { ...TORRENT, total_size: -1 }, onMediaNames })
+    const names = within(screen.getByRole('dialog', { name: 'Inception' })).getByRole('button', { name: 'Name for a media server' })
+    expect(names).toBeDisabled()
+    expect(names).toHaveAccessibleDescription('Once the magnet link has its metadata')
   })
 
   it('needs qBittorrent to move files on a phone too', () => {

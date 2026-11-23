@@ -11,6 +11,8 @@ export interface TorrentMeta {
   /** In the order qBittorrent indexes them. Paths use "/" and start below the torrent's folder. */
   files: { path: string; size: number }[]
   totalSize: number
+  /** The files are in a folder of the torrent's name (by default qBittorrent lays them out so): any but a single-file torrent. */
+  multiFile: boolean
 }
 
 export class InvalidTorrentError extends Error {
@@ -133,5 +135,7 @@ export async function readTorrentFile(data: ArrayBuffer | Uint8Array): Promise<T
   const v1 = isBytes(info.pieces)
   const infoHash = v1 ? await hex('SHA-1', infoBytes) : (await hex('SHA-256', infoBytes)).slice(0, 40)
 
-  return { infoHash, name, files, totalSize: files.reduce((sum, file) => sum + file.size, 0) }
+  // A v2 torrent of one file has that file alone at the top of its file tree.
+  const multiFile = Array.isArray(info.files) || (isDict(info['file tree']) && (files.length > 1 || files[0].path.includes('/')))
+  return { infoHash, name, files, totalSize: files.reduce((sum, file) => sum + file.size, 0), multiFile }
 }

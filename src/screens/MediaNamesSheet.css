@@ -1,0 +1,56 @@
+.names-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-1) 0 var(--space-2);
+}
+
+.names-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.names-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.names-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* The old name over the new one, on a sunken card, so a long path wraps rather than scrolls. */
+.names-rename {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  border: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+
+.names-to {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  color: var(--text);
+}
+
+.names-arrow {
+  flex: none;
+}
+
+.names-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}

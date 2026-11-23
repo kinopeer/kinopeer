@@ -415,6 +415,15 @@ describe('settingsMiddleware: download defaults', () => {
     expect(store.current.downloads).toEqual({ notify: true })
   })
 
+  it('keeps Name files for a media server among them, and refuses one that isn’t on or off', async () => {
+    const store = new SettingsStore(dir)
+    const app = await kinopeer(store)
+    expect((await patchDownloads(app, { mediaNames: 'yes' })).status).toBe(400)
+    const saved = await patchDownloads(app, { mediaNames: true })
+    expect(((await saved.json()) as ServerSettings).downloads).toEqual({ mediaNames: true })
+    expect(store.current.downloads).toEqual({ mediaNames: true })
+  })
+
   it('keeps the secrets next to them', async () => {
     const store = new SettingsStore(dir)
     await store.update({ tmdbApiKey: 'abc' })

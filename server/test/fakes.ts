@@ -268,7 +268,10 @@ async function parseAdd(body: Buffer, contentType: string | undefined): Promise<
  * adding: /torrents/add records what came in `added` (and lists what `listAdded` makes of it) and
  * refuses a magnet link to a torrent it lists with 409 (qBittorrent 5.2+), or 200 "Fails." with `legacy`,
  * /torrents/files answers `files` (set per hash by the test, 404 for a hash it doesn't have),
- * /torrents/filePrio changes their priorities, /torrents/start and /stop answer OK and leave the
+ * /torrents/filePrio changes their priorities, /torrents/renameFile renames one of them (409 for a path
+ * it has no file at or a new path another file has, as qBittorrent 4.6 to 5.2 answer), /torrents/export
+ * answers `exports` (the .torrent's bytes, set per hash by the test, 404 for a hash it doesn't have),
+ * /torrents/start and /stop answer OK and leave the
  * torrents' state as it is (qBittorrent 5.1 reports the new one only at its next refresh, 1.5 s
  * by default, so polls sent before then still have the old one),
  * /torrents/delete takes the torrents off the list and records the call in `deleted`,
@@ -323,6 +326,7 @@ export async function fakeQbittorrent({
   const added: AddedTorrent[] = []
   const deleted: DeletedTorrents[] = []
   const files = new Map<string, TorrentFile[]>()
+  const exports = new Map<string, Uint8Array>()
   // A copy, so deleting never changes the fixtures.
   const listing = [...torrents]
   // Added and deleted since the last poll, for the next delta.
@@ -448,6 +452,24 @@ export async function fakeQbittorrent({
         for (const file of files.get(params.get('hash') ?? '') ?? []) if (ids.has(file.index)) file.priority = priority
         return text(response, '')
       }
+      case '/api/v2/torrents/renameFile': {
+        const list = files.get(params.get('hash') ?? '')
+        if (!list) return text(response, 'Not Found', 404)
+        const oldPath = params.get('oldPath') ?? ''
+        const newPath = params.get('newPath') ?? ''
+        const file = list.find((item) => item.name === oldPath)
+        if (!file) return text(response, `No such file: '${oldPath}'.`, 409)
+        if (list.some((item) => item !== file && item.name === newPath)) return text(response, `The file already exists: '${newPath}'.`, 409)
+        file.name = newPath
+        return text(response, '')
+      }
+      case '/api/v2/torrents/export': {
+        const bytes = exports.get(searchParams.get('hash') ?? '')
+        if (!bytes) return text(response, 'Not Found', 404)
+        response.writeHead(200, { 'content-type': 'application/x-bittorrent' })
+        response.end(bytes)
+        return
+      }
       case '/api/v2/torrents/start':
       case '/api/v2/torrents/stop':
         return legacy ? text(response, 'Not Found', 404) : text(response, '')
@@ -485,7 +507,7 @@ export async function fakeQbittorrent({
         return text(response, 'Not Found', 404)
     }
   })
-  return { base, seen, sessions, added, deleted, files, categories, torrents: listing, savePath: () => savePath, logins: () => logins }
+  return { base, seen, sessions, added, deleted, files, exports, categories, torrents: listing, savePath: () => savePath, logins: () => logins }
 }
 
 /** A torrent's tags, which qBittorrent lists as one string joined with ", ". */
