@@ -5,7 +5,6 @@ import { getSaveLocations, type SaveLocations, type Torrent } from '../api/qbitt
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
-import { IconButton } from '../components/IconButton'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { categoryChange, type CategoryChange } from '../torrents/categoryChange'
@@ -54,7 +53,6 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
       onClose={onClose}
       title={t('category.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"

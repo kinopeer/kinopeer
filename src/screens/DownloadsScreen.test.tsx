@@ -279,7 +279,7 @@ describe('DownloadsScreen', () => {
     expect(screen.queryByLabelText(/Queue position/)).not.toBeInTheDocument()
     expect(getSettings().downloadsSort).toBe('name')
 
-    await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
+    await userEvent.click(sheet.getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     unmount()
 
@@ -308,7 +308,7 @@ describe('DownloadsScreen', () => {
     expect(screen.getAllByRole('listitem').map((item) => within(item).getByRole('heading').textContent)).toEqual([
       'Dune: Part Two2024',
     ])
-    await userEvent.click(sheet.getByRole('button', { name: 'Done' }))
+    await userEvent.click(sheet.getByRole('button', { name: 'Close' }))
     expect(screen.getByRole('button', { name: 'Sort: Priority, Movies' })).toHaveProperty('textContent', 'Priority Movies')
 
     const filters = within(screen.getByRole('group', { name: 'Filter by status' }))

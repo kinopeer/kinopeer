@@ -10,7 +10,6 @@ import { Banner } from '../components/Banner'
 import { Button, ButtonLink } from '../components/Button'
 import { FilterChip } from '../components/FilterChip'
 import { Icon } from '../components/Icon'
-import { IconButton } from '../components/IconButton'
 import { Input } from '../components/Input'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
@@ -212,7 +211,6 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       open
       onClose={onClose}
       title={t('add.title')}
-      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <div className="add-foot">
           {added ? (
