@@ -430,7 +430,9 @@ describe('useMediaNames', () => {
         `Breaking.Bad.S02E01.mkvbecomes Season 02/${SHOW} S02E01.mkv`,
         `Breaking.Bad.S02E02.mkvbecomes Season 02/${SHOW} S02E02.mkv`,
       ])
-      expect(within(sheet).getByRole('region', { name: 'Episode not read' })).toHaveTextContent(`${PACK}/Extras/Making of.mkv`)
+      // Below the torrent's folder, as the episodes are.
+      const unread = within(within(sheet).getByRole('region', { name: 'Episode not read' })).getAllByRole('listitem')
+      expect(unread.map((item) => item.textContent)).toEqual(['Extras/Making of.mkv'])
       expect(within(sheet).getByText('Other files keep their names and stay with the show, in its folder.')).toBeInTheDocument()
       await userEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
       expect(renameFiles).toHaveBeenCalledWith(season2.hash, [
@@ -501,6 +503,32 @@ describe('useMediaNames', () => {
       rerender({ torrents: { [season2.hash]: season2, [season1.hash]: season1 } })
       expect(await within(sheet).findByRole('status', { name: saying(`Another torrent, “${SHOW}”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`) })).toBeInTheDocument()
       expect(getTorrentFiles).toHaveBeenCalledWith(season1.hash, expect.anything())
+    })
+
+    it('reads a neighbour’s files again when it moves to another place in the show’s folder while the sheet is open', async () => {
+      const away = torrent('s9'.repeat(20), { name: 'Season 02', save_path: `/data/tv/${SHOW}/Old`, content_path: `/data/tv/${SHOW}/Old/Season 02` })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `Season 02/${SHOW} S02E01.mkv`)])))
+      const { open, rerender } = renderNames(BB, { [season2.hash]: season2, [away.hash]: away })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+      const moved = { ...away, save_path: `/data/tv/${SHOW}`, content_path: `/data/tv/${SHOW}/Season 02` }
+      rerender({ torrents: { [season2.hash]: season2, [moved.hash]: moved } })
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “Season 02”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
+    })
+
+    it('names nothing for a torrent a rename left partway, split between the show’s folder and its own, and offers the way back', async () => {
+      // The Dune torrent's files with its video renamed into a show's folder, the rest not.
+      exportTorrent.mockImplementation(() => Promise.resolve(duneTorrent().slice().buffer))
+      getTorrentFiles.mockResolvedValue(duneFiles().map((file, index) => (index === 0 ? { ...file, name: `${SHOW}/Season 01/${SHOW} S01E01.mkv` } : file)))
+      const { open } = renderNames(BB)
+      const sheet = await open()
+      expect(await within(sheet).findByRole('status', { name: saying(/^The files can’t be named.*Some of its files are in the show’s folder already/) })).toBeInTheDocument()
+      expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+      expect(within(sheet).getByRole('button', { name: 'Restore original names' })).toBeEnabled()
     })
 
     it('reads no other torrent’s files for a movie, and lists no unread episodes', async () => {

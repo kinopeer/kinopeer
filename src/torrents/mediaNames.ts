@@ -28,7 +28,7 @@ export interface FileRename {
 }
 
 /** Why a torrent's files aren't named for a media server. */
-export type NotNamedReason = 'no-video' | 'several-videos' | 'disc' | 'no-episodes'
+export type NotNamedReason = 'no-video' | 'several-videos' | 'disc' | 'no-episodes' | 'same-place' | 'split'
 
 export type MediaNames =
   | {

@@ -95,7 +95,8 @@ function planNames(data: Loaded, torrent: Torrent, title: { type: 'movie' | 'tv'
  */
 export function MediaNamesSheet({ torrent, type, title, year, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
   const { t } = useTranslation()
-  const around = neighbours.map((other) => other.hash).join(',')
+  // A neighbour's files are placed under its save path as they load: one moved loads them again.
+  const around = neighbours.map((other) => `${other.hash}@${other.save_path}`).join('|')
   const loaded = useRequest(`qbt|names|${torrent.hash}|${around}`, (signal) => load(torrent, neighbours, signal))
   // Opened while a restore is in flight, it shows the restore, as the sheet that sent it did.
   const [mode, setMode] = useState<NamesMode>(pending?.mode ?? 'name')

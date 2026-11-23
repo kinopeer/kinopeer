@@ -12,9 +12,10 @@
  * `S01`), each of them naming one season. A video whose seasons disagree, whose name reads two
  * different episodes or a range across two seasons, that reads none, or that reads the same episode
  * as another video, keeps its name, and the preview lists it; so does a sample ("sample" as a word in
- * its path), which isn't listed; and two files naming would put in one place stay where they are. The
- * patterns follow Sonarr's parser (`src/NzbDrone.Core/Parser/Parser.cs`, GPL-3.0, as Kinopeer is),
- * narrowed to these forms.
+ * its path), which isn't listed. Nothing is named when naming would put two files in one place or a
+ * file where another one is now, or when some of the torrent's files are in the show's folder and
+ * some not (a rename that stopped partway). The patterns follow Sonarr's parser
+ * (`src/NzbDrone.Core/Parser/Parser.cs`, GPL-3.0, as Kinopeer is), narrowed to these forms.
  */
 
 import {
@@ -146,17 +147,21 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
     if (SAMPLE.test(video.name)) continue
     const episode = episodeOf(video.name, hint)
     if (episode) read.set(video, episode)
-    else unread.push(video.name)
+    else unread.push(belowRoot(video.name, root))
   }
   // Two videos of one episode (versions, a repack beside the original): neither is named.
   const twice = [...read].filter(([video, episode]) => [...read].some(([other, theirs]) => other !== video && overlap(episode, theirs)))
   for (const [video] of twice) {
     read.delete(video)
-    unread.push(video.name)
+    unread.push(belowRoot(video.name, root))
   }
   if (!read.size) return { named: false, reason: 'no-episodes' }
 
   const show = titleName(title, year, 'tv')
+  // Some files in the show's folder and some not, as a rename that stopped partway leaves them:
+  // naming them again would put the show's folder in itself.
+  const inShow = (path: string) => path.includes('/') && path.split('/')[0].toLowerCase() === show.toLowerCase()
+  if (files.some((file) => inShow(file.name)) && files.some((file) => !inShow(file.name))) return { named: false, reason: 'split' }
   const season = single([...read.values()].map((episode) => episode.season))
   // A torrent of one season keeps its other files in that season's folder, so seasons that share
   // the show's folder don't share them; a season's folder of the torrent's becomes naming's own.
@@ -179,15 +184,20 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
     return { file, own, to: `${show}/${own ?? kept(file.name)}` }
   })
   // Files naming would put in one place (a file of the torrent's folder and one of its season folder
-  // of the same name, letters' case aside) stay where they are: qBittorrent would refuse the second
-  // rename, or apply it over the first. A file that stays is at a path naming gives no other file, so
-  // one pass is enough (a pass repeated until nothing moved named 200,000 generated torrents alike).
-  const count = new Map<string, number>()
-  for (const { to } of targets) count.set(to.toLowerCase(), (count.get(to.toLowerCase()) ?? 0) + 1)
+  // of the same name), or a file it would put where another one is now, letters' case aside: qBittorrent
+  // refuses a rename onto a file that's there, even one a later rename would move away, or applies
+  // the second over the first. Rare torrents, so naming says nothing rather than order the renames.
+  const now = new Set(files.map((file) => file.name.toLowerCase()))
+  const places = new Set<string>()
+  for (const { file, to } of targets) {
+    const place = to.toLowerCase()
+    if (places.has(place) || (place !== file.name.toLowerCase() && now.has(place))) return { named: false, reason: 'same-place' }
+    places.add(place)
+  }
   const renames: FileRename[] = []
   const named: { from: string; to: string }[] = []
   for (const { file, own, to } of targets) {
-    if (to === file.name || count.get(to.toLowerCase())! > 1) continue
+    if (to === file.name) continue
     renames.push({ from: file.name, to })
     if (own) named.push({ from: belowRoot(file.name, root), to: own })
   }

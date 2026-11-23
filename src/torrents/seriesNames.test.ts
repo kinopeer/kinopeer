@@ -190,13 +190,8 @@ describe('seriesNames', () => {
       'Breaking Bad',
       2008,
     )
-    expect(named.named && named.unread).toEqual([
-      `${release}/Extras/Making of.mkv`,
-      `${release}/a.S01E02.mkv`,
-      `${release}/a.S01E02.PROPER.mkv`,
-      `${release}/a.S01E03-E04.mkv`,
-      `${release}/a.S01E04.mkv`,
-    ])
+    // Listed below the torrent's folder, as the episodes are.
+    expect(named.named && named.unread).toEqual(['Extras/Making of.mkv', 'a.S01E02.mkv', 'a.S01E02.PROPER.mkv', 'a.S01E03-E04.mkv', 'a.S01E04.mkv'])
     expect(named.named && named.files).toEqual([{ from: 'a.S01E01.mkv', to: `Season 01/${SHOW} S01E01.mkv` }])
     expect(named.named && named.renames).toContainEqual({ from: `${release}/a.S01E02.mkv`, to: `${SHOW}/Season 01/a.S01E02.mkv` })
   })
@@ -210,19 +205,51 @@ describe('seriesNames', () => {
     ])
   })
 
-  it('leaves where they are the files naming would put in one place, and names the rest', () => {
+  it('names nothing when naming would put two files in one place, in any case', () => {
     const pack = 'Pack.S01'
+    // A file of the torrent's folder and one of its season folder of the same name.
     const files = [file(`${pack}/Season 1/E01.mkv`), file(`${pack}/Season 1/poster.jpg`, 1), file(`${pack}/poster.JPG`, 1)]
-    const named = seriesNames(files, 'Breaking Bad', 2008)
-    expect(named.named && named.renames).toEqual([{ from: files[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
-    // A file left where it is may be where another one would go: that one stays too.
-    const shown = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/poster.jpg`, 1)]
-    const again = seriesNames(shown, 'Breaking Bad', 2008)
-    expect(again.named && again.renames).toEqual([{ from: shown[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
-    // Two files whose names differ only in case stay where they are, on a disk that tells them apart.
-    const cased = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/Season 01/Poster.jpg`, 1)]
-    const both = seriesNames(cased, 'Breaking Bad', 2008)
-    expect(both.named && both.renames).toEqual([{ from: cased[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
+    expect(seriesNames(files, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'same-place' })
+    // Two files whose names differ only in case, on a disk that tells them apart.
+    const cased = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/Season 01/Poster.JPG`, 1)]
+    expect(seriesNames(cased, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'same-place' })
+    // A file that would stay where it is, where another one would go.
+    const staying = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/poster.jpg`, 1)]
+    expect(seriesNames(staying, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'same-place' })
+  })
+
+  it('names nothing when a file would go where another one is now, even one naming moves', () => {
+    // Season 1/E01.srt would go to Season 01/E01.srt, which naming frees only by renaming that file
+    // after it: qBittorrent refuses a rename onto a file that's there.
+    const files = [
+      file(`${SHOW}/Season 1/E01.srt`, 1),
+      file(`${SHOW}/Season 01/E01.mkv`),
+      file(`${SHOW}/Season 01/E01.srt`, 1),
+      file(`${SHOW}/Season 02/E01.mkv`),
+    ]
+    expect(seriesNames(files, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'same-place' })
+    // In any case.
+    const cased = [file(`${SHOW}/Season 1/e01.SRT`, 1), ...files.slice(1)]
+    expect(seriesNames(cased, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'same-place' })
+    // A file renamed only in its letters' case is no other file's place.
+    const own = seriesNames([file(`${SHOW}/season 01/${SHOW} S01E01.mkv`)], 'Breaking Bad', 2008)
+    expect(own.named && own.renames).toEqual([{ from: `${SHOW}/season 01/${SHOW} S01E01.mkv`, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
+  })
+
+  it('names nothing for a torrent with some of its files in the show’s folder and some not', () => {
+    // As a rename that stopped partway leaves them: naming them again would nest the show's folder.
+    const partway = [file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file('Pack.S01/notes.nfo', 1)]
+    expect(seriesNames(partway, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'split' })
+    const cased = [file(`${SHOW.toUpperCase()}/Season 01/${SHOW} S01E01.mkv`), file('Pack.S01/notes.nfo', 1)]
+    expect(seriesNames(cased, 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'split' })
+    // A file named as the show's folder, in no folder, isn't in it.
+    const beside = seriesNames([file(`${SHOW}`, 1), file('Pack.S01/E01.mkv')], 'Breaking Bad', 2008)
+    expect(beside.named).toBe(true)
+    // Files all in the show's folder, or all in another, are named.
+    expect(seriesNames([file(`${SHOW}/Season 01/${SHOW} S01E01.mkv`), file(`${SHOW}/notes.nfo`, 1)], 'Breaking Bad', 2008).named).toBe(true)
+    expect(seriesNames([file('Pack.S01/E01.mkv'), file('Pack.S01/notes.nfo', 1)], 'Breaking Bad', 2008).named).toBe(true)
+    // So are files in no folder, which qBittorrent's "Don't create subfolder" layout gives.
+    expect(seriesNames([file('Season 1/E01.mkv'), file('notes.nfo', 1)], 'Breaking Bad', 2008).named).toBe(true)
   })
 
   it('names an episode qBittorrent put in no folder, by the torrent’s name, and a single episode', () => {
