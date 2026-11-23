@@ -139,6 +139,28 @@ describe('seriesNames', () => {
     ])
   })
 
+  it('makes a pack’s own season folder naming’s in each of its forms, and only a folder that is one whole', () => {
+    const pack = 'Breaking.Bad.Complete-GRPA'
+    const seasons = ['Season1', '3сезон', '12 сезон', 'S13']
+    const named = seriesNames(
+      [
+        ...seasons.flatMap((folder) => [file(`${pack}/${folder}/E01.mkv`), file(`${pack}/${folder}/cover.jpg`, 1)]),
+        file(`${pack}/S01 Extras/poster.jpg`, 1),
+        file(`${pack}/Bonus.S02/poster.jpg`, 1),
+      ],
+      'Breaking Bad',
+      2008,
+    )
+    expect(named.named && named.renames.filter((rename) => !rename.to.endsWith('.mkv')).map((rename) => rename.to)).toEqual([
+      `${SHOW}/Season 01/cover.jpg`,
+      `${SHOW}/Season 03/cover.jpg`,
+      `${SHOW}/Season 12/cover.jpg`,
+      `${SHOW}/Season 13/cover.jpg`,
+      `${SHOW}/S01 Extras/poster.jpg`,
+      `${SHOW}/Bonus.S02/poster.jpg`,
+    ])
+  })
+
   it('lists the videos whose episode it can’t read, and two videos of one episode, keeping their names', () => {
     const named = seriesNames(
       [
