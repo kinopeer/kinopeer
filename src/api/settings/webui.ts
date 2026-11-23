@@ -27,6 +27,7 @@ export const SETTING_KEYS = {
   sequential: 'kinopeer.downloads.sequential',
   firstLastPieces: 'kinopeer.downloads.firstLastPieces',
   notify: 'kinopeer.downloads.notify',
+  mediaNames: 'kinopeer.downloads.mediaNames',
 } as const satisfies Record<'tmdbKey' | 'prowlarr' | keyof DownloadDefaults, `kinopeer.${string}`>
 
 /** Prowlarr as the browser calls it: its address and API key, saved together. */
@@ -72,6 +73,7 @@ const DEFAULT_KINDS = {
   sequential: 'switch',
   firstLastPieces: 'switch',
   notify: 'switch',
+  mediaNames: 'switch',
 } as const satisfies Record<keyof DownloadDefaults, 'category' | 'switch'>
 
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value !== ''

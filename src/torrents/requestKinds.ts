@@ -22,6 +22,8 @@ export const REQUEST_KINDS = {
   notify: 'notify',
   /** A torrent's category: the Category sheet. */
   category: 'category',
+  /** Renaming the torrent's files: naming them for a media server, or their original names back. */
+  names: 'names',
   /** Saving the torrent's title: the title search (Fix match, or Match title for a torrent without one). */
   title: 'title',
   /**

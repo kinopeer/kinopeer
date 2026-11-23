@@ -40,6 +40,8 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     getSaveLocations: vi.fn(),
     setTorrentLocation: vi.fn(),
     toggleSpeedLimitsMode: vi.fn(),
+    getTorrentFiles: vi.fn(),
+    exportTorrent: vi.fn(),
   }
 })
 
@@ -500,7 +502,8 @@ describe('DownloadsScreen', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
   })
 
-  it.each<[string, () => Promise<void>, () => HTMLElement | null]>([
+  // The torrent each overlay is for: Andor's unless it says.
+  it.each<[string, () => Promise<void>, () => HTMLElement | null, string?]>([
     [
       'the row menu',
       async () => userEvent.click(await screen.findByRole('button', { name: 'More actions: Andor.S02.1080p' })),
@@ -531,13 +534,25 @@ describe('DownloadsScreen', () => {
       },
       () => screen.queryByRole('dialog', { name: 'Title match' }),
     ],
-  ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
+    [
+      'the naming sheet',
+      async () => {
+        searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
+        vi.mocked(api.getTorrentFiles).mockReturnValue(new Promise(() => {}))
+        vi.mocked(api.exportTorrent).mockReturnValue(new Promise(() => {}))
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Name for a media server' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Name for a media server' }),
+      'dune',
+    ],
+  ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay, hash = 'andor') => {
     renderScreen()
     await open()
     expect(overlay()).toBeInTheDocument()
 
-    const { andor, ...others } = SNAPSHOT.torrents!
-    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...others, andor: { ...andor, added_on: andor.added_on! + 60 } } })
+    const torrents = SNAPSHOT.torrents!
+    getMainData.mockResolvedValue({ ...SNAPSHOT, torrents: { ...torrents, [hash]: { ...torrents[hash], added_on: torrents[hash].added_on! + 60 } } })
     window.dispatchEvent(new Event('online'))
     // Confirming a delete then would delete the torrent that replaced it.
     await waitFor(() => expect(overlay()).not.toBeInTheDocument())
@@ -592,6 +607,18 @@ describe('DownloadsScreen', () => {
     expect(within(sheet).queryByText(/Is it right/)).not.toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Fix match' }))
     expect(screen.getByRole('dialog', { name: 'Title match' })).toBeInTheDocument()
+  })
+
+  it('names a movie’s files for a media server from the row menu, by the title the row shows', async () => {
+    searchTitles.mockImplementation(async (query) => searchPage(query === 'Dune Part Two' ? [DUNE_TITLE] : []))
+    vi.mocked(api.getTorrentFiles).mockResolvedValue([{ index: 0, name: 'Dune.Part.Two.2024.mkv', size: 5e9, progress: 0, priority: 1 }])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(await within(sheet).findByText('Dune - Part Two (2024).mkv')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
   })
 
   it('picks a title from the row menu, Match title in the accent, for a torrent with none', async () => {

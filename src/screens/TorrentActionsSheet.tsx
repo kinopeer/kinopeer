@@ -42,6 +42,8 @@ export interface TorrentActionsSheetProps {
   onSpeedLimits: () => void
   /** Opens the title search: Fix match, or Match title for a torrent without one. */
   onChangeTitle: () => void
+  /** Opens "Name for a media server", offered for a torrent matched to a movie. */
+  onMediaNames?: () => void
 }
 
 /** A download's actions, opened from its More button: a bottom sheet, or a menu on desktop. */
@@ -58,6 +60,7 @@ export function TorrentActionsSheet({
   onRecheck,
   onSpeedLimits,
   onChangeTitle,
+  onMediaNames,
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
   const [failed, setFailed] = useState(false)
@@ -97,6 +100,9 @@ export function TorrentActionsSheet({
   const limits = ownLimits(torrent)
   const limitsHint = limits ? describeLimits(limits, 'value', t, format) : undefined
   const hintId = useId()
+  // A movie's files only (series are a follow-up), once qBittorrent knows them.
+  const offersNames = !!onMediaNames && match?.type === 'movie'
+  const namesHint = noMetadata ? t('torrent.recheckNoMetadata') : undefined
 
   const toggle = () => {
     setFailed(false)
@@ -154,6 +160,11 @@ export function TorrentActionsSheet({
         <MenuItem icon="folder" disabled={offline || deleting} onClick={onMove}>
           {t('torrent.move')}
         </MenuItem>
+        {offersNames && (
+          <MenuItem icon="server" disabled={offline || deleting || noMetadata} hint={namesHint} onClick={onMediaNames}>
+            {t('names.title')}
+          </MenuItem>
+        )}
         <MenuDivider />
         <MenuItem icon="trash" danger disabled={offline || deleting} onClick={onDelete}>
           {t('torrent.delete')}
@@ -249,6 +260,22 @@ export function TorrentActionsSheet({
             {t('torrent.move')}
           </button>
         </li>
+        {offersNames && (
+          <li>
+            <button
+              type="button"
+              className="ks-row-btn"
+              disabled={offline || deleting || noMetadata}
+              aria-describedby={namesHint ? `${hintId}-names` : undefined}
+              onClick={onMediaNames}
+            >
+              <Icon name="server" />
+              <RowText id={`${hintId}-names`} hint={namesHint}>
+                {t('names.title')}
+              </RowText>
+            </button>
+          </li>
+        )}
         <li className="ks-divider actions-divider" aria-hidden="true" />
         <li>
           <button type="button" className="ks-row-btn is-danger" disabled={offline || deleting} onClick={onDelete}>

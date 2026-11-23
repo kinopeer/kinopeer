@@ -490,6 +490,46 @@ export function shogunTorrent(): Uint8Array {
   )
 }
 
+/** The files of the Dune release (DUNE_TORRENT): the movie, its subtitles named after it, the release's .nfo and a sample. */
+export const DUNE_FILES = [
+  { path: 'Dune.Part.Two.2024.2160p.WEB-DL.mkv', size: Math.round(18.4 * GB) },
+  { path: 'Dune.Part.Two.2024.2160p.WEB-DL.ru.forced.srt', size: 24 * 1024 },
+  { path: 'Dune.Part.Two.2024.2160p.WEB-DL.nfo', size: 4 * 1024 },
+  { path: 'Sample/Dune.Part.Two.2024.2160p.WEB-DL-sample.mkv', size: 140 * MB },
+]
+
+/**
+ * qBittorrent's file list for a movie torrent laid out as the Dune release is, in its own folder
+ * (qBittorrent's "Original" content layout), its files named after `release`.
+ */
+export function movieFiles(release: string): TorrentFile[] {
+  return DUNE_FILES.map((file, index) => ({
+    index,
+    name: `${release}/${file.path.replace(DUNE_TORRENT.name, release)}`,
+    size: file.size,
+    progress: 0.42,
+    priority: 1,
+  }))
+}
+
+/** qBittorrent's file list for the Dune torrent. */
+export const duneFiles = () => movieFiles(DUNE_TORRENT.name)
+
+/** The bytes of a .torrent for the Dune release, which qBittorrent's export answers with too. */
+export function duneTorrent(): Uint8Array {
+  return new TextEncoder().encode(
+    bencode({
+      announce: 'http://tracker.invalid/announce',
+      info: {
+        name: DUNE_TORRENT.name,
+        'piece length': 4 * 1024 * 1024,
+        pieces: 'x'.repeat(20),
+        files: DUNE_FILES.map((file) => ({ length: file.size, path: file.path.split('/') })),
+      },
+    }),
+  )
+}
+
 /** Prowlarr's address on the home network, as qBittorrent keeps it for the WebUI build's page. */
 export const PROWLARR_ADDRESS = 'http://192.168.1.20:9696'
 

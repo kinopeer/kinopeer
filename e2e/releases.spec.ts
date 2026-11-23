@@ -206,6 +206,18 @@ test.describe('releases, phone', () => {
     await settle(page)
     await expect(page).toHaveScreenshot('add-already-added-dark-ru.png')
   })
+
+  test('adding a movie, its files named for a media server', async ({ page }) => {
+    const dune = { ...RELEASES[1], title: 'Dune.Part.Two.2024.2160p.WEB-DL-GRPA', size: 19.9 * GB, download: 'dune' }
+    await openApp(page, '/title/movie/693134/releases', { releases: [dune], movieTorrent: true })
+    await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
+    await page.getByRole('button', { name: 'Параметры' }).click()
+    const names = page.getByRole('switch', { name: 'Назвать файлы для медиасервера' })
+    await names.click()
+    await expect(names).toBeChecked()
+    await settle(page)
+    await expect(page).toHaveScreenshot('add-movie-names-dark-ru.png')
+  })
 })
 
 /** The title page with its releases searched, scrolled to them. */

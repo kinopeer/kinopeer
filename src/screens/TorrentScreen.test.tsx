@@ -9,7 +9,7 @@ import * as settingsApi from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
-import { DUNE_TORRENT, mainData, searchPage } from '../test/fixtures'
+import { DUNE_TORRENT, mainData, searchPage, torrent } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { clearTitleMatchCache } from '../torrents/useTitleMatches'
@@ -34,6 +34,7 @@ vi.mock('../api/qbittorrent', async (importOriginal) => {
     getMainData: vi.fn(),
     getTorrentTrackers: vi.fn(),
     getTorrentFiles: vi.fn(),
+    exportTorrent: vi.fn(),
     setFilePriority: vi.fn(),
     startTorrents: vi.fn(),
     stopTorrents: vi.fn(),
@@ -416,6 +417,36 @@ describe('TorrentScreen', () => {
     expect(await findToastOnPage('Moving files to /data/tv')).toBeInTheDocument()
   })
 
+  it('names the movie’s files for a media server from the More menu', async () => {
+    getTorrentTrackers.mockResolvedValue([])
+    vi.mocked(api.getTorrentFiles).mockResolvedValue([{ index: 0, name: 'Dune.Part.Two.2024.mkv', size: 5e9, progress: 0, priority: 1 }])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(await within(sheet).findByText('Dune - Part Two (2024).mkv')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Dune: Part Two' })).not.toBeInTheDocument()
+  })
+
+  it('names nothing while another torrent qBittorrent lists is in the folder naming would use, and says which', async () => {
+    getTorrentTrackers.mockResolvedValue([])
+    const other = torrent('other', { name: 'Dune.Part.Two.2024.1080p', save_path: DUNE_TORRENT.save_path, content_path: `${DUNE_TORRENT.save_path}/Dune - Part Two (2024)` })
+    getMainData.mockResolvedValue(mainData([DUNE_TORRENT, other]))
+    vi.mocked(api.getTorrentFiles).mockResolvedValue([{ index: 0, name: 'Dune.Part.Two.2024.mkv', size: 5e9, progress: 0, priority: 1 }])
+    vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))
+    renderScreen()
+    await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+    await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune: Part Two' })).getByRole('button', { name: 'Name for a media server' }))
+    const sheet = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(
+      await within(sheet).findByRole('status', {
+        name: saying('Another torrent, “Dune.Part.Two.2024.1080p”, is in the folder “Dune - Part Two (2024)” already. Naming this one too would mix their files.'),
+      }),
+    ).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+  })
+
   it('moves the files from the More menu', async () => {
     vi.mocked(api.getSaveLocations).mockResolvedValue({ defaultPath: '/downloads', categories: [], categoryPaths: false, subcategories: false, relocateOnCategoryChange: true, downloadPath: false })
     vi.mocked(api.setTorrentLocation).mockResolvedValue()
@@ -552,6 +583,16 @@ describe('TorrentScreen', () => {
         await userEvent.click(await screen.findByRole('button', { name: 'Category: Movies' }))
       },
       () => screen.queryByRole('dialog', { name: 'Category' }),
+    ],
+    [
+      'the naming sheet',
+      async () => {
+        vi.mocked(api.getTorrentFiles).mockReturnValue(new Promise(() => {}))
+        vi.mocked(api.exportTorrent).mockReturnValue(new Promise(() => {}))
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Name for a media server' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Name for a media server' }),
     ],
   ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
     renderScreen()

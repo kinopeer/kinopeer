@@ -26,6 +26,7 @@ import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { DownloadSettings } from './DownloadSettings'
 import { useChangeCategory } from './useChangeCategory'
 import { useDeleteTorrents } from './useDeleteTorrents'
+import { useMediaNames } from './useMediaNames'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
@@ -84,6 +85,7 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
   const limits = useSpeedLimits({ torrents: own, offline, refresh, titleOf })
   const recheck = useRecheck({ torrents: own, titleOf })
   const category = useChangeCategory({ torrents: own, offline })
+  const names = useMediaNames({ torrents: own, listed: data?.torrents, offline, matchOf: () => match })
   // Once it's deleted there's nothing to show here: on to Downloads, or what the drawer says.
   const remove = useDeleteTorrents({
     torrents: own,
@@ -380,10 +382,15 @@ export function TorrentDetails({ hash, onSessionLost, onClose, titleId, onDelete
             closeMenu()
             retitle.open(hash)
           }}
+          onMediaNames={() => {
+            closeMenu()
+            names.open(hash)
+          }}
         />
       )}
 
       {move.element}
+      {names.element}
       {recheck.element}
       {category.element}
 

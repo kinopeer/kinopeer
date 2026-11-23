@@ -37,6 +37,8 @@ const EVERY_CALL: Record<ClientCall, () => Promise<unknown>> = {
   getRefreshInterval: () => client.getRefreshInterval(),
   getTorrentFiles: () => client.getTorrentFiles('a1'),
   setFilePriority: () => client.setFilePriority('a1', [0], 0),
+  renameFiles: () => client.renameFiles('a1', [{ from: 'Movie.mkv', to: 'Movie (2020)/Movie (2020).mkv' }]),
+  exportTorrent: () => client.exportTorrent('a1'),
   startTorrents: () => client.startTorrents(['a1']),
   stopTorrents: () => client.stopTorrents(['a1']),
   setSpeedLimits: () => client.setSpeedLimits(['a1'], { download: 1024, upload: 1024 }),

@@ -569,6 +569,7 @@ server a Node test can (Vite's dev server, #271).
 | The real qBittorrent and Prowlarr: a version that changes an answer | The fakes in `server/test/fakes.ts`, written from qBittorrent 5.3 (401 on a wrong password; `legacy` for the older `200 "Fails."` on a login or a refused add and 4.x's `/torrents/pause` and `/resume`; a folder `setLocation` can't write to taken with a 200, as from 4.5.2, where the fake had answered 4.5.1's 403, #491) and Prowlarr 1.24, with the version in a comment where it matters | Not until someone hits it: then it's a `fake-drift` miss and the fake moves with the service. Three in a release → compare every fake with the live services by hand |
 | Telegram's real Bot API: a message reaching a real chat, its answers to a revoked token, a blocked bot, a webhook, a group turned supergroup, its rate limits | `fakeTelegram()` in `server/test/fakes.ts`, written from the Bot API's documentation (7.0 and later), and the client's unit tests against answers written inline | By hand on the test stand with a bot of the owner's, when a PR changes what's sent to Telegram; otherwise a change in its answers arrives as a bug report |
 | Web Push for real: a browser's push service (Google's, Mozilla's, Apple's, Microsoft's) taking a push and the device showing it, Safari's push in the app on an iPhone's Home Screen, the permission prompt, a tapped notification opening its torrent, a browser renewing a subscription, and the certificate states under which a browser gives a page push | `fakePushService()` in `server/test/fakes.ts`, which decrypts what the server sends with a device's keys, after `server/webPush.test.ts` checks the encryption against RFC 8291's own example; the browser's Push API, `Notification` and the service worker's events stubbed on layers 1 to 3 (`src/pwa/swPush.test.ts`, `sw.test.ts`, and `push.test.ts`, which drives the push client with `fetch` stubbed); the screenshot tests stub only the registration and the permission, since their service worker is blocked | By hand on the owner's devices when a PR changes what's sent or how push is turned on: Kinopeer Edge over Umbrel's HTTPS on an iPhone's Home Screen app and in Chrome on a computer, Turn on, Test, a finished download's notification and its tap, Turn off; otherwise a change in a service's answers arrives as a bug report |
+| qBittorrent renaming files for real (#584): it applies a rename a moment after answering, the torrent seeding on under the new names, a recheck finding the renamed files whole, and the `.torrent` its export gives carrying the names it was added with | The fake renames at once and exports the bytes a test set; `MediaNamesSheet` reads the files again `RENAMES_SETTLE_MS` after renames that failed, with fake timers on layer 3; `server/integration/flows.test.ts` names the Dune torrent's files through the bridge and reads them back from its export | By hand in Docker for #584 (SPEC's decision log, 2026-11-23): on qBittorrent 5.2.0 the torrent seeding on after the renames, a recheck and the names across a restart, and on 4.6.0 and 5.2.0 the call's answers and the export keeping the names its info hash covers; again when a PR changes how files are renamed |
 | Plain HTTP without `crypto.subtle`: reading a `.torrent` with the SHA-1 fallback in a real browser | `src/torrents/digest.ts` on layer 1 against known digests; every browser test runs on localhost, a secure context, where Web Crypto exists | The checklist: add a release over `http://` on the LAN, where the info hash must still match qBittorrent's |
 | TMDB for real: field shapes, missing posters, the language fallback, rate limits | The fake and the fixtures' titles | Only the README screenshots (`npm run screenshots:readme`, through the edge worker's cache unless a key is set) and the test stand see the real API; nothing compares them, so a change in TMDB's answers arrives as a bug report |
 | An app resumed from memory after an update: Safari on iOS keeping the Home Screen app's page, the new service worker taking it over, Umbrel's proxy in front of `version.json` | `src/pwa/updates.test.ts` on layer 2 with `fetch`, `visibilitychange` and the service worker's registration stubbed (#210); every browser test loads a fresh page, which already has the new version | The checklist: after Umbrel updates Kinopeer Edge, resume the app on the owner's phone from the background and see it reload with the "updated" toast. Only a page that already has the update check can pass: the first update from a build before it can't |
@@ -589,11 +590,13 @@ it uses next to itself.
   titles as the API returns them (`TITLES`, `page()`, `details()`)
   and as the app's client maps them (`title()`), Prowlarr releases (`release()`, `RELEASES`,
   `DUNE_RELEASES`), the Shōgun torrent's files (`SHOGUN_FILES`, `torrentFiles()`, the `.torrent`
-  bytes from `shogunTorrent()`) and `NOW`, the time the screenshot tests freeze the clock at. It is
+  bytes from `shogunTorrent()`), the Dune release's files (`DUNE_FILES`, qBittorrent's list of them
+  in a release's folder from `movieFiles(release)`, the Dune release's own from `duneFiles()`, and
+  the `.torrent` bytes from `duneTorrent()`, which qBittorrent's export answers with) and `NOW`, the time the screenshot tests freeze the clock at. It is
   pure TypeScript: no React, DOM or Node APIs, only types from `src/api/*/types`, so the jsdom tests
   import it as `'../test/fixtures'`, the server tests as `'../src/test/fixtures.ts'` and
   `e2e/fixtures.ts` re-exports it for Playwright, adding only what needs the browser (the poster
-  SVGs, the `.torrent` as a `Buffer`). Every helper takes overrides: when a test needs other
+  SVGs, the `.torrent`s as `Buffer`s, and `DUNE`, the Dune torrent with the info hash its `.torrent` has). Every helper takes overrides: when a test needs other
   defaults, it passes them (or wraps the helper, as the Downloads tests do for their 1 GB rows)
   rather than copying the function. The screenshot baselines are rendered from this module, so a
   change to a name, size, date, order or `NOW` re-renders them. Its data names no real tracker,
@@ -636,7 +639,11 @@ it uses next to itself.
   (`/torrents/info`, `/sync/maindata` with a delta after the first `rid`), the trackers, and adding
   (`/torrents/add` is parsed into `added`, a magnet link to a torrent it lists refused with 409, as
   qBittorrent 5.2 does, or `200 "Fails."` with `legacy`, `/torrents/files` answers the `files` a test set for a
-  hash, `/torrents/filePrio` changes them, `/torrents/start` and `/stop` answer OK and leave the
+  hash, `/torrents/filePrio` changes them, `/torrents/renameFile` renames one of them (409 for a
+  path it has no file at, a new path another file has or a listed torrent without `files`, 404 for a
+  hash it doesn't list), `/torrents/export` answers the `.torrent` bytes a test set in `exports` for
+  a hash (409 for a listed torrent without them, one without metadata, 404 for a hash it doesn't
+  list), `/torrents/start` and `/stop` answer OK and leave the
   state as it is, as qBittorrent does until its next refresh; with `legacy`, qBittorrent 4.x,
   they answer 404 and `/torrents/pause` and `/resume` answer OK instead; `/torrents/info` asked with
   `tag` lists only the torrents with that tag, and `/torrents/addTags` and `/removeTags` change

@@ -56,6 +56,7 @@ const META = {
     { path: 'Season 2/e02.mkv', size: 20e9 },
   ],
   totalSize: 50e9,
+  multiFile: true,
 }
 
 // 40 GB free and a 50 GB download: 10 GB short.

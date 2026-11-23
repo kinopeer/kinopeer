@@ -1,0 +1,198 @@
+import { useEffect, useId, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { exportTorrent, getTorrentFiles, type Torrent, type TorrentFile } from '../api/qbittorrent'
+import { Banner } from '../components/Banner'
+import { Button } from '../components/Button'
+import { Icon } from '../components/Icon'
+import { Sheet } from '../components/Sheet'
+import { useRequest } from '../lib/useRequest'
+import { movieNames, originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
+import { readTorrentFile } from '../torrents/torrentFile'
+import { notNamedText } from './notNamedText'
+import './MediaNamesSheet.css'
+
+/** How long after renames that failed the sheet reads the files again, so the ones qBittorrent took show. */
+export const RENAMES_SETTLE_MS = 1000
+
+/** What the sheet sends: the media server's names, or the original ones back. */
+export type NamesMode = 'name' | 'restore'
+
+export interface NamesChange {
+  mode: NamesMode
+  renames: FileRename[]
+}
+
+export interface MediaNamesSheetProps {
+  torrent: Torrent
+  /** The movie the torrent is matched to, in the app's TMDB language: the names are made of it. */
+  title: string
+  year?: number
+  /** Another torrent in the folder naming would put this one's files in (`folderTakenBy`): its name. Nothing is named then. */
+  taken?: string
+  /** qBittorrent is unreachable: nothing can be sent. */
+  offline: boolean
+  /** What's being sent for this torrent, from this sheet or one closed before it opened. */
+  pending?: NamesChange
+  /** The last renames sent weren't all taken. */
+  failed: boolean
+  onSend: (change: NamesChange) => void
+  onClose: () => void
+}
+
+interface Loaded {
+  files: TorrentFile[]
+  /** The renames back to the metadata's names; undefined when the export couldn't be read. */
+  original: FileRename[] | undefined
+}
+
+/**
+ * The torrent's files and the original names from its own metadata (qBittorrent's export, whose info
+ * hash covers the names it had before any rename). The export failing leaves naming as it is: only
+ * the way back is missing, and the sheet says so.
+ */
+async function load(torrent: Torrent, signal: AbortSignal): Promise<Loaded> {
+  const [files, original] = await Promise.all([
+    getTorrentFiles(torrent.hash, signal),
+    exportTorrent(torrent.hash, signal)
+      .then((bytes) => readTorrentFile(bytes))
+      .catch(() => undefined),
+  ])
+  // Another torrent's metadata, or one that doesn't list these files, names nothing back.
+  const meta = original?.infoHash === torrent.hash ? original : undefined
+  return { files, original: meta && originalNames(files, meta) }
+}
+
+/**
+ * "Name for a media server": what naming a movie's files would rename, old name over new, or why
+ * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
+ */
+export function MediaNamesSheet({ torrent, title, year, taken, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
+  const { t } = useTranslation()
+  const loaded = useRequest(`qbt|names|${torrent.hash}`, (signal) => load(torrent, signal))
+  // Opened while a restore is in flight, it shows the restore, as the sheet that sent it did.
+  const [mode, setMode] = useState<NamesMode>(pending?.mode ?? 'name')
+  const sending = pending !== undefined
+  // Renames that failed may have renamed some files first: the list shows the names qBittorrent has
+  // now, read once it has applied them, which it does a moment after answering (`renameFiles`).
+  const { retry } = loaded
+  useEffect(() => {
+    if (!failed) return
+    const timer = setTimeout(retry, RENAMES_SETTLE_MS)
+    return () => clearTimeout(timer)
+  }, [failed, retry])
+  const data = loaded.data
+  const names = data && movieNames(data.files, title, year)
+  const restore = data?.original?.length ? data.original : undefined
+  // What's being sent is what the sheet shows, whatever the files' names read now.
+  const renames = pending ? pending.renames : mode === 'restore' ? (restore ?? []) : names?.named && !taken ? names.renames : []
+
+  const footer = data && (
+    <div className="names-stack">
+      {renames.length > 0 && (
+        <Button variant="primary" size="lg" block loading={sending} disabled={sending || offline} onClick={() => onSend({ mode, renames })}>
+          {mode === 'restore' ? t('names.restore') : t('names.rename')}
+        </Button>
+      )}
+      {mode === 'name' && restore && (
+        <Button variant="ghost" size="lg" block disabled={sending} onClick={() => setMode('restore')}>
+          {t('names.restoreOriginal')}
+        </Button>
+      )}
+      {mode === 'restore' && (
+        <Button variant="ghost" size="lg" block disabled={sending} onClick={() => setMode('name')}>
+          {t('common.back')}
+        </Button>
+      )}
+    </div>
+  )
+
+  return (
+    <Sheet
+      open
+      onClose={onClose}
+      title={mode === 'restore' ? t('names.restoreOriginal') : t('names.title')}
+      subtitle={torrent.name}
+      footer={footer}
+    >
+      <div className="names-body">
+        {loaded.loading && (
+          <div className="names-row" role="status">
+            <span className="ks-spin ca" />
+            <span className="c2">{t('names.loading')}</span>
+          </div>
+        )}
+        {loaded.error !== undefined && (
+          <Banner tone="error" actionLabel={t('common.retry')} onAction={loaded.retry}>
+            {t('common.qbtFailed')}
+          </Banner>
+        )}
+        {/* While renames are on their way, the sheet shows them, not names qBittorrent may have half applied. */}
+        {data && (pending || mode === 'restore') && <RenamesList renames={renames} />}
+        {data && !pending && mode === 'name' && names && <NamesPreview names={names} taken={taken} />}
+        {data && mode === 'name' && data.original === undefined && <p className="t-cap c3">{t('names.originalUnread')}</p>}
+        {failed && <Banner tone="error">{t('names.failed')}</Banner>}
+      </div>
+    </Sheet>
+  )
+}
+
+/** What naming does: the folder, then each file whose own name changes; or why nothing is named. */
+function NamesPreview({ names, taken }: { names: MediaNames; taken?: string }) {
+  const { t } = useTranslation()
+  const id = useId()
+  if (!names.named) {
+    return <Banner tone="info" title={t('names.notNamed')}>{notNamedText(names.reason, t)}</Banner>
+  }
+  if (!names.renames.length) return <Banner tone="info" icon="check-circle" title={t('names.already')} />
+  if (taken) {
+    return <Banner tone="info" title={t('names.notNamed')}>{t('names.taken', { folder: names.folder.to, name: taken })}</Banner>
+  }
+  const { folder, files } = names
+  return (
+    <>
+      <section className="names-stack" aria-labelledby={`${id}-folder`}>
+        <h3 id={`${id}-folder`} className="ks-label">
+          {t('common.folder')}
+        </h3>
+        <Rename from={folder.from} to={folder.to} />
+      </section>
+      {files.length > 0 && (
+        <section className="names-stack" aria-labelledby={`${id}-files`}>
+          <h3 id={`${id}-files`} className="ks-label">
+            {t('torrent.files')}
+          </h3>
+          <RenamesList renames={files} />
+        </section>
+      )}
+      <p className="t-cap c2">{t('names.others')}</p>
+    </>
+  )
+}
+
+/** Renames, each old over new: the files naming renames, or every file the way back renames, by its whole path. */
+function RenamesList({ renames }: { renames: FileRename[] }) {
+  return (
+    <ul className="names-stack names-list">
+      {renames.map((rename) => (
+        <li key={rename.from}>
+          <Rename from={rename.from} to={rename.to} />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** One name and what it becomes; without an old one, a folder that naming makes. */
+function Rename({ from, to }: { from?: string; to: string }) {
+  const { t } = useTranslation()
+  return (
+    <div className="names-rename">
+      <span className="t-mono c3 names-from">{from ?? t('names.newFolder')}</span>
+      <span className="t-mono names-to">
+        <Icon name="arrow-down" size={14} className="ca names-arrow" />
+        <span className="sr-only">{t('names.becomes')} </span>
+        {to}
+      </span>
+    </div>
+  )
+}

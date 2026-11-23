@@ -203,6 +203,9 @@ const ENDPOINTS = new Map<string, 'GET' | 'POST'>([
   ['/api/v2/torrents/add', 'POST'],
   ['/api/v2/torrents/delete', 'POST'],
   ['/api/v2/torrents/filePrio', 'POST'],
+  // Naming a movie's files for a media server, and the original names back from the torrent's metadata.
+  ['/api/v2/torrents/renameFile', 'POST'],
+  ['/api/v2/torrents/export', 'GET'],
   // qBittorrent 5's names, then 4.x's.
   ['/api/v2/torrents/start', 'POST'],
   ['/api/v2/torrents/stop', 'POST'],

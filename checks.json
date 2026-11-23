@@ -20,7 +20,7 @@
     "testsLeftOut": ["/checks.test.ts", "/unraid/xml-files.test.ts"]
   },
   "budgets": {
-    "size": { "js": 203400, "css": 16200, "rest": 193600 },
+    "size": { "js": 206900, "css": 16300, "rest": 193600 },
     "layoutShiftCeiling": 0.1,
     "screenshotThreshold": 0.1,
     "layoutShift": {
@@ -105,6 +105,7 @@
         "add-already-added-dark-ru": {},
         "add-dark-ru": {},
         "add-files-dark-ru": {},
+        "add-movie-names-dark-ru": {},
         "add-free-up-dark-ru": {},
         "add-low-space-dark-ru": {},
         "desktop-add-free-up-dark-ru": {},
@@ -187,8 +188,10 @@
         "desktop-drawer-no-title-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-drawer-no-title-menu-dark-ru": { "label-content-name-mismatch": 0 },
         "desktop-drawer-over-title-dark-ru": { "label-content-name-mismatch": 0 },
+        "desktop-names-restore-light-en": {},
         "error-dark-ru": { "label-content-name-mismatch": 0 },
         "guess-dark-ru": { "label-content-name-mismatch": 0 },
+        "names-dark-ru": {},
         "no-title-dark-ru": { "label-content-name-mismatch": 0 },
         "no-title-light-ru": { "label-content-name-mismatch": 0 },
         "no-title-menu-dark-ru": {},

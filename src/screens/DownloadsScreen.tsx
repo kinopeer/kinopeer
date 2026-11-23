@@ -40,6 +40,7 @@ import { TorrentActionsSheet } from './TorrentActionsSheet'
 import { UnreachableState } from './UnreachableState'
 import { useAltSpeedSwitch } from './useAltSpeedSwitch'
 import { useDeleteTorrents } from './useDeleteTorrents'
+import { useMediaNames } from './useMediaNames'
 import { useMoveTorrent } from './useMoveTorrent'
 import { usePauseResume } from './usePauseResume'
 import { useRecheck } from './useRecheck'
@@ -118,6 +119,7 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
 
   const torrents = useMemo(() => (data ? Object.values(data.torrents) : []), [data])
   const matches = useTitleMatches(torrents)
+  const names = useMediaNames({ torrents: data?.torrents, offline, matchOf: (torrent) => matches[torrent.hash] })
   const retitle = useChangeTitle({ torrents: data?.torrents, matchOf: (torrent) => matches[torrent.hash] })
   const nameOf = (torrent: Torrent) => matches[torrent.hash]?.title ?? torrent.name
   const limits = useSpeedLimits({ torrents: data?.torrents, offline, refresh, titleOf: nameOf })
@@ -582,9 +584,14 @@ export function DownloadsScreen({ onSessionLost, onSelectingChange }: DownloadsS
             actions.close()
             retitle.open(actionsTorrent.hash)
           }}
+          onMediaNames={() => {
+            actions.close()
+            names.open(actionsTorrent.hash)
+          }}
         />
       )}
       {move.element}
+      {names.element}
       {retitle.element}
       {selecting && (
         <BulkActionsBar

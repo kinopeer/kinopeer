@@ -34,6 +34,8 @@ export interface Settings {
   firstLastPieces: boolean
   /** New downloads tell when they finish, while a channel is set up; off, as most downloads need no message. */
   notify: boolean
+  /** New movie downloads get their files named for a media server; off, as most people have none. */
+  mediaNames: boolean
   /** Language of titles and overviews from TMDB; 'app' follows the interface language. */
   tmdbLanguage: 'app' | 'en-US' | 'ru-RU'
   /** How the downloads list is shown on a phone or tablet. */
@@ -61,6 +63,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sequential: false,
   firstLastPieces: false,
   notify: false,
+  mediaNames: false,
   tmdbLanguage: 'app',
   downloadsView: 'list',
   downloadsDesktopView: 'grid',
@@ -82,6 +85,7 @@ const SERVER_KEY_SET: Record<ServerKey, true> = {
   sequential: true,
   firstLastPieces: true,
   notify: true,
+  mediaNames: true,
 }
 const SERVER_KEYS = Object.keys(SERVER_KEY_SET) as ServerKey[]
 

@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test.ts'
 import { DESKTOP, everyTitleShown, openApp, settle, showWholePage } from './app.ts'
-import { GUESSED, TORRENTS } from './fixtures.ts'
+import { DUNE, GUESSED, TORRENTS } from './fixtures.ts'
 
 test('downloading series with its files, dark, Russian', async ({ page }) => {
   await openApp(page, '/torrent/a2')
@@ -84,6 +84,16 @@ test('missing files, dark, Russian', async ({ page }) => {
   await expect(page).toHaveScreenshot('error-dark-ru.png')
 })
 
+test('naming a movie for a media server, dark, Russian', async ({ page }) => {
+  await openApp(page, `/torrent/${DUNE.hash}`, { torrents: [DUNE] })
+  await page.getByRole('button', { name: /^Ещё действия/ }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Назвать для медиасервера' }).click()
+  const sheet = page.getByRole('dialog', { name: 'Назвать для медиасервера' })
+  await expect(sheet.getByRole('button', { name: 'Переименовать' })).toBeVisible()
+  await settle(page)
+  await expect(page).toHaveScreenshot('names-dark-ru.png')
+})
+
 test.describe('desktop drawer', () => {
   test.use(DESKTOP)
 
@@ -111,6 +121,23 @@ test.describe('desktop drawer', () => {
       await everyTitleShown(page)
       await settle(page)
       await expect(page).toHaveScreenshot('desktop-drawer-completed-light-en.png')
+    })
+
+    test('restoring the names a movie was named over', async ({ page }) => {
+      await openApp(page, `/torrent/${DUNE.hash}`, { torrents: [DUNE], theme: 'light', lang: 'en' })
+      const openNames = async () => {
+        await page.getByRole('dialog', { name: 'Dune: Part Two' }).getByRole('button', { name: /^More actions/ }).click()
+        await page.getByRole('menuitem', { name: 'Name for a media server' }).click()
+      }
+      await openNames()
+      await page.getByRole('button', { name: 'Rename' }).click()
+      await expect(page.getByText('Files of “Dune: Part Two” named for a media server')).toBeVisible()
+      await openNames()
+      await page.getByRole('button', { name: 'Restore original names' }).click()
+      const sheet = page.getByRole('dialog', { name: 'Restore original names' })
+      await expect(sheet.getByRole('button', { name: 'Restore' })).toBeVisible()
+      await settle(page)
+      await expect(page).toHaveScreenshot('desktop-names-restore-light-en.png')
     })
   })
 

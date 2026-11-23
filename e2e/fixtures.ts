@@ -4,9 +4,9 @@
  * Playwright stays here.
  */
 import { createHash } from 'node:crypto'
-import { shogunTorrent as shogunTorrentBytes } from '../src/test/fixtures.ts'
+import { DUNE_TORRENT, duneTorrent as duneTorrentBytes, shogunTorrent as shogunTorrentBytes } from '../src/test/fixtures.ts'
 
-export { GB, GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, mainData, page, torrent, torrentFiles } from '../src/test/fixtures.ts'
+export { DUNE_TORRENT, GB, GUESSED, LONG_OVERVIEW_ID, NOW, RELEASES, TITLES, TORRENTS, details, duneFiles, mainData, page, torrent, torrentFiles } from '../src/test/fixtures.ts'
 
 /** A .torrent for the Shōgun release, as `route.fulfill` wants it. */
 export function shogunTorrent(): Buffer {
@@ -14,15 +14,24 @@ export function shogunTorrent(): Buffer {
 }
 
 /**
- * The Shōgun .torrent's info hash, as qBittorrent knows it: the SHA-1 of its bencoded info
+ * A fixture .torrent's info hash, as qBittorrent knows it: the SHA-1 of its bencoded info
  * dictionary, which is the file's last key (bencoded keys are sorted: announce, info), so it runs
  * from after the key to the outer dictionary's closing `e`.
  */
-export function shogunInfoHash(): string {
-  const bytes = shogunTorrent()
+function infoHash(bytes: Buffer): string {
   const info = bytes.subarray(bytes.indexOf('4:info') + '4:info'.length, bytes.length - 1)
   return createHash('sha1').update(info).digest('hex')
 }
+
+export const shogunInfoHash = () => infoHash(shogunTorrent())
+
+/** A .torrent for the Dune movie release, as `route.fulfill` wants it: what qBittorrent exports for DUNE too. */
+export function duneTorrent(): Buffer {
+  return Buffer.from(duneTorrentBytes())
+}
+
+/** The Dune download as qBittorrent has it, by the info hash its .torrent has, so the original names read back from its export are its own. */
+export const DUNE = { ...DUNE_TORRENT, hash: infoHash(duneTorrent()) }
 
 /**
  * A stand-in poster: a diagonal gradient whose hue comes from the file name, so each title looks

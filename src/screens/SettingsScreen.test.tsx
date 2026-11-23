@@ -1141,6 +1141,24 @@ describe('SettingsScreen: Telegram', () => {
     expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ notify: true })
   })
 
+  it.each([
+    ['with a channel', CONNECTED],
+    ['without a channel', undefined],
+  ])('saves Name files for a media server as a download default, off until turned on, %s', async (_name, telegram) => {
+    vi.mocked(serverSettings.getServerSettings).mockResolvedValue(settings(telegram))
+    vi.mocked(serverSettings.checkTelegram).mockResolvedValue({ bot: 'kinopeer_home_bot' })
+    renderScreen()
+    const defaults = screen.getByRole('region', { name: 'Download defaults' })
+    // Once the server's settings have answered, with a channel's Notify switch beside it or none.
+    await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })
+    expect(within(defaults).queryAllByRole('switch', { name: 'Notify when finished' })).toHaveLength(telegram ? 1 : 0)
+    const names = within(defaults).getByRole('switch', { name: 'Name files for a media server' })
+    expect(names).not.toBeChecked()
+    await userEvent.click(names)
+    expect(getSettings().mediaNames).toBe(true)
+    expect(serverSettings.saveDownloadDefaults).toHaveBeenCalledWith({ mediaNames: true })
+  })
+
   it('has no Telegram card for a server that doesn’t know Telegram', async () => {
     renderScreen()
     await within(connection('TMDB')).findByRole('status', { name: saying('Connected') })

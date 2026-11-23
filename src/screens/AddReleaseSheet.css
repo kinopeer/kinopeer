@@ -134,6 +134,15 @@
   min-height: 44px;
 }
 
+/* A switch's label with the hint under it, which says what it does or why it's off. */
+.add-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .add-foot {
   display: flex;
   flex-direction: column;
