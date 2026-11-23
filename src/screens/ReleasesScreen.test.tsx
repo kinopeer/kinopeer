@@ -129,6 +129,8 @@ describe('ReleasesScreen', () => {
     const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
     const chips = (name: string) => within(sheet.getByRole('group', { name })).getAllByRole('button')
     expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 3', '10+ 3', '50+ 2', '100+ 2'])
+    expect(chips('Audio').map((chip) => chip.textContent)).toEqual(['Dubbed 1', 'Not stated 2'])
+    expect(chips('Indexer').map((chip) => chip.textContent)).toEqual(['Indexer C 2', 'Indexer D 1'])
     await userEvent.click(sheet.getByRole('button', { name: counted('100+') }))
     // The 720p release has 12 seeds.
     expect(chips('Resolution').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
@@ -137,6 +139,9 @@ describe('ReleasesScreen', () => {
     // Still a choice: it leaves nothing, as it says.
     await userEvent.click(sheet.getByRole('button', { name: '720p 0' }))
     expect(sheet.getByRole('button', { name: 'Show 0' })).toBeInTheDocument()
+    expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
+    expect(sheet.getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
+    expect(sheet.getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
   })
 
   it('filters in the sheet and removes filters from the list', async () => {

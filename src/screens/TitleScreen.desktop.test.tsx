@@ -248,6 +248,24 @@ describe('TitleScreen on desktop', () => {
     expect(within(resolution).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
     expect(within(resolution).getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
     expect(within(resolution).getByRole('button', { name: '2160p 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(resolution).getByRole('button', { name: '720p 0' }))
+
+    // The 720p release has 12 seeds: 100+, still picked, and 50+ would leave none.
+    await userEvent.click(screen.getByRole('button', { name: '100+ seeds', expanded: false }))
+    const picked = screen.getByRole('group', { name: 'Min seeds' })
+    expect(within(picked).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
+    expect(within(picked).getByRole('button', { name: '100+ 0' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).toHaveAttribute('aria-pressed', 'false')
+    expect(within(picked).getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(picked).getByRole('button', { name: '10+ 1' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Indexer' }))
+    const indexers = screen.getByRole('group', { name: 'Indexer' })
+    expect(within(indexers).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C 1', 'Indexer D 0'])
+    expect(within(indexers).getByRole('button', { name: 'Indexer D 0' })).toHaveClass('is-dim')
+    await userEvent.click(within(indexers).getByRole('button', { name: 'Indexer C 1' }))
+    expect(within(indexers).getByRole('button', { name: 'Indexer C 1' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('filters in popovers, removes filters and sorts', async () => {
