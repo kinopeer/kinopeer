@@ -25,6 +25,7 @@ describe('titleName', () => {
 
   it('still names a title made only of such characters', () => {
     expect(titleName('???', 2000)).toBe('Movie (2000)')
+    expect(titleName('???', 2000, 'tv')).toBe('Show (2000)')
   })
 })
 

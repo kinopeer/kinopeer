@@ -37,7 +37,7 @@ export type MediaNames =
       renames: FileRename[]
       /** The torrent's folder before and after: `from` undefined for files that had none. */
       folder: { from?: string; to: string }
-      /** The files whose own name changes, by their names alone (no folders), the main video first; a series' by its path below the show's folder. */
+      /** The files whose own name changes: a movie's by their names alone (no folders), the main video first; a series' by their paths below the torrent's folder and the show's. */
       files: { from: string; to: string }[]
       /** A series' videos whose episode couldn't be read: they keep their names. */
       unread?: string[]
@@ -81,9 +81,12 @@ function safeName(text: string): string {
   )
 }
 
-/** The movie's or the show's folder, and a movie's video file name, without the extension: `Title (Year)`, or the title alone without a year. */
-export function titleName(title: string, year?: number): string {
-  const name = safeName(title) || 'Movie'
+/**
+ * The movie's or the show's folder, and a movie's video file name, without the extension: `Title (Year)`,
+ * or the title alone without a year; `Movie` or `Show` for a title made only of what a name can't take.
+ */
+export function titleName(title: string, year?: number, type: 'movie' | 'tv' = 'movie'): string {
+  const name = safeName(title) || (type === 'movie' ? 'Movie' : 'Show')
   return year ? `${name} (${year})` : name
 }
 

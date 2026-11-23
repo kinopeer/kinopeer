@@ -256,6 +256,17 @@ describe('addRelease', () => {
       expect(startTorrents).toHaveBeenCalledWith(['bb2'])
     })
 
+    it('finds a file of another torrent saved in the show’s folder itself, by its place on disk', async () => {
+      const inside = torrent('bb9', { name: 'Season 02', save_path: `/media/tv/${SHOW}/`, content_path: `/media/tv/${SHOW}/Season 02` })
+      getTorrents.mockResolvedValue([inside, ADDED])
+      getTorrentFiles.mockImplementation((hash) =>
+        Promise.resolve(hash === 'bb2' ? OWN : [{ index: 0, name: `Season 02/${SHOW} S02E01.mkv`, size: 1, progress: 1, priority: 1 as const }]),
+      )
+      const error = await addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: META, skip: [] }, wait).catch((caught: unknown) => caught)
+      expect((error as MediaNamesError).taken).toEqual({ name: 'Season 02', folder: SHOW, shared: true })
+      expect(renameFiles).not.toHaveBeenCalled()
+    })
+
     it('reads the season of an episode in no folder from the release’s name', async () => {
       const single = { ...META, name: 'Episode 3.mkv', files: [{ path: 'Episode 3.mkv', size: 700 }], multiFile: false }
       getTorrents.mockResolvedValue([torrent('bb2', { save_path: '/media/tv', content_path: '/media/tv/Episode 3.mkv' })])

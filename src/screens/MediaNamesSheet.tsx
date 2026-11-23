@@ -7,7 +7,7 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
-import { filesTakenBy, namedPaths, titleNames } from '../torrents/seriesNames'
+import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
 import { readTorrentFile } from '../torrents/torrentFile'
 import { notNamedText } from './notNamedText'
 import './MediaNamesSheet.css'
@@ -32,7 +32,7 @@ export interface MediaNamesSheetProps {
   /** A movie's: another torrent in the folder naming would put this one's files in (`folderTakenBy`), by its name. Nothing is named then. None for a series. */
   taken?: string
   /** A series': the other torrents in the show's folder (`torrentsIn`), whose files the sheet reads and checks its own against (`filesTakenBy`). None for a movie. */
-  neighbours: readonly Pick<Torrent, 'hash' | 'name'>[]
+  neighbours: readonly Pick<Torrent, 'hash' | 'name' | 'save_path'>[]
   /** qBittorrent is unreachable: nothing can be sent. */
   offline: boolean
   /** What's being sent for this torrent, from this sheet or one closed before it opened. */
@@ -45,8 +45,8 @@ export interface MediaNamesSheetProps {
 
 interface Loaded {
   files: TorrentFile[]
-  /** The neighbours' files, by their paths; undefined for one whose files couldn't be read. */
-  neighbours: { torrent: Pick<Torrent, 'hash' | 'name'>; files: string[] | undefined }[]
+  /** The neighbours' files, each `placed` under its torrent's save path; undefined for one whose files couldn't be read. */
+  neighbours: { torrent: MediaNamesSheetProps['neighbours'][number]; files: string[] | undefined }[]
   /** The renames back to the metadata's names; undefined when the export couldn't be read. */
   original: FileRename[] | undefined
 }
@@ -65,7 +65,7 @@ async function load(torrent: Torrent, neighbours: MediaNamesSheetProps['neighbou
     Promise.all(
       neighbours.map((other) =>
         getTorrentFiles(other.hash, signal).then(
-          (listed) => ({ torrent: other, files: listed.map((file) => file.name) }),
+          (listed) => ({ torrent: other, files: listed.map((file) => placed(other.save_path, file.name)) }),
           () => ({ torrent: other, files: undefined }),
         ),
       ),
@@ -83,12 +83,14 @@ async function load(torrent: Torrent, neighbours: MediaNamesSheetProps['neighbou
 function planNames(data: Loaded, torrent: Torrent, title: { type: 'movie' | 'tv'; title: string; year?: number }, takenFolder: string | undefined) {
   // A series' files in no folder of the torrent's read their season from its name.
   const names = titleNames(title, data.files, torrent.name)
-  const taken = takenFolder ?? (names.named ? filesTakenBy(namedPaths(data.files, names.renames), data.neighbours)?.name : undefined)
+  // Each torrent's files under its own save path, so a neighbour saved in the show's folder lines up.
+  const named = names.named ? namedPaths(data.files, names.renames).map((path) => placed(torrent.save_path, path)) : undefined
+  const taken = takenFolder ?? (named && filesTakenBy(named, data.neighbours)?.name)
   return { names, taken }
 }
 
 /**
- * "Name for a media server": what naming a movie's files would rename, old name over new, or why
+ * "Name for a media server": what naming a movie's or a series' files would rename, old name over new, or why
  * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
  */
 export function MediaNamesSheet({ torrent, type, title, year, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {

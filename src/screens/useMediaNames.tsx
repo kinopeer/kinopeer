@@ -9,7 +9,7 @@ import { MediaNamesSheet, type NamesChange } from './MediaNamesSheet'
 import { useTorrentSheet } from './useTorrentSheet'
 
 export interface MediaNames {
-  /** Opens "Name for a media server" for a torrent in `torrents` matched to a movie. */
+  /** Opens "Name for a media server" for a torrent in `torrents` matched to a movie or a series. */
   open: (hash: string) => void
   /** The sheet, for the screen to render. */
   element: ReactNode
@@ -45,7 +45,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
 
   /** The sheet for a matched torrent: a movie's folder is its own, while a series' seasons share the show's, so the sheet reads the files of the torrents there and checks them against its own. */
   const sheet = (shown: Torrent, match: TitleMatch) => {
-    const folder = titleName(match.title, match.year)
+    const folder = titleName(match.title, match.year, match.type)
     const others = Object.values(listed ?? {})
     return (
       <MediaNamesSheet

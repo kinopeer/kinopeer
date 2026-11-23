@@ -472,6 +472,27 @@ describe('useMediaNames', () => {
       expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
     })
 
+    it('finds a file of another torrent saved in the show’s folder itself, by its place on disk', async () => {
+      const inside = torrent('s9'.repeat(20), { name: 'Season 02', save_path: `/data/tv/${SHOW}`, content_path: `/data/tv/${SHOW}/Season 02` })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `Season 02/${SHOW} S02E01.mkv`)])))
+      const { open } = renderNames(BB, { [season2.hash]: season2, [inside.hash]: inside })
+      const sheet = await open(season2.hash)
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “Season 02”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
+    })
+
+    it('looks for the other seasons in a “Show” folder for a title made only of what a name can’t take', async () => {
+      const untitled: TitleMatch = { ...BB, title: '???' }
+      const other = torrent('s8'.repeat(20), { name: 'Other season', save_path: '/data/tv', content_path: '/data/tv/Show (2008)' })
+      getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, 'Show (2008)/Season 02/Show (2008) S02E01.mkv')])))
+      const { open } = renderNames(untitled, { [season2.hash]: season2, [other.hash]: other })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('status', { name: saying(/^Another torrent, “Other season”, is in the folder “Show \(2008\)”/) })).toBeInTheDocument()
+    })
+
     it('reads the files of a torrent that comes into the show’s folder while the sheet is open', async () => {
       getTorrentFiles.mockImplementation(filesBy([file(0, `${SHOW}/Season 02/${SHOW} S02E01.mkv`)]))
       const { open, rerender } = renderNames(BB, { [season2.hash]: season2 })

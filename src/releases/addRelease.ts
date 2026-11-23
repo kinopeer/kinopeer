@@ -11,7 +11,7 @@ import {
   type TorrentFile,
 } from '../api/qbittorrent'
 import { folderTakenBy, torrentsIn, type FileRename } from '../torrents/mediaNames'
-import { filesTakenBy, namedPaths, titleNames } from '../torrents/seriesNames'
+import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
 import type { TorrentMeta } from '../torrents/torrentFile'
 
 export interface AddReleaseOptions {
@@ -95,17 +95,25 @@ function skippedIds(selection: FileSelection, files: TorrentFile[]): number[] {
  * The torrent among a show's folder's others (`torrentsIn`) with files where naming would put this
  * one's: the seasons of a show share its folder. One whose files can't be read is taken as one in the way.
  */
-async function filesTaken<T extends Torrent>(files: TorrentFile[], renames: FileRename[], others: T[]): Promise<T | undefined> {
-  const theirs = await Promise.all(others.map((torrent) => getTorrentFiles(torrent.hash).then((listed) => listed.map((file) => file.name), () => undefined)))
-  return filesTakenBy(namedPaths(files, renames), others.map((torrent, index) => ({ torrent, files: theirs[index] })))
+async function filesTaken<T extends Torrent>(own: Torrent, files: TorrentFile[], renames: FileRename[], others: T[]): Promise<T | undefined> {
+  const theirs = await Promise.all(
+    others.map((torrent) =>
+      getTorrentFiles(torrent.hash).then(
+        (listed) => listed.map((file) => placed(torrent.save_path, file.name)),
+        () => undefined,
+      ),
+    ),
+  )
+  const ours = namedPaths(files, renames).map((path) => placed(own.save_path, path))
+  return filesTakenBy(ours, others.map((torrent, index) => ({ torrent, files: theirs[index] })))
 }
 
 /**
  * Sends a release to qBittorrent. With files to skip or to name, it adds the torrent stopped, sets
- * those files to "do not download" and names the movie's files for a media server, then starts it
- * (unless it should stay paused), so nothing unwanted downloads in between and nothing downloads
- * under the release's names. A torrent whose files aren't named (`movieNames` says why) is added as
- * it is; when the renames fail it's started all the same and `MediaNamesError` says so.
+ * those files to "do not download" and names a movie's or a series' files for a media server, then
+ * starts it (unless it should stay paused), so nothing unwanted downloads in between and nothing
+ * downloads under the release's names. A torrent whose files aren't named (`titleNames` says why) is
+ * added as it is; when the renames fail it's started all the same and `MediaNamesError` says so.
  */
 export async function addRelease(
   source: ReleaseSource,
@@ -146,7 +154,7 @@ export async function addRelease(
         if (!own) throw new QbittorrentError('qBittorrent did not list the torrent', 404)
         const folder = names.folder.to
         const shared = options.mediaNames.type === 'tv'
-        const other = shared ? await filesTaken(listed, names.renames, torrentsIn(torrents, own, folder)) : folderTakenBy(torrents, own, folder)
+        const other = shared ? await filesTaken(own, listed, names.renames, torrentsIn(torrents, own, folder)) : folderTakenBy(torrents, own, folder)
         if (other) failure = new MediaNamesError(undefined, { name: other.name, folder, shared })
         else await renameFiles(hash, names.renames)
       }

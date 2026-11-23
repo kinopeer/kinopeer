@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { episodeName, episodeOf, filesTakenBy, seriesNames } from './seriesNames'
+import { episodeName, episodeOf, filesTakenBy, placed, seriesNames } from './seriesNames'
 
 const MB = 1024 ** 2
 const file = (name: string, size = 700 * MB) => ({ name, size })
@@ -22,6 +22,8 @@ describe('episodeOf', () => {
     expect(episodeOf('Show - 2x07 - Title.avi')).toEqual({ season: 2, first: 7, last: 7 })
     expect(episodeOf('Show.2x07-2x08.avi')).toEqual({ season: 2, first: 7, last: 8 })
     expect(episodeOf('Show.1920x1080.mkv')).toBeUndefined()
+    // A range across two seasons holds one episode of each: none is read.
+    expect(episodeOf('Show.2x07-3x08.avi')).toBeUndefined()
   })
 
   it('reads an episode marker with its season from a folder, its own name or the torrent’s name', () => {
@@ -34,7 +36,16 @@ describe('episodeOf', () => {
     expect(episodeOf('Show.S04.1080p-GRPA/Episode 3.mkv')).toEqual({ season: 4, first: 3, last: 3 })
     expect(episodeOf('Show S04 Episode 3.mkv')).toEqual({ season: 4, first: 3, last: 3 })
     expect(episodeOf('Episode 3.mkv', 'Show.S04.1080p-GRPA')).toEqual({ season: 4, first: 3, last: 3 })
+    // The torrent's name counts only for a video in no folder of the torrent's: a folder names its own.
+    expect(episodeOf('Show/Season 2/Show.S02E05.mkv', 'Show.Season.1.and.2.1080p')).toEqual({ season: 2, first: 5, last: 5 })
+    expect(episodeOf('Show/Season 2/E05.mkv', 'Show S01 S02 1080p')).toEqual({ season: 2, first: 5, last: 5 })
     expect(episodeOf('Show/S00/E01.mkv')).toEqual({ season: 0, first: 1, last: 1 })
+  })
+
+  it('reads no episode or season from codec and audio tokens, or from a title’s word that looks like a marker', () => {
+    expect(episodeOf('Show.S01E03.1080p.DDP5.1.E-AC3.H.264.HDR10.AAC2.0.x265-GRPA.mkv')).toEqual({ season: 1, first: 3, last: 3 })
+    expect(episodeOf('Show/Season 1/Episode 3.DDP5.1.E-AC3.H.264.HDR10.AAC2.0.x265.mkv')).toEqual({ season: 1, first: 3, last: 3 })
+    expect(episodeOf('Formula E 2/Season 1/Episode 3.mkv')).toEqual({ season: 1, first: 3, last: 3 })
   })
 
   it('takes neither end of a season range for a season', () => {
@@ -114,6 +125,10 @@ describe('seriesNames', () => {
     })
   })
 
+  it('names a show whose title is made only of what a name can’t take “Show”', () => {
+    expect(seriesNames([file('a.S01E01.mkv')], '???', 2008)).toMatchObject({ folder: { to: 'Show (2008)' } })
+  })
+
   it('names nothing again once named', () => {
     const named = seriesNames([file(`${release}/a.S01E01.mkv`), file(`${release}/a.S01E01.en.srt`, 1), file(`${release}/notes.txt`, 1)], 'Breaking Bad', 2008)
     const again = seriesNames(
@@ -185,6 +200,30 @@ describe('seriesNames', () => {
     expect(named.named && named.renames).toContainEqual({ from: `${release}/a.S01E02.mkv`, to: `${SHOW}/Season 01/a.S01E02.mkv` })
   })
 
+  it('names the files of a pack by their paths below its folder, which tell seasons apart', () => {
+    const pack = 'Breaking.Bad.S01-S02.1080p-GRPA'
+    const named = seriesNames([file(`${pack}/Season 1/Episode 1.mkv`), file(`${pack}/Season 2/Episode 1.mkv`)], 'Breaking Bad', 2008)
+    expect(named.named && named.files).toEqual([
+      { from: 'Season 1/Episode 1.mkv', to: `Season 01/${SHOW} S01E01.mkv` },
+      { from: 'Season 2/Episode 1.mkv', to: `Season 02/${SHOW} S02E01.mkv` },
+    ])
+  })
+
+  it('leaves where they are the files naming would put in one place, and names the rest', () => {
+    const pack = 'Pack.S01'
+    const files = [file(`${pack}/Season 1/E01.mkv`), file(`${pack}/Season 1/poster.jpg`, 1), file(`${pack}/poster.JPG`, 1)]
+    const named = seriesNames(files, 'Breaking Bad', 2008)
+    expect(named.named && named.renames).toEqual([{ from: files[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
+    // A file left where it is may be where another one would go: that one stays too.
+    const shown = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/poster.jpg`, 1)]
+    const again = seriesNames(shown, 'Breaking Bad', 2008)
+    expect(again.named && again.renames).toEqual([{ from: shown[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
+    // Two files whose names differ only in case stay where they are, on a disk that tells them apart.
+    const cased = [file(`${SHOW}/Season 01/E01.mkv`), file(`${SHOW}/Season 01/poster.jpg`, 1), file(`${SHOW}/Season 01/Poster.jpg`, 1)]
+    const both = seriesNames(cased, 'Breaking Bad', 2008)
+    expect(both.named && both.renames).toEqual([{ from: cased[0].name, to: `${SHOW}/Season 01/${SHOW} S01E01.mkv` }])
+  })
+
   it('names an episode qBittorrent put in no folder, by the torrent’s name, and a single episode', () => {
     expect(seriesNames([file('Episode 3.mkv')], 'Breaking Bad', 2008, 'Breaking.Bad.S04.1080p-GRPA')).toEqual({
       named: true,
@@ -210,6 +249,20 @@ describe('seriesNames', () => {
     expect(seriesNames([file('A/Sample/a.S01E01.mkv')], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'no-episodes' })
     expect(seriesNames([file('A/S01/BDMV/STREAM/00001.m2ts')], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'disc' })
     expect(seriesNames([file('A/S01/BDMV/STREAM/00001.m2ts'), file('A/S01E02.mkv'), file('A/info.nfo', 1)], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'disc' })
+  })
+})
+
+describe('placed', () => {
+  it('puts a file under its torrent’s save path, with "/" between folders', () => {
+    expect(placed('/tv', 'Show/a.mkv')).toBe('/tv/Show/a.mkv')
+    expect(placed('/tv//', 'a.mkv')).toBe('/tv/a.mkv')
+    expect(placed('D:\\TV\\', 'Show/a.mkv')).toBe('D:/TV/Show/a.mkv')
+  })
+
+  it('lines up the files of torrents saved apart, so another one in the show’s folder is found', () => {
+    const ours = [`${SHOW}/Season 02/${SHOW} S02E01.mkv`].map((path) => placed('/tv', path))
+    const theirs = [`${SHOW} S02E01.mkv`].map((path) => placed(`/tv/${SHOW}/Season 02`, path))
+    expect(filesTakenBy(ours, [{ torrent: 'a', files: theirs }])).toBe('a')
   })
 })
 
