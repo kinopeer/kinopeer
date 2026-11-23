@@ -489,7 +489,11 @@ describe('useMediaNames', () => {
       getTorrentFiles.mockImplementation((hash) => (hash === season2.hash ? Promise.resolve(own) : Promise.resolve([file(0, `${folder}/Season 02/${SHOW} S02E01.mkv`)])))
       const { open } = renderNames(BB, { [season2.hash]: season2, [other.hash]: other })
       const sheet = await open(season2.hash)
-      expect(await within(sheet).findByRole('status', { name: saying(new RegExp(`is in the folder “${SHOW.replace(/[()]/g, '\\$&')} \\{tmdb-1396\\}”`)) })).toBeInTheDocument()
+      expect(
+        await within(sheet).findByRole('status', {
+          name: saying(`Another torrent, “${folder}”, is in the folder “${folder}”, and its files may be where naming would put this one’s.`),
+        }),
+      ).toBeInTheDocument()
     })
 
     it.each([
