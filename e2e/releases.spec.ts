@@ -119,6 +119,15 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('filters-dark-ru.png')
   })
 
+  // Counts under a minimum of seeds, with a value that would leave none dimmed (#583).
+  test('filters sheet, a value that would leave none', async ({ page }) => {
+    await openReleases(page)
+    await page.getByRole('button', { name: /^Фильтры/ }).click()
+    await page.getByRole('button', { name: /^100\+ \d+$/ }).click()
+    await expect(page.getByRole('button', { name: '720p 0' })).toBeVisible()
+    await expect(page).toHaveScreenshot('filters-dim-dark-ru.png')
+  })
+
   test('adding a release, then picking its files', async ({ page }) => {
     await openReleases(page)
     await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()

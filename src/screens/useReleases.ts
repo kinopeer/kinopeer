@@ -14,6 +14,7 @@ import {
   NO_REMEMBERED_FILTERS,
   RELEASES_USUALLY_DESCENDING,
   SORT_KEYS,
+  filterCounts,
   filterReleases,
   presentValues,
   remember,
@@ -21,6 +22,7 @@ import {
   startingFilters,
   toggle,
   type AudioFilter,
+  type FilterCounts,
   type Filters,
   type PresentValues,
   type ReleaseRow,
@@ -93,6 +95,8 @@ export interface Releases {
   /** The releases the filters let through, sorted. */
   visible: ReleaseRow[]
   present: PresentValues
+  /** How many releases each filter value would leave, the other filters as they are (#583). */
+  counts: FilterCounts
   filters: Filters
   updateFilters: (change: Partial<Filters>) => void
   clearFilters: () => void
@@ -215,6 +219,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   // The starting filters are worked out only until the first pick, which every later pick builds on.
   const filters = useMemo(() => own ?? startingFilters(remembered, rows, present), [own, remembered, rows, present])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
+  const counts = useMemo(() => filterCounts(rows, filters), [rows, filters])
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
   // Resolutions and sources show as named; Not stated says which filter, as AUDIO_LABEL.none does.
@@ -281,6 +286,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     rows,
     visible,
     present,
+    counts,
     filters,
     updateFilters: (change) => {
       setPicked({ key: title, filters: { ...filters, ...change } })
