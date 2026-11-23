@@ -57,6 +57,9 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
   const valid = download !== null && upload !== null
   const invalid = t('limits.invalid', { min: MIN_MB.toLocaleString(language), max: MAX_MB })
 
+  // The torrent's own limits as qBittorrent has them now, not as the fields read.
+  const limited = torrent.dl_limit > 0 || torrent.up_limit > 0
+
   const save = (event: FormEvent) => {
     event.preventDefault()
     if (!valid || offline || saving) return
@@ -102,6 +105,11 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
             error={limits[direction] === null && !isUnfinished(text[direction]) ? invalid : false}
           />
         ))}
+        {limited && !saving && (
+          <Button type="button" variant="secondary" block disabled={offline} onClick={() => onSave({ download: 0, upload: 0 })}>
+            {t('limits.remove')}
+          </Button>
+        )}
         {failure && <Banner tone="error">{t('limits.failed')}</Banner>}
       </form>
     </Sheet>

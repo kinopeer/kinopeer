@@ -124,4 +124,41 @@ describe('SpeedLimitsSheet', () => {
     expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
+
+  describe('Remove limits', () => {
+    it.each([
+      ['a download limit', { dl_limit: 2_000_000 }],
+      ['an upload limit', { up_limit: 500_000 }],
+    ])('is offered for a torrent with %s of its own, and sends both limits as none at once', async (_, fields) => {
+      const handlers = renderSheet(fields)
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(handlers.onSave).toHaveBeenCalledExactlyOnceWith({ download: 0, upload: 0 })
+      expect(handlers.onClose).not.toHaveBeenCalled()
+    })
+
+    it('isn’t offered for a torrent with no limit of its own, even with a limit typed', async () => {
+      renderSheet({ dl_limit: 0, up_limit: -1 })
+      await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
+      expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
+    })
+
+    it('is off while qBittorrent is unreachable, as Save is', async () => {
+      const handlers = renderSheet({ dl_limit: 2_000_000 }, { offline: true })
+      expect(screen.getByRole('button', { name: 'Remove limits' })).toBeDisabled()
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(handlers.onSave).not.toHaveBeenCalled()
+    })
+
+    it('isn’t offered while a save is in flight, which shows busy on Save', () => {
+      renderSheet({ dl_limit: 2_000_000 }, { pending: { download: 0, upload: 0 } })
+      expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    })
+
+    it('is offered again after a failed save, beside what the failure says', () => {
+      renderSheet({ dl_limit: 2_000_000 }, { failure: { download: 0, upload: 0 } })
+      expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove limits' })).toBeEnabled()
+    })
+  })
 })
