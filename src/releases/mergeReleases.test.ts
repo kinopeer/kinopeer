@@ -32,6 +32,13 @@ describe('mergeReleases', () => {
     expect(mergeReleases([[bare], [sameBare, otherBare]])).toEqual([bare, otherBare])
   })
 
+  it('keeps a search’s own list as it is, releases that read as the same included', () => {
+    const a = release('a', { download: 'same' })
+    const b = release('b', { download: 'same' })
+    expect(mergeReleases([[a, b]])).toEqual([a, b])
+    expect(mergeReleases([[a, b], [release('c', { download: 'same' })]])).toEqual([a, b])
+  })
+
   it('keeps two releases with the same download link but different hashes', () => {
     const a = release('a', { infoHash: 'aa', download: 'same' })
     const b = release('b', { infoHash: 'bb', download: 'same' })
