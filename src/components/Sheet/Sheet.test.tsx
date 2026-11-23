@@ -57,6 +57,21 @@ describe('Sheet', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
+  it.each([
+    ['on a phone', () => {}],
+    ['on desktop', stubDesktop],
+  ])('has one close button %s, in the title row after its own action, which closes it', async (_, layout) => {
+    layout()
+    const onClose = renderSheet({ action: <button type="button">Reset</button> })
+    const row = screen.getByRole('heading', { name: 'Add release' }).closest('.ks-sheet-head')
+    const close = screen.getByRole('button', { name: 'Close' })
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1)
+    expect(row?.lastElementChild).toBe(close)
+    expect(close.previousElementSibling).toBe(screen.getByRole('button', { name: 'Reset' }))
+    await userEvent.click(close)
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
   it('stays open when a dialog inside it is cancelled', () => {
     const onClose = vi.fn()
     render(

@@ -119,7 +119,7 @@ describe('ChangeTitleSheet', () => {
   it('closes from its close button', async () => {
     const { onClose } = renderSheet()
     const dialog = screen.getByRole('dialog')
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }))
     expect(onClose).toHaveBeenCalled()
   })
 })
