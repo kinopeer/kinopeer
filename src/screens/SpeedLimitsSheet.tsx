@@ -106,7 +106,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
           />
         ))}
         {limited && !saving && (
-          <Button type="button" variant="secondary" block disabled={offline} onClick={() => onSave({ download: 0, upload: 0 })}>
+          <Button variant="secondary" block disabled={offline} onClick={() => onSave({ download: 0, upload: 0 })}>
             {t('limits.remove')}
           </Button>
         )}
