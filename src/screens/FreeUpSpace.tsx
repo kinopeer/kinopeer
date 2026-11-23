@@ -66,14 +66,8 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
     torrents,
     titleOf: (torrent) => torrent.name,
     withFiles: true,
-    onDeleted: (deleted) => {
-      onFreed(countedSpace(deleted, defaultSavePath))
-      setSelected((current) => {
-        const next = new Set(current)
-        for (const torrent of deleted) next.delete(torrent.hash)
-        return next
-      })
-    },
+    // What's deleted leaves the list, so it leaves what's picked with it.
+    onDeleted: (deleted) => onFreed(countedSpace(deleted, defaultSavePath)),
   })
 
   if (!open) return deleting.element
@@ -106,8 +100,8 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
     </li>
   )
 
-  const loading = data === null && !offline
-  const none = data !== null && groups.counted.length === 0 && groups.elsewhere.length === 0
+  // Opened from the free space, which comes with the poll's answer: there are torrents to list by then.
+  const none = groups.counted.length + groups.elsewhere.length === 0
   const freeText =
     free === undefined
       ? undefined
@@ -155,12 +149,6 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
             <Banner tone="error" actionLabel={t('common.retry')} onAction={refresh}>
               {t('common.qbtFailed', { context: unreachableText(unreachable) })}
             </Banner>
-          )}
-          {loading && (
-            <div className="fu-loading" role="status">
-              <span className="ks-spin ca" />
-              <span className="c2">{t('downloads.loading')}</span>
-            </div>
           )}
           {none && <p className="t-body c2">{t('downloads.emptyTitle')}</p>}
           {groups.counted.length > 0 && <ul className="fu-list">{groups.counted.map(row)}</ul>}

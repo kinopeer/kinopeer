@@ -96,6 +96,7 @@ describe('groupForFreeUp', () => {
     const a = torrent('a', { name: 'Alpha 10', size: GB, progress: 1, save_path: '/downloads' })
     const b = torrent('b', { name: 'Alpha 9', size: GB, progress: 1, save_path: '/downloads' })
     expect(hashes(groupForFreeUp([a, b], '/downloads', DEFAULT_FREE_UP_ORDER).counted)).toEqual(['b', 'a'])
+    expect(hashes(groupForFreeUp([b, a], '/downloads', DEFAULT_FREE_UP_ORDER).counted)).toEqual(['b', 'a'])
   })
 
   it('puts everything elsewhere when the default save path isn’t known', () => {
