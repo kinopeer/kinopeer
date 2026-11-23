@@ -102,6 +102,8 @@ describe('readTorrentFile', () => {
     expect(single.multiFile).toBe(false)
     const folder = await readTorrentFile(encode({ info: { name: 'Arrival', 'meta version': 2, 'piece length': 16384, 'file tree': { Subs: { 'ru.srt': { '': { length: 3 } } } } } }))
     expect(folder.multiFile).toBe(true)
+    const files = await readTorrentFile(encode({ info: { name: 'Arrival', 'meta version': 2, 'piece length': 16384, 'file tree': { 'Arrival.mkv': { '': { length: 300 } }, 'Arrival.srt': { '': { length: 3 } } } } }))
+    expect(files.multiFile).toBe(true)
   })
 
   it('reads a v2-only torrent and truncates its SHA-256 hash', async () => {
