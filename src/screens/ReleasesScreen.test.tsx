@@ -296,6 +296,7 @@ describe('ReleasesScreen', () => {
     expect(screen.getByRole('button', { name: 'Remove filter Indexer D' })).toBeInTheDocument()
   })
 
+  // The counting rules are `filterReleases.test.ts`'s and the `dim` class `FilterChip.test.tsx`'s; this checks which counts and which `dim` the sheet gives each group's chips.
   it('shows how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
@@ -316,7 +317,6 @@ describe('ReleasesScreen', () => {
     // Still a choice: it leaves nothing, as it says.
     await userEvent.click(sheet.getByRole('button', { name: '720p 0' }))
     expect(sheet.getByRole('button', { name: 'Show 0' })).toBeInTheDocument()
-    expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
     // is-dim is what dims the chip; no role or attribute says it.
     expect(sheet.getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
     expect(sheet.getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
@@ -509,13 +509,11 @@ describe('ReleasesScreen', () => {
     expect(searchReleases).not.toHaveBeenCalled()
   })
 
-  it('explains a missing TMDB key and sends the user to enter it in Settings', async () => {
+  // The state's texts and its Enter key button are `TmdbFailedState.test.tsx`'s; this checks the screen shows it for a title that fails with no key.
+  it('shows the missing TMDB key’s state instead of the releases', async () => {
     getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-    expect(screen.getByText(/Search needs a TMDB key/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
-    expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
   })
 
   it('explains a missing Prowlarr setup', async () => {

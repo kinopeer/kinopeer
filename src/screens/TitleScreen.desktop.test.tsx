@@ -271,6 +271,7 @@ describe('TitleScreen on desktop', () => {
     expect(screen.getByRole('searchbox', { name: 'Search query' })).toHaveValue('Dune 2')
   })
 
+  // The counting rules are `filterReleases.test.ts`'s and the `dim` class `FilterChip.test.tsx`'s; this checks which counts and which `dim` the popovers give each group's chips.
   it('shows in the popovers how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
@@ -301,8 +302,6 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Indexer' }))
     const indexers = screen.getByRole('group', { name: 'Indexer' })
     expect(within(indexers).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C 1', 'Indexer D 0'])
-    // is-dim is what dims the chip; no role or attribute says it.
-    expect(within(indexers).getByRole('button', { name: 'Indexer D 0' })).toHaveClass('is-dim')
     await userEvent.click(within(indexers).getByRole('button', { name: 'Indexer C 1' }))
     expect(within(indexers).getByRole('button', { name: 'Indexer C 1' })).toHaveAttribute('aria-pressed', 'true')
 

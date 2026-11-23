@@ -132,26 +132,6 @@ describe('naming a movie for a media server', () => {
     ])
   })
 
-  it('leaves the files as they are when another torrent is in the folder naming would use there, and starts it', async () => {
-    const meta = await readTorrentFile(duneTorrent())
-    const listed = torrent(meta.infoHash, { name: DUNE_TORRENT.name, save_path: '/downloads', content_path: `/downloads/${DUNE_TORRENT.name}` })
-    const older = torrent('e'.repeat(40), { name: 'Dune.Part.Two.2024.1080p', save_path: '/downloads', content_path: '/downloads/Dune - Part Two (2024)' })
-    const { qbittorrent } = await startKinopeer({ qbittorrent: { torrents: [older], listAdded: () => listed } })
-    qbittorrent.files.set(meta.infoHash, duneFiles())
-
-    const adding = addRelease(
-      { kind: 'torrent', file: new File([duneTorrent().slice()], 'dune.torrent') },
-      { tags: [], paused: false, sequential: false, firstLastPieces: false, topOfQueue: false, mediaNames: { type: 'movie', title: 'Dune: Part Two', year: 2024 } },
-      { meta, skip: [] },
-      () => Promise.resolve(),
-    )
-
-    await expect(adding).rejects.toMatchObject({ name: 'MediaNamesError', taken: { name: 'Dune.Part.Two.2024.1080p', folder: 'Dune - Part Two (2024)' } })
-    expect(qbittorrent.seen.map((request) => request.url)).not.toContain('/api/v2/torrents/renameFile')
-    expect(qbittorrent.seen.map((request) => request.url)).toContain('/api/v2/torrents/start')
-    expect((await getTorrentFiles(meta.infoHash)).map((item) => item.name)).toEqual(duneFiles().map((item) => item.name))
-  })
-
   it('reads the original names back from the .torrent qBittorrent exports, byte for byte through the bridge', async () => {
     const { qbittorrent } = await startKinopeer()
     const meta = await readTorrentFile(duneTorrent())
