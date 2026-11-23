@@ -89,6 +89,41 @@ export function filterReleases(rows: ReleaseRow[], filters: Filters, sort: Sort)
     .sort((a, b) => (sortValue(a, sort.key) - sortValue(b, sort.key)) * direction)
 }
 
+/** How many releases each filter value would leave (`filterCounts`), by value; a value none has is 0. */
+export interface FilterCounts {
+  resolution: Partial<Record<ResolutionFilter, number>>
+  audio: Partial<Record<AudioFilter, number>>
+  source: Partial<Record<SourceFilter, number>>
+  indexer: Partial<Record<string, number>>
+  minSeeds: Partial<Record<number, number>>
+}
+
+/**
+ * Faceted counts: for each value of a filter, how many releases the list would show with that value
+ * picked alone in its filter, the other filters as they are, by the rules `matchesFilters` applies
+ * (Not stated included). So a value's count doesn't depend on what else is picked in its own filter,
+ * only on the others; `filters` are the ones the search applies, so the remembered ones set aside
+ * count for nothing.
+ */
+export function filterCounts(rows: ReleaseRow[], filters: Filters): FilterCounts {
+  const tally = <T extends string | number>(key: keyof Filters, valueOf: (row: ReleaseRow) => T[]) => {
+    const counts: Partial<Record<T, number>> = {}
+    const others = { ...filters, [key]: NO_FILTERS[key] }
+    for (const row of rows) {
+      if (!matchesFilters(row, others)) continue
+      for (const value of valueOf(row)) counts[value] = (counts[value] ?? 0) + 1
+    }
+    return counts
+  }
+  return {
+    resolution: tally('resolution', (row) => [resolutionOf(row.info)]),
+    audio: tally('audio', (row) => AUDIO.filter((audio) => hasAudio(row.info, audio))),
+    source: tally('source', (row) => [sourceOf(row.info)]),
+    indexer: tally('indexer', (row) => [row.release.indexer]),
+    minSeeds: tally('minSeeds', (row) => MIN_SEEDS.filter((min) => (row.release.seeders ?? 0) >= min)),
+  }
+}
+
 /** Which filter values to offer: only those the results have. */
 export function presentValues(rows: ReleaseRow[]): PresentValues {
   return {

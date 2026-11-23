@@ -3,6 +3,8 @@ import type { Release } from '../api/prowlarr'
 import {
   DEFAULT_SORT,
   NO_FILTERS,
+  NO_REMEMBERED_FILTERS,
+  filterCounts,
   filterReleases,
   knownReleaseFilters,
   knownReleaseSort,
@@ -235,5 +237,57 @@ describe('summary and toggle', () => {
   it('adds or removes a value', () => {
     expect(toggle(['a'], 'b')).toEqual(['a', 'b'])
     expect(toggle(['a', 'b'], 'a')).toEqual(['b'])
+  })
+})
+
+describe('filterCounts', () => {
+  const COUNTED = [
+    row('remux', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HEVC-GRPA', 78e9, 214, 'Indexer D'),
+    row('web', 'Дюна: Часть вторая Dune: Part Two 2024 DUB, MVO, Sub WEBDL 1080p', 9.4e9, 2451, 'Indexer C'),
+    row('rip', 'Dune.Part.Two.2024.720p.BluRay.x264-GRPE', 4.7e9, 12, 'Indexer C'),
+    row('bare', 'Дюна 2 / Dune: Part Two (2024)', 3e9, 50, 'Indexer D'),
+  ]
+
+  it('counts each value’s releases, a release with two voice-overs in both', () => {
+    expect(filterCounts(COUNTED, NO_FILTERS)).toEqual({
+      resolution: { '2160p': 1, '1080p': 1, '720p': 1, none: 1 },
+      source: { REMUX: 1, 'WEB-DL': 1, BluRay: 1, none: 1 },
+      audio: { dub: 1, mvo: 1, subs: 1, none: 3 },
+      indexer: { 'Indexer C': 2, 'Indexer D': 2 },
+      minSeeds: { 0: 4, 10: 4, 50: 3, 100: 2 },
+    })
+  })
+
+  it('counts a filter’s values under the other filters, whatever is picked in its own', () => {
+    const counts = filterCounts(COUNTED, { ...NO_FILTERS, resolution: ['1080p'], indexer: ['Indexer C'] })
+    // The resolution's under Indexer C alone, 720p too though 1080p is picked; the indexer's under 1080p alone.
+    expect(counts.resolution).toEqual({ '1080p': 1, '720p': 1 })
+    expect(counts.indexer).toEqual({ 'Indexer C': 1 })
+    expect(counts.source).toEqual({ 'WEB-DL': 1 })
+    expect(counts.minSeeds).toEqual({ 0: 1, 10: 1, 50: 1, 100: 1 })
+  })
+
+  it('counts under Not stated as the filters apply it', () => {
+    const counts = filterCounts(COUNTED, { ...NO_FILTERS, resolution: ['none'], audio: ['none'] })
+    expect(counts.source).toEqual({ none: 1 })
+    expect(counts.resolution).toEqual({ '2160p': 1, '720p': 1, none: 1 })
+  })
+
+  it('counts under a minimum of seeds, and each minimum under the other filters alone', () => {
+    const counts = filterCounts(COUNTED, { ...NO_FILTERS, minSeeds: 100, source: ['BluRay'] })
+    // The one BluRay release has 12 seeds: no resolution leaves any with 100+.
+    expect(counts.resolution).toEqual({})
+    expect(counts.source).toEqual({ REMUX: 1, 'WEB-DL': 1 })
+    expect(counts.minSeeds).toEqual({ 0: 1, 10: 1 })
+  })
+
+  it('counts nothing for a remembered filter the search set aside', () => {
+    const remembered: RememberedFilters = { ...NO_REMEMBERED_FILTERS, resolution: ['SD'], source: ['HDTV'] }
+    const filters = startingFilters(remembered, COUNTED, presentValues(COUNTED))
+    expect(filterCounts(COUNTED, filters)).toEqual(filterCounts(COUNTED, NO_FILTERS))
+  })
+
+  it('counts nothing without releases', () => {
+    expect(filterCounts([], NO_FILTERS)).toEqual({ resolution: {}, source: {}, audio: {}, indexer: {}, minSeeds: {} })
   })
 })
