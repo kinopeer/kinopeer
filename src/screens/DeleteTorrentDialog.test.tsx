@@ -37,6 +37,15 @@ describe('DeleteTorrentDialog', () => {
     expect(onConfirm).toHaveBeenCalledWith(false)
   })
 
+  it('says the files go, rather than asking, where they always do', async () => {
+    const { dialog, onConfirm, confirm } = renderDialog({ withFiles: true })
+    expect(within(dialog).queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/^Files are deleted too · 8\.40\sGB$/)).toBeInTheDocument()
+    expect(within(dialog).getByText('Files are removed from disk permanently.')).toBeInTheDocument()
+    await confirm()
+    expect(onConfirm).toHaveBeenCalledWith(true)
+  })
+
   it('deletes the files too when the box is checked, after a warning', async () => {
     const { onConfirm, confirm } = renderDialog()
     const files = screen.getByRole('checkbox', { name: /Also delete files/ })
