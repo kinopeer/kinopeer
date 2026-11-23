@@ -2,7 +2,9 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
-## Unreleased
+## 1.3.0 - 2026-11-24
+
+Kinopeer installs as qBittorrent's Alternative WebUI, with no Docker and no server of its own: qBittorrent serves it at its own address. It names a movie's or a series' files for a media server such as Jellyfin, frees up space from the add sheet when a download doesn't fit, and its releases can be searched by an edited query, by a title's English name too, with each filter showing how many releases it would leave.
 
 ### Added
 
@@ -18,6 +20,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
+- Kinopeer is in Unraid's Community Applications: install it from the Apps tab by searching for Kinopeer. The README's Unraid section no longer adds the template by hand. ([#512](https://github.com/kinopeer/kinopeer/issues/512))
 - Every sheet has the same close button at the end of its title row, on a phone and on desktop: Speed limits, the torrent's More menu on a phone, the releases' filters, the file picker, Prowlarr's setup, the install sheet and Settings' sheets had none, the others called it Cancel or Close, and the sort sheet's Done, which only closed it, gives way to it. Move files and Fix match open on their field, as the other form sheets do. ([#578](https://github.com/kinopeer/kinopeer/issues/578))
 - In Settings, saving qBittorrent's folders, setting up Telegram notifications, changing qBittorrent's or Prowlarr's address, login or key, and turning push notifications on or off or testing them go on when the sheet is closed or Settings is left: the sheet or card shown again shows the request on its way, and a toast says how it went, the failure included, which Telegram's, the connections' and push's used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))
 
