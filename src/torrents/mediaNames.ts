@@ -49,7 +49,11 @@ const SAMPLE = /(^|[^a-z0-9])sample([^a-z0-9]|$)/i
 /** Another video at least this part of the main one's size is a part or a version of the movie, not an extra. */
 const SECOND_VIDEO_SHARE = 0.25
 
-const extension = (name: string) => {
+const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
+
+/** A file's type, from its own name: none for a name with no dot, or with one only in front (`.mkv`). */
+const extension = (path: string) => {
+  const name = base(path)
   const dot = name.lastIndexOf('.')
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : ''
 }
@@ -80,14 +84,13 @@ export function movieName(title: string, year?: number): string {
 }
 
 const parent = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0))
-const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const stem = (name: string) => (extension(name) ? name.slice(0, name.lastIndexOf('.')) : name)
 
 /** The folder every file is in, when they share one: the torrent's own folder as qBittorrent lays it out. */
-function rootFolder(files: readonly NamedFile[]): string | undefined {
-  const first = files[0]?.name.split('/')
-  if (!first || first.length < 2) return undefined
-  return files.every((file) => file.name.startsWith(`${first[0]}/`)) ? first[0] : undefined
+function rootFolder(files: readonly NamedFile[], main: NamedFile): string | undefined {
+  // The main video is among them, so a folder they all share is its first one.
+  const first = main.name.split('/')[0]
+  return files.every((file) => file.name.startsWith(`${first}/`)) ? first : undefined
 }
 
 /**
@@ -102,7 +105,7 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
   const name = movieName(title, year)
-  const root = rootFolder(files)
+  const root = rootFolder(files, main)
   const mainFolder = parent(main.name)
   const mainStem = stem(base(main.name))
   const renames: FileRename[] = []

@@ -391,6 +391,11 @@ describe('TorrentActionsSheet on a phone', () => {
     expect(names).toHaveAccessibleDescription('Once the magnet link has its metadata')
   })
 
+  it('needs qBittorrent to name files for a media server on a phone too', () => {
+    renderActions({ offline: true, onMediaNames: vi.fn() })
+    expect(screen.getByRole('button', { name: 'Name for a media server' })).toBeDisabled()
+  })
+
   it('needs qBittorrent to move files on a phone too', () => {
     renderActions({ offline: true })
     expect(screen.getByRole('button', { name: 'Move files…' })).toBeDisabled()

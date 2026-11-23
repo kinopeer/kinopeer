@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
@@ -80,6 +80,10 @@ describe('useMediaNames', () => {
     const { open } = renderNames()
     const sheet = await open()
     const folder = await within(sheet).findByRole('region', { name: 'Folder' })
+    expect(within(sheet).queryByText('Couldn’t reach qBittorrent. Try again.')).not.toBeInTheDocument()
+    // Naming, not the way back: no Back, and the original names were read.
+    expect(within(sheet).queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+    expect(within(sheet).queryByText(/can’t be restored/)).not.toBeInTheDocument()
     expect(folder).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     const files = within(within(sheet).getByRole('region', { name: 'Files' })).getAllByRole('listitem')
     expect(files.map((item) => item.textContent)).toEqual([
@@ -112,6 +116,10 @@ describe('useMediaNames', () => {
 
     await userEvent.click(within(sheet).getByRole('button', { name: 'Restore original names' }))
     const restore = screen.getByRole('dialog', { name: 'Restore original names' })
+    // The way back alone: no preview of naming, no way to it but Back.
+    expect(within(restore).queryByRole('region', { name: 'Folder' })).not.toBeInTheDocument()
+    expect(within(restore).queryByRole('status', { name: saying('The files are named for a media server already') })).not.toBeInTheDocument()
+    expect(within(restore).queryByRole('button', { name: 'Restore original names' })).not.toBeInTheDocument()
     expect(within(restore).getAllByRole('listitem').map((item) => item.textContent)).toContain(`${NAMED}/${NAMED}.mkvbecomes ${RELEASE}/${RELEASE}.mkv`)
     await userEvent.click(within(restore).getByRole('button', { name: 'Restore' }))
     expect(renameFiles).toHaveBeenCalledWith(DUNE.hash, [
@@ -129,8 +137,31 @@ describe('useMediaNames', () => {
     const sheet = await open()
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Restore original names' }))
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
-    expect(screen.getByRole('dialog', { name: 'Name for a media server' })).toBeInTheDocument()
+    const again = screen.getByRole('dialog', { name: 'Name for a media server' })
+    expect(within(again).getByRole('status', { name: saying('The files are named for a media server already') })).toBeInTheDocument()
+    expect(within(again).queryByRole('list')).not.toBeInTheDocument()
     expect(renameFiles).not.toHaveBeenCalled()
+  })
+
+  it('says it reads the files until qBittorrent answers, and offers nothing meanwhile', async () => {
+    let answer!: (files: TorrentFile[]) => void
+    getTorrentFiles.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { open } = renderNames()
+    const sheet = await open()
+    expect(within(sheet).getByText('Reading the files…')).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+    await act(async () => answer(duneFiles()))
+    expect(within(sheet).queryByText('Reading the files…')).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('button', { name: 'Rename' })).toBeInTheDocument()
+  })
+
+  it('shows the folder alone when the files are named already but their folder isn’t', async () => {
+    getTorrentFiles.mockResolvedValue([{ index: 0, name: `${RELEASE}/${NAMED}.mkv`, size: 18e9, progress: 1, priority: 1 }])
+    exportTorrent.mockRejectedValue(new Error('no metadata'))
+    const { open } = renderNames()
+    const sheet = await open()
+    expect(await within(sheet).findByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
+    expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument()
   })
 
   it('says why the files aren’t named, and renames nothing', async () => {

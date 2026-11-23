@@ -127,6 +127,33 @@ describe('movieNames', () => {
     expect(movieNames([file('A/VIDEO_TS/VTS_01_1.VOB', 1 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'disc' })
   })
 
+  it('takes the largest video whatever order qBittorrent lists the files in', () => {
+    const named = movieNames([file('A/Extras/trailer.mkv', 1 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)
+    expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Arrival (2016).mkv' }])
+  })
+
+  it('takes a sample by the word in any folder or file name, a large one too', () => {
+    const named = movieNames([file('A/Sample/clip.mkv', 9 * GB), file('A/Arrival-sample.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)
+    expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Arrival (2016).mkv' }])
+    // Only the word: "Samples" and "Resample" are names of their own.
+    expect(movieNames([file('A/Resample.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
+  })
+
+  it('takes a file without a dot before its type, or with only one in front, for no video', () => {
+    expect(movieNames([file('A/mkv', 8 * GB), file('A/.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'no-video' })
+  })
+
+  it('reads a disc’s folder only by its whole name, and a disc with anything else beside it as a disc', () => {
+    expect(movieNames([file('A/BDMV/STREAM/00001.m2ts', 30 * GB), file('A/cover.jpg')], 'Arrival', 2016)).toEqual({ named: false, reason: 'disc' })
+    expect(movieNames([file('A/BDMVRip/movie.mkv', 8 * GB)], 'Arrival', 2016).named).toBe(true)
+    expect(movieNames([file('A/NoBDMV/movie.mkv', 8 * GB)], 'Arrival', 2016).named).toBe(true)
+  })
+
+  it('keeps each file’s whole path when the files aren’t all in one folder', () => {
+    const named = movieNames([file('A/movie.mkv', 8 * GB), file('B/cover.jpg')], 'Arrival', 2016)
+    expect(named).toMatchObject({ folder: { from: undefined }, renames: [{ to: 'Arrival (2016)/Arrival (2016).mkv' }, { from: 'B/cover.jpg', to: 'Arrival (2016)/B/cover.jpg' }] })
+  })
+
   it('reads video types in any case', () => {
     expect(movieNames([file('A/MOVIE.MKV', 8 * GB)], 'Arrival', 2016)).toMatchObject({ named: true, files: [{ to: 'Arrival (2016).mkv' }] })
   })

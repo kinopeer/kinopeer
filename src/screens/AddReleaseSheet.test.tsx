@@ -723,6 +723,8 @@ describe('AddReleaseSheet', () => {
 
     it('isn’t offered for a series', async () => {
       updateSettings({ mediaNames: true })
+      // Files a movie's naming would take, so only the title's type keeps them as they are.
+      readTorrentFile.mockResolvedValue(MOVIE_META)
       renderSheet()
       const sheet = await openOptions()
       expect(within(sheet).queryByRole('switch', { name: 'Name files for a media server' })).not.toBeInTheDocument()
@@ -741,6 +743,18 @@ describe('AddReleaseSheet', () => {
       expect(screen.getByRole('link', { name: 'Open details' })).toHaveAttribute('href', `/torrent/${MOVIE_META.infoHash}`)
       expect(screen.queryByRole('status', { name: saying('Already in downloads') })).not.toBeInTheDocument()
       expect(onAdded).not.toHaveBeenCalled()
+    })
+
+    it('says so too when qBittorrent doesn’t answer whether it has the torrent, with the form no longer busy', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue(MOVIE_META)
+      addRelease.mockRejectedValue(new adding.MediaNamesError(new qbt.QbittorrentError('The file already exists', 409)))
+      getTorrents.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('no answer'))
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+      expect(await screen.findByRole('alert', { name: saying('Added, but its files weren’t named. Name them from the torrent’s More menu.') })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /^Download/ })).not.toHaveAttribute('aria-busy', 'true')
+      expect(screen.getByRole('button', { name: /^Download/ })).toBeEnabled()
     })
   })
 

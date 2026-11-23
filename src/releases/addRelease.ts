@@ -101,7 +101,7 @@ export async function addRelease(
   const files = await filesOf(hash, wait)
   if (partial) await setFilePriority(hash, skippedIds(selection, files), 0)
   let failure: MediaNamesError | undefined
-  if (naming && options.mediaNames) {
+  if (options.mediaNames) {
     const names = movieNames(files, options.mediaNames.title, options.mediaNames.year)
     try {
       if (names.named) await renameFiles(hash, names.renames)
