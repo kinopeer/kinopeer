@@ -24,6 +24,7 @@ describe('episodeOf', () => {
     expect(episodeOf('Show.1920x1080.mkv')).toBeUndefined()
     // A range across two seasons holds one episode of each: none is read.
     expect(episodeOf('Show.2x07-3x08.avi')).toBeUndefined()
+    expect(episodeOf('Show.S02E07.2x07-3x08.avi')).toBeUndefined()
   })
 
   it('reads an episode marker with its season from a folder, its own name or the torrent’s name', () => {

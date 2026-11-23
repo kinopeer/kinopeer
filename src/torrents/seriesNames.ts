@@ -179,22 +179,15 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
     return { file, own, to: `${show}/${own ?? kept(file.name)}` }
   })
   // Files naming would put in one place (a file of the torrent's folder and one of its season folder
-  // of the same name, letters' case aside) stay where they are, and so does a file then in the way
-  // of one that stays: qBittorrent would refuse the second rename, or apply it over the first.
-  for (let moved = true; moved; ) {
-    moved = false
-    const count = new Map<string, number>()
-    for (const { to } of targets) count.set(to.toLowerCase(), (count.get(to.toLowerCase()) ?? 0) + 1)
-    for (const target of targets) {
-      if (count.get(target.to.toLowerCase())! < 2 || target.to === target.file.name) continue
-      Object.assign(target, { own: undefined, to: target.file.name })
-      moved = true
-    }
-  }
+  // of the same name, letters' case aside) stay where they are: qBittorrent would refuse the second
+  // rename, or apply it over the first. A file that stays is at a path naming gives no other file, so
+  // one pass is enough (a pass repeated until nothing moved named 200,000 generated torrents alike).
+  const count = new Map<string, number>()
+  for (const { to } of targets) count.set(to.toLowerCase(), (count.get(to.toLowerCase()) ?? 0) + 1)
   const renames: FileRename[] = []
   const named: { from: string; to: string }[] = []
   for (const { file, own, to } of targets) {
-    if (to === file.name) continue
+    if (to === file.name || count.get(to.toLowerCase())! > 1) continue
     renames.push({ from: file.name, to })
     if (own) named.push({ from: belowRoot(file.name, root), to: own })
   }
