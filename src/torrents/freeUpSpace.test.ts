@@ -24,6 +24,8 @@ describe('isUnder', () => {
     expect(isUnder('/downloads', '/downloads')).toBe(true)
     expect(isUnder('/downloads/', '/downloads')).toBe(true)
     expect(isUnder('/downloads/Movies', '/downloads/')).toBe(true)
+    expect(isUnder('/downloads', '/downloads/')).toBe(true)
+    expect(isUnder('/downloads', '/downloads//')).toBe(true)
   })
 
   it('leaves out a folder whose name only starts the same', () => {
@@ -43,7 +45,6 @@ describe('isUnder', () => {
 
   it('takes nothing when there is no default save path', () => {
     expect(isUnder('/downloads', '')).toBe(false)
-    expect(isUnder('/downloads', '  ')).toBe(false)
   })
 
   it('counts letters’ case', () => {

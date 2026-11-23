@@ -31,9 +31,9 @@ export function onDisk(torrent: Pick<Torrent, 'size' | 'progress'>): number {
   return Math.max(0, Math.round(torrent.size * torrent.progress))
 }
 
-/** A path as compared: Windows' separators as `/`, without a trailing one. */
+/** A path as compared: Windows' separators as `/`, without trailing ones but for the root's. */
 function normalized(path: string): string {
-  const slashed = path.trim().replace(/\\/g, '/')
+  const slashed = path.replace(/\\/g, '/')
   return slashed.length > 1 ? slashed.replace(/\/+$/, '') : slashed
 }
 

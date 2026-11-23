@@ -101,7 +101,7 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
   )
 
   // Opened from the free space, which comes with the poll's answer: there are torrents to list by then.
-  const none = groups.counted.length + groups.elsewhere.length === 0
+  const none = Object.keys(torrents ?? {}).length === 0
   const freeText =
     free === undefined
       ? undefined
@@ -127,7 +127,7 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
                     })
                   : t('freeUp.enough')}
               </span>
-              {freeText && <span className="t-cap ks-num c3">{freeText}</span>}
+              <span className="t-cap ks-num c3">{freeText}</span>
             </div>
             <Button variant="danger" block icon="trash" disabled={chosen.length === 0 || offline} onClick={() => deleting.open(chosen)}>
               {t('torrent.delete')}
