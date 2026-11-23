@@ -102,9 +102,10 @@ export function ReleasesScreen() {
             {name && <p className="t-cap c3 ks-trunc">{[name, year].filter(Boolean).join(' · ')}</p>}
           </div>
         </div>
-        {details.data && (
+        {/* There from the start, off until the title's details come, so the list doesn't move down as they do. */}
+        {!notFound && (
           <div className="rel-query-row">
-            <ReleaseQueryField releases={releases} />
+            <ReleaseQueryField releases={releases} disabled={!details.data} />
           </div>
         )}
         {/* The row is there from the start, a skeleton of it while the search runs, so the results

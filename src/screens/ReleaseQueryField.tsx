@@ -9,11 +9,17 @@ import type { Releases } from './useReleases'
  * by the text, and Reset brings the built query back. It searches only on submit, since a search asks
  * every indexer. Keyed by the query shown, so a new one, Reset's or another title's, replaces the text.
  */
-export function ReleaseQueryField({ releases }: { releases: Releases }) {
-  return <QueryForm key={releases.query} releases={releases} />
+export function ReleaseQueryField({ releases, disabled }: QueryFormProps) {
+  return <QueryForm key={releases.query} releases={releases} disabled={disabled} />
 }
 
-function QueryForm({ releases }: { releases: Releases }) {
+interface QueryFormProps {
+  releases: Releases
+  /** Off while there's no query yet: the title's details haven't come. */
+  disabled?: boolean
+}
+
+function QueryForm({ releases, disabled }: QueryFormProps) {
   const { t } = useTranslation()
   const [text, setText] = useState(releases.query)
 
@@ -33,6 +39,7 @@ function QueryForm({ releases }: { releases: Releases }) {
         type="search"
         aria-label={t('releases.query')}
         value={text}
+        disabled={disabled}
         onChange={(event) => setText(event.target.value)}
         enterKeyHint="search"
         autoComplete="off"

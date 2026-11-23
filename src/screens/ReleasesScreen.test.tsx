@@ -123,6 +123,18 @@ describe('ReleasesScreen, the search query (#582)', () => {
     expect(screen.queryByRole('button', { name: 'Reset query' })).not.toBeInTheDocument()
   })
 
+  it('keeps the field’s room, off, until the title’s details come, so the list doesn’t move', async () => {
+    let answer: (details: MovieDetails) => void = () => {}
+    getMovie.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderQueryAt('/title/movie/693134/releases')
+    expect(field()).toBeDisabled()
+    expect(field()).toHaveValue('')
+    act(() => answer(DUNE))
+    await screen.findByText('3 of 3 releases')
+    expect(field()).toBeEnabled()
+    expect(field()).toHaveValue('Dune Part Two 2024')
+  })
+
   it('searches by the query in the address, as after a reload', async () => {
     renderQueryAt('/title/movie/693134/releases?q=Dune%202')
     await screen.findByText('3 of 3 releases')
