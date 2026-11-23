@@ -98,12 +98,16 @@ export async function addRelease(
   if (!selection || !(partial || naming)) return
 
   const hash = selection.meta.infoHash
-  const files = await filesOf(hash, wait)
-  if (partial) await setFilePriority(hash, skippedIds(selection, files), 0)
+  let files: TorrentFile[] | undefined
+  if (partial) {
+    files = await filesOf(hash, wait)
+    await setFilePriority(hash, skippedIds(selection, files), 0)
+  }
   let failure: MediaNamesError | undefined
   if (options.mediaNames) {
-    const names = movieNames(files, options.mediaNames.title, options.mediaNames.year)
+    // Naming alone stopped a torrent that would have started at once: whatever fails here, it starts.
     try {
+      const names = movieNames(files ?? (await filesOf(hash, wait)), options.mediaNames.title, options.mediaNames.year)
       if (names.named) await renameFiles(hash, names.renames)
     } catch (error) {
       failure = new MediaNamesError(error)

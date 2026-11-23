@@ -745,7 +745,7 @@ describe('AddReleaseSheet', () => {
       expect(onAdded).not.toHaveBeenCalled()
     })
 
-    it('says so too when qBittorrent doesn’t answer whether it has the torrent, with the form no longer busy', async () => {
+    it('says so too when qBittorrent doesn’t answer whether it has the torrent, and offers no second Download', async () => {
       updateSettings({ mediaNames: true })
       readTorrentFile.mockResolvedValue(MOVIE_META)
       addRelease.mockRejectedValue(new adding.MediaNamesError(new qbt.QbittorrentError('The file already exists', 409)))
@@ -754,7 +754,10 @@ describe('AddReleaseSheet', () => {
       await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
       expect(await screen.findByRole('alert', { name: saying('Added, but its files weren’t named. Name them from the torrent’s More menu.') })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /^Download/ })).not.toHaveAttribute('aria-busy', 'true')
-      expect(screen.getByRole('button', { name: /^Download/ })).toBeEnabled()
+      // qBittorrent has the torrent: a second add would only be refused.
+      expect(screen.getByRole('button', { name: /^Download/ })).toBeDisabled()
+      expect(screen.queryByRole('button', { name: 'Options' })).not.toBeInTheDocument()
+      expect(addRelease).toHaveBeenCalledOnce()
     })
   })
 

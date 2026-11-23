@@ -5,10 +5,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { clearGuesses, saveMatches } from '../../src/api/matches/client.ts'
 import { fetchRelease, searchReleases } from '../../src/api/prowlarr/client.ts'
-import { UnauthorizedError, exportTorrent, getAppVersion, getTorrentFiles } from '../../src/api/qbittorrent/client.ts'
+import { UnauthorizedError, exportTorrent, getAppVersion, getTorrentFiles, renameFiles } from '../../src/api/qbittorrent/client.ts'
 import { saveQbittorrentLogin } from '../../src/api/settings/client.ts'
 import { addRelease } from '../../src/releases/addRelease.ts'
-import { DUNE_TORRENT, SHOGUN_FILES, duneFiles, duneTorrent, shogunTorrent, tmdbTag, torrentFiles } from '../../src/test/fixtures.ts'
+import { DUNE_TORRENT, SHOGUN_FILES, duneFiles, duneTorrent, shogunTorrent, tmdbTag, torrent, torrentFiles } from '../../src/test/fixtures.ts'
 import { originalNames } from '../../src/torrents/mediaNames.ts'
 import { readTorrentFile } from '../../src/torrents/torrentFile.ts'
 import { startKinopeer, stopKinopeer } from '../test/integration.ts'
@@ -133,13 +133,21 @@ describe('naming a movie for a media server', () => {
     const { qbittorrent } = await startKinopeer()
     const meta = await readTorrentFile(duneTorrent())
     qbittorrent.exports.set(meta.infoHash, duneTorrent())
-    qbittorrent.files.set(meta.infoHash, duneFiles().map((item) => ({ ...item, name: item.name.replace(DUNE_TORRENT.name, 'Renamed') })))
+    qbittorrent.files.set(meta.infoHash, duneFiles().map((item) => ({ ...item, name: item.name.replaceAll(DUNE_TORRENT.name, 'Renamed') })))
 
     const exported = new Uint8Array(await exportTorrent(meta.infoHash))
     expect(exported).toEqual(duneTorrent())
     const original = await readTorrentFile(exported)
     expect(original.infoHash).toBe(meta.infoHash)
     expect(originalNames(await getTorrentFiles(meta.infoHash), original)).toHaveLength(4)
+  })
+
+  it('passes on qBittorrent’s refusals for a torrent without metadata: no export and no renames', async () => {
+    const HASH = 'c'.repeat(40)
+    await startKinopeer({ qbittorrent: { torrents: [torrent(HASH)] } })
+    await expect(exportTorrent(HASH)).rejects.toMatchObject({ name: 'QbittorrentError', status: 409 })
+    await expect(renameFiles(HASH, [{ from: 'Movie.mkv', to: 'Movie (2020)/Movie (2020).mkv' }])).rejects.toMatchObject({ status: 409 })
+    await expect(exportTorrent('d'.repeat(40))).rejects.toMatchObject({ status: 404 })
   })
 })
 

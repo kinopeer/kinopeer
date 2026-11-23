@@ -40,11 +40,11 @@ export type MediaNames =
 
 const VIDEO = new Set(['avi', 'divx', 'flv', 'm2ts', 'm4v', 'mkv', 'mov', 'mp4', 'mpeg', 'mpg', 'ogm', 'ts', 'webm', 'wmv'])
 
-/** Folders of a disc's structure, which a player reads as a whole: renaming a file in it breaks it. */
-const DISC_FOLDER = /^(bdmv|video_ts)$/i
+/** A path through a folder of a disc's structure, which a player reads as a whole: renaming a file in it breaks it. */
+const DISC_FOLDER = /(^|\/)(bdmv|video_ts)\//i
 
-/** "sample" as a word of a folder's or a file's name. */
-const SAMPLE = /(^|[^a-z0-9])sample([^a-z0-9]|$)/i
+/** "sample" as a word of a video's path: something always follows it there, the type at least. */
+const SAMPLE = /(^|[^a-z0-9])sample[^a-z0-9]/i
 
 /** Another video at least this part of the main one's size is a part or a version of the movie, not an extra. */
 const SECOND_VIDEO_SHARE = 0.25
@@ -59,7 +59,6 @@ const extension = (path: string) => {
 }
 
 const isVideo = (path: string) => VIDEO.has(extension(path))
-const isSample = (path: string) => path.split('/').some((part) => SAMPLE.test(part))
 
 /**
  * Characters media servers or the file systems a library sits on (Windows, SMB shares) don't take in
@@ -71,9 +70,8 @@ function safeName(text: string): string {
       .replace(/\s*:\s+/g, ' - ')
       .replace(/[<>:"/\\|?*]/g, '')
       .replace(/\s+/g, ' ')
-      // Windows drops trailing dots and spaces from a name.
-      .replace(/[. ]+$/, '')
-      .trim()
+      // Windows drops trailing dots and spaces from a name, and a leading dot hides it on Linux.
+      .replace(/^[. ]+|[. ]+$/g, '')
   )
 }
 
@@ -87,25 +85,34 @@ const parent = (path: string) => path.slice(0, Math.max(path.lastIndexOf('/'), 0
 const stem = (name: string) => (extension(name) ? name.slice(0, name.lastIndexOf('.')) : name)
 
 /** The folder every file is in, when they share one: the torrent's own folder as qBittorrent lays it out. */
-function rootFolder(files: readonly NamedFile[], main: NamedFile): string | undefined {
-  // The main video is among them, so a folder they all share is its first one.
-  const first = main.name.split('/')[0]
-  return files.every((file) => file.name.startsWith(`${first}/`)) ? first : undefined
+function rootFolder(paths: readonly string[]): string | undefined {
+  const first = paths[0]?.split('/')[0]
+  return first !== undefined && paths.every((path) => path.startsWith(`${first}/`)) ? first : undefined
 }
+
+/** A path below the torrent's folder, or the whole path when it has none. */
+const belowRoot = (path: string, root: string | undefined) => (root !== undefined && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path)
+
+/**
+ * "sample" as a word of a folder's or a file's name below the torrent's folder, beside the release's
+ * name, which is that folder's: a release named "Free.Sample.2012" has samples named
+ * "Free.Sample.2012-sample.mkv", and its movie is "Free.Sample.2012.mkv".
+ */
+const isSample = (path: string, root: string | undefined) => SAMPLE.test(root ? path.replaceAll(root, '') : path)
 
 /**
  * The renames that name a movie's files for a media server, from the torrent's files as qBittorrent
  * lists them (its content layout decides whether they're in a folder), or why they aren't named.
  */
 export function movieNames(files: readonly NamedFile[], title: string, year?: number): MediaNames {
-  if (files.some((file) => file.name.split('/').some((part) => DISC_FOLDER.test(part)))) return { named: false, reason: 'disc' }
-  const videos = files.filter((file) => isVideo(file.name) && !isSample(file.name)).sort((a, b) => b.size - a.size)
+  if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
+  const root = rootFolder(files.map((file) => file.name))
+  const videos = files.filter((file) => isVideo(file.name) && !isSample(file.name, root)).sort((a, b) => b.size - a.size)
   const [main, second] = videos
   if (!main) return { named: false, reason: 'no-video' }
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
   const name = movieName(title, year)
-  const root = rootFolder(files, main)
   const mainFolder = parent(main.name)
   const mainStem = stem(base(main.name))
   const renames: FileRename[] = []
@@ -118,7 +125,7 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
       // A file named after the video, which the media server takes as its own: subtitles, audio, its .nfo.
       to = `${name}/${name}${base(file.name).slice(mainStem.length)}`
     } else {
-      to = `${name}/${root ? file.name.slice(root.length + 1) : file.name}`
+      to = `${name}/${belowRoot(file.name, root)}`
     }
     if (to !== file.name) renames.push({ from: file.name, to })
     if (base(to) !== base(file.name)) named.push({ from: base(file.name), to: base(to) })
@@ -129,19 +136,26 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
 /**
  * The renames that give a torrent's files back the names its metadata has, as qBittorrent lays them
  * out by default (its "Original" content layout: a torrent of several files in a folder of its name),
- * matched by qBittorrent's file index. Undefined when the metadata doesn't list the same files.
+ * matched by qBittorrent's file index; none when only the torrent's folder differs, as qBittorrent's
+ * other layouts put it. Undefined when the metadata doesn't list the same files.
  */
 export function originalNames(
   files: readonly (NamedFile & { index: number })[],
   meta: { name: string; files: readonly { path: string }[]; multiFile: boolean },
 ): FileRename[] | undefined {
   if (files.length !== meta.files.length) return undefined
+  const root = rootFolder(files.map((file) => file.name))
   const renames: FileRename[] = []
+  // Whether a name below the torrent's folder differs: qBittorrent's other content layouts put the
+  // files in a folder the metadata doesn't name, or out of the one it does, and that's no rename.
+  let renamed = false
   for (const file of files) {
     const original = meta.files[file.index]
     if (!original) return undefined
     const to = meta.multiFile ? `${meta.name}/${original.path}` : original.path
-    if (to !== file.name) renames.push({ from: file.name, to })
+    if (to === file.name) continue
+    renames.push({ from: file.name, to })
+    if (original.path !== file.name && original.path !== belowRoot(file.name, root)) renamed = true
   }
-  return renames
+  return renamed ? renames : []
 }

@@ -410,7 +410,6 @@
   "names": {
     "title": "Name for a media server",
     "loading": "Reading the files…",
-    "files": "Files",
     "newFolder": "New folder",
     "becomes": "becomes",
     "others": "Other files keep their names and stay with the movie, in its folder.",

@@ -566,6 +566,16 @@ describe('TorrentScreen', () => {
       },
       () => screen.queryByRole('dialog', { name: 'Category' }),
     ],
+    [
+      'the naming sheet',
+      async () => {
+        vi.mocked(api.getTorrentFiles).mockReturnValue(new Promise(() => {}))
+        vi.mocked(api.exportTorrent).mockReturnValue(new Promise(() => {}))
+        await userEvent.click(await screen.findByRole('button', { name: 'More actions: Dune: Part Two' }))
+        await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Name for a media server' }))
+      },
+      () => screen.queryByRole('dialog', { name: 'Name for a media server' }),
+    ],
   ])('closes %s when another torrent with the same hash replaces its torrent between two polls', async (_overlay, open, overlay) => {
     renderScreen()
     await open()

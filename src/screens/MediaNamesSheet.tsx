@@ -11,6 +11,9 @@ import { readTorrentFile } from '../torrents/torrentFile'
 import { notNamedText } from './notNamedText'
 import './MediaNamesSheet.css'
 
+/** How long after renames that failed the sheet reads the files again, so the ones qBittorrent took show. */
+export const RENAMES_SETTLE_MS = 1000
+
 /** What the sheet sends: the media server's names, or the original ones back. */
 export type NamesMode = 'name' | 'restore'
 
@@ -67,15 +70,19 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
   // Opened while a restore is in flight, it shows the restore, as the sheet that sent it did.
   const [mode, setMode] = useState<NamesMode>(pending?.mode ?? 'name')
   const sending = pending !== undefined
-  // Renames that failed may have renamed some files first: the list shows the names qBittorrent has now.
+  // Renames that failed may have renamed some files first: the list shows the names qBittorrent has
+  // now, read once it has applied them, which it does a moment after answering (`renameFiles`).
   const { retry } = loaded
   useEffect(() => {
-    if (failed) retry()
+    if (!failed) return
+    const timer = setTimeout(retry, RENAMES_SETTLE_MS)
+    return () => clearTimeout(timer)
   }, [failed, retry])
   const data = loaded.data
   const names = data && movieNames(data.files, title, year)
   const restore = data?.original?.length ? data.original : undefined
-  const renames = mode === 'restore' ? (restore ?? []) : names?.named ? names.renames : []
+  // What's being sent is what the sheet shows, whatever the files' names read now.
+  const renames = pending ? pending.renames : mode === 'restore' ? (restore ?? []) : names?.named ? names.renames : []
 
   const footer = data && (
     <div className="names-stack">
@@ -146,7 +153,7 @@ function NamesPreview({ names }: { names: MediaNames }) {
       {files.length > 0 && (
         <section className="names-stack" aria-labelledby={`${id}-files`}>
           <h3 id={`${id}-files`} className="ks-label">
-            {t('names.files')}
+            {t('torrent.files')}
           </h3>
           <RenamesList renames={files} />
         </section>

@@ -9,7 +9,7 @@ import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { counted, labelOf } from '../test/filterChips'
-import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
+import { DUNE_RELEASES, duneTorrent, release, torrent } from '../test/fixtures'
 import { Opened, opened, renderWithRouter, saying } from '../test/render'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { ReleasesScreen } from './ReleasesScreen'
@@ -585,6 +585,22 @@ describe('ReleasesScreen', () => {
       expect.objectContaining({ urls: ['magnet:?xt=urn:btih:abc'], tags: ['tmdb:movie:693134'] }),
     )
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
+  })
+
+  it('names the movie’s files by its title and year, as the title’s details give them', async () => {
+    vi.mocked(prowlarr.fetchRelease).mockResolvedValue({ kind: 'torrent', file: new File([duneTorrent().slice()], 'dune.torrent') })
+    vi.mocked(qbt.getCategories).mockResolvedValue([])
+    vi.mocked(qbt.getDefaultSavePath).mockResolvedValue('/data')
+    vi.mocked(qbt.getMainData).mockResolvedValue({ rid: 1 })
+    renderAt('/title/movie/693134/releases')
+    const [top] = await screen.findAllByRole('article')
+    await userEvent.click(within(top).getByRole('button', { name: 'Add to downloads' }))
+    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Options' }))
+    const names = await within(sheet).findByRole('switch', { name: 'Name files for a media server' })
+    await waitFor(() => expect(names).toBeEnabled())
+    await userEvent.click(names)
+    expect(names).toHaveAccessibleDescription('Folder and video: “Dune - Part Two (2024)”')
   })
 
   it('opens a release qBittorrent has in place of adding it, over the releases', async () => {

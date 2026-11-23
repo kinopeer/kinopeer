@@ -69,6 +69,7 @@ function renderActions(props: Partial<TorrentActionsSheetProps> = {}) {
     onRecheck: vi.fn(),
     onSpeedLimits: vi.fn(),
     onChangeTitle: vi.fn(),
+    onMediaNames: vi.fn(),
   }
   const { unmount } = renderWithRouter(
     <TorrentRequestsProvider>
@@ -111,7 +112,7 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.getByRole('menuitem', { name: 'Speed limits' })).not.toHaveAccessibleDescription()
   })
 
-  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, fix match, move, delete', async () => {
+  it('is a menu: resume, reannounce, recheck, speed limits, details, the title page, fix match, move, names, delete', async () => {
     vi.mocked(api.startTorrents).mockResolvedValue()
     const handlers = renderActions()
     const menu = screen.getByRole('menu', { name: 'More actions: Inception' })
@@ -124,6 +125,7 @@ describe('TorrentActionsSheet on desktop', () => {
       'Movie page',
       'Fix match',
       'Move files…',
+      'Name for a media server',
       'Delete',
     ]
     const items = within(menu).getAllByRole('menuitem')
@@ -250,7 +252,7 @@ describe('TorrentActionsSheet on desktop', () => {
   it('turns off everything that sends something for a torrent being deleted', async () => {
     const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
-    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Delete']) {
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Name for a media server', 'Delete']) {
       expect(screen.getByRole('menuitem', { name })).toBeDisabled()
     }
     unmount()
@@ -341,7 +343,7 @@ describe('TorrentActionsSheet on a phone', () => {
     const { unmount } = renderActions({ torrent: { ...TORRENT, state: 'stalledDL' } })
     await userEvent.click(screen.getByRole('button', { name: 'Delete elsewhere' }))
     const sheet = screen.getByRole('dialog', { name: 'Inception' })
-    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Delete']) {
+    for (const name of ['Pause', 'Reannounce', 'Force recheck', 'Speed limits', 'Fix match', 'Move files…', 'Name for a media server', 'Delete']) {
       expect(within(sheet).getByRole('button', { name })).toBeDisabled()
     }
     unmount()

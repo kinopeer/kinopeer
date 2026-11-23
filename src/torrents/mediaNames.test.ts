@@ -19,6 +19,8 @@ describe('movieName', () => {
     expect(movieName('Time:Code', 2000)).toBe('TimeCode (2000)')
     expect(movieName('Ends with dots...', 2000)).toBe('Ends with dots (2000)')
     expect(movieName('  Spaced   out  ', 2000)).toBe('Spaced out (2000)')
+    // A leading dot hides a folder on Linux, and library scans skip hidden ones.
+    expect(movieName('...And Justice for All', 1979)).toBe('And Justice for All (1979)')
   })
 
   it('still names a title made only of such characters', () => {
@@ -137,6 +139,18 @@ describe('movieNames', () => {
     expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Arrival (2016).mkv' }])
     // Only the word: "Samples" and "Resample" are names of their own.
     expect(movieNames([file('A/Resample.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
+    expect(movieNames([file('A/Samples/clip.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
+  })
+
+  it('takes a sample by the word at the start of a path too, for files without a shared folder', () => {
+    const named = movieNames([file('Sample/clip.mkv', 7 * GB), file('movie.mkv', 8 * GB)], 'Arrival', 2016)
+    expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Arrival (2016).mkv' }])
+  })
+
+  it('doesn’t take the torrent’s own folder for a sample’s, whatever words its name has', () => {
+    const release = 'Free.Sample.2012.1080p'
+    const named = movieNames([file(`${release}/${release}.mkv`, 8 * GB), file(`${release}/${release}-sample.mkv`, 7 * GB)], 'Free Sample', 2012)
+    expect(named.named && named.files).toEqual([{ from: `${release}.mkv`, to: 'Free Sample (2012).mkv' }])
   })
 
   it('takes a file without a dot before its type, or with only one in front, for no video', () => {
@@ -147,6 +161,8 @@ describe('movieNames', () => {
     expect(movieNames([file('A/BDMV/STREAM/00001.m2ts', 30 * GB), file('A/cover.jpg')], 'Arrival', 2016)).toEqual({ named: false, reason: 'disc' })
     expect(movieNames([file('A/BDMVRip/movie.mkv', 8 * GB)], 'Arrival', 2016).named).toBe(true)
     expect(movieNames([file('A/NoBDMV/movie.mkv', 8 * GB)], 'Arrival', 2016).named).toBe(true)
+    // A disc's folder as the torrent's own, its files laid out without a folder of the release's name.
+    expect(movieNames([file('BDMV/STREAM/00001.m2ts', 30 * GB), file('BDMV/index.bdmv')], 'Arrival', 2016)).toEqual({ named: false, reason: 'disc' })
   })
 
   it('keeps each file’s whole path when the files aren’t all in one folder', () => {
@@ -194,6 +210,16 @@ describe('originalNames', () => {
 
   it('renames nothing when the names are the original ones', () => {
     expect(originalNames([{ index: 0, name: 'Arrival.2016.1080p/Arrival.2016.1080p.mkv', size: 1 }, { index: 1, name: 'Arrival.2016.1080p/Subs/en.srt', size: 1 }], meta)).toEqual([])
+  })
+
+  it('renames nothing back when only the torrent’s folder differs, as qBittorrent’s content layout puts it', () => {
+    // "Create subfolder": a torrent of one file in a folder of its own.
+    const single = { name: 'Arrival.2016.mkv', multiFile: false, files: [{ path: 'Arrival.2016.mkv' }] }
+    expect(originalNames([{ index: 0, name: 'Arrival.2016/Arrival.2016.mkv', size: 8 * GB }], single)).toEqual([])
+    // "Don't create subfolder": a torrent of several files with no folder, its files in one of their own or not.
+    expect(originalNames([{ index: 0, name: 'Arrival.2016.1080p.mkv', size: 8 * GB }, { index: 1, name: 'Subs/en.srt', size: 1 * MB }], meta)).toEqual([])
+    const inOne = { name: 'Arrival', multiFile: true, files: [{ path: 'Video/a.mkv' }, { path: 'Video/a.srt' }] }
+    expect(originalNames([{ index: 0, name: 'Video/a.mkv', size: 8 * GB }, { index: 1, name: 'Video/a.srt', size: 1 * MB }], inOne)).toEqual([])
   })
 
   it('says nothing when the metadata doesn’t list the same files', () => {

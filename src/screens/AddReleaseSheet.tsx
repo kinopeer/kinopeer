@@ -100,9 +100,12 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   // Found after qBittorrent refused to add it, which it does for a torrent it has.
   const [refusedAsAdded, setRefusedAsAdded] = useState<Torrent>()
   const added = refusedAsAdded ?? existing.data ?? undefined
+  // Added, but its files weren't named: the sheet opens the torrent, whose More menu names them, and
+  // offers no second Download, which qBittorrent would refuse, even when it can't say it has it.
+  const [addedUnnamed, setAddedUnnamed] = useState(false)
   // The form, held back until it's known whether qBittorrent has the torrent, so it doesn't go away
   // under a finger when it does, and out of a sheet without a torrent to send.
-  const offered = !added && prepared.data !== undefined && !existing.loading
+  const offered = !added && !addedUnnamed && prepared.data !== undefined && !existing.loading
   const where = useRequest('qbt|locations', (signal) => getSaveLocations(signal))
   const reported = useFreeSpace()
   // What deletes from Free up space freed, until qBittorrent measures the disk again.
@@ -137,8 +140,6 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [topOfQueue, setTopOfQueue] = useState(false)
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string>()
-  // Added, but its files weren't named: the sheet opens the torrent, whose More menu names them.
-  const [addedUnnamed, setAddedUnnamed] = useState(false)
   // A movie's files named for a media server (series are a follow-up), from the .torrent's files as
   // qBittorrent lays them out by default; a magnet link's aren't known until the torrent starts.
   const movieNamesPlan = useMemo(

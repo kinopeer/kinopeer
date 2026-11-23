@@ -66,6 +66,9 @@ describe('addRelease', () => {
     await addRelease({ kind: 'torrent', file: FILE }, OPTIONS, { meta: META, skip: [] })
     expect(addTorrents).toHaveBeenCalledWith(expect.objectContaining({ files: [FILE], stopped: false }))
     expect(setFilePriority).not.toHaveBeenCalled()
+    // Added running: nothing to start after it, nor files to ask for.
+    expect(startTorrents).not.toHaveBeenCalled()
+    expect(getTorrentFiles).not.toHaveBeenCalled()
   })
 
   it('adds stopped, skips unselected files once qBittorrent lists them, then starts', async () => {
@@ -131,6 +134,14 @@ describe('addRelease', () => {
       expect(setFilePriority).toHaveBeenCalledWith('def456', [1], 0)
       expect(renameFiles).toHaveBeenCalledWith('def456', expect.arrayContaining([expect.objectContaining({ to: 'Arrival (2016)/Arrival (2016).mkv' })]))
       expect(startTorrents).not.toHaveBeenCalled()
+    })
+
+    it('starts the torrent all the same when qBittorrent doesn’t list its files, and says they weren’t named', async () => {
+      getTorrentFiles.mockResolvedValue([])
+      const adding = addRelease({ kind: 'torrent', file: FILE }, { ...OPTIONS, mediaNames: NAMES }, { meta: MOVIE, skip: [] }, wait)
+      await expect(adding).rejects.toBeInstanceOf(MediaNamesError)
+      expect(renameFiles).not.toHaveBeenCalled()
+      expect(startTorrents).toHaveBeenCalledWith(['def456'])
     })
 
     it('adds a torrent whose files aren’t named as it is', async () => {

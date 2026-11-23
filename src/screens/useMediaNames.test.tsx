@@ -8,6 +8,7 @@ import { DUNE_TORRENT, duneFiles, duneTorrent, torrent } from '../test/fixtures'
 import { saying } from '../test/render'
 import { readTorrentFile } from '../torrents/torrentFile'
 import type { TitleMatch } from '../torrents/titleLookup'
+import { RENAMES_SETTLE_MS } from './MediaNamesSheet'
 import { useMediaNames } from './useMediaNames'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -39,8 +40,8 @@ function namedFiles(): TorrentFile[] {
   }))
 }
 
-function Harness({ torrents, match }: { torrents: Record<string, Torrent>; match: TitleMatch | null }) {
-  const names = useMediaNames({ torrents, offline: false, matchOf: () => match })
+function Harness({ torrents, match, offline = false }: { torrents: Record<string, Torrent>; match: TitleMatch | null; offline?: boolean }) {
+  const names = useMediaNames({ torrents, offline, matchOf: () => match })
   return (
     <section aria-label="Screen">
       {Object.keys(torrents).map((hash) => (
@@ -53,14 +54,25 @@ function Harness({ torrents, match }: { torrents: Record<string, Torrent>; match
   )
 }
 
-function renderNames(match: TitleMatch | null = DUNE_MATCH) {
-  render(<Harness torrents={{ [DUNE.hash]: DUNE }} match={match} />, { wrapper: ToastProvider })
-  const open = async () => {
-    await userEvent.click(screen.getByRole('button', { name: `Open ${DUNE.hash}` }))
-    return screen.getByRole('dialog', { name: 'Name for a media server' })
+function renderNames(match: TitleMatch | null = DUNE_MATCH, torrents: Record<string, Torrent> = { [DUNE.hash]: DUNE }) {
+  const view = render(<Harness torrents={torrents} match={match} />, { wrapper: ToastProvider })
+  /** Opens the sheet for a torrent: the dialog, by whichever title it opens with. */
+  const open = async (hash = DUNE.hash) => {
+    await userEvent.click(screen.getByRole('button', { name: `Open ${hash}` }))
+    return screen.getByRole('dialog')
   }
-  return { open }
+  const rerender = (next: { torrents?: Record<string, Torrent>; offline?: boolean }) =>
+    view.rerender(<Harness torrents={torrents} match={match} {...next} />)
+  return { open, rerender }
 }
+
+/** The files with the first renamed already: naming renames the rest, and the way back is there too. */
+function partlyNamedFiles(): TorrentFile[] {
+  return namedFiles().map((file, index) => (index === 0 ? { ...file, name: `${NAMED}/Other.mkv` } : file))
+}
+
+/** Escape, which jsdom doesn't turn into the dialog's cancel event. */
+const close = (sheet: HTMLElement) => fireEvent(sheet, new Event('cancel', { cancelable: true }))
 
 beforeAll(async () => {
   // The torrent as qBittorrent has it: its hash is the one its exported metadata hashes to.
@@ -148,10 +160,10 @@ describe('useMediaNames', () => {
     getTorrentFiles.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     const { open } = renderNames()
     const sheet = await open()
-    expect(within(sheet).getByText('Reading the files…')).toBeInTheDocument()
+    expect(within(sheet).getByRole('status', { name: saying('Reading the files…') })).toBeInTheDocument()
     expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
     await act(async () => answer(duneFiles()))
-    expect(within(sheet).queryByText('Reading the files…')).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('status', { name: saying('Reading the files…') })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('button', { name: 'Rename' })).toBeInTheDocument()
   })
 
@@ -177,7 +189,7 @@ describe('useMediaNames', () => {
   })
 
   it('still names the files when the original names can’t be read, and says they can’t be restored', async () => {
-    getTorrentFiles.mockResolvedValue(namedFiles().map((file, index) => (index === 0 ? { ...file, name: `${NAMED}/Other.mkv` } : file)))
+    getTorrentFiles.mockResolvedValue(partlyNamedFiles())
     exportTorrent.mockRejectedValue(new api.QbittorrentError('Missing metadata', 409))
     const { open } = renderNames()
     const sheet = await open()
@@ -197,15 +209,63 @@ describe('useMediaNames', () => {
     expect(within(sheet).queryByRole('button', { name: 'Restore original names' })).not.toBeInTheDocument()
   })
 
-  it('keeps the sheet open with the failure and lists the names qBittorrent has now', async () => {
-    renameFiles.mockRejectedValue(new api.QbittorrentError('The file already exists', 409))
+  it('keeps the sheet open with the failure and lists the names qBittorrent has now, read once it has applied them', async () => {
+    let refuse = () => {}
+    renameFiles.mockReturnValue(new Promise((_, reject) => (refuse = () => reject(new api.QbittorrentError('The file already exists', 409)))))
     const { open } = renderNames()
     const sheet = await open()
-    getTorrentFiles.mockResolvedValue(namedFiles().map((file, index) => (index === 0 ? file : duneFiles()[index])))
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
-    expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent didn’t rename every file. The list shows the names it has now.') })).toBeInTheDocument()
-    await waitFor(() => expect(getTorrentFiles).toHaveBeenCalledTimes(2))
+    // qBittorrent took the video's rename, a moment after it answered.
+    getTorrentFiles.mockResolvedValue(duneFiles().map((file, index) => (index === 0 ? { ...file, name: `${RELEASE}/${NAMED}.mkv` } : file)))
+    vi.useFakeTimers()
+    try {
+      await act(async () => refuse())
+      expect(within(sheet).getByRole('alert', { name: saying('qBittorrent didn’t rename every file. The list shows the names it has now.') })).toBeInTheDocument()
+      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS - 1))
+      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+      await act(async () => vi.advanceTimersByTime(1))
+      expect(getTorrentFiles).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+    // The video is named: only the folder is left.
+    await waitFor(() => expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument())
+    expect(within(sheet).getByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     expect(screen.queryByRole('status', { name: saying(/Couldn’t rename/) })).not.toBeInTheDocument()
+  })
+
+  it('reads the files once as it opens, without renames that failed', async () => {
+    const { open } = renderNames()
+    const sheet = await open()
+    expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+    vi.useFakeTimers()
+    try {
+      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS * 2))
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+  })
+
+  it('doesn’t read the files again for renames that failed once the renames are sent again first', async () => {
+    let refuse = () => {}
+    renameFiles
+      .mockReturnValueOnce(new Promise((_, reject) => (refuse = () => reject(new api.QbittorrentError('The file already exists', 409)))))
+      .mockReturnValue(new Promise(() => {}))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    vi.useFakeTimers()
+    try {
+      await act(async () => refuse())
+      expect(within(sheet).getByRole('alert', { name: saying(/didn’t rename every file/) })).toBeInTheDocument()
+      fireEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
+      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS))
+    } finally {
+      vi.useRealTimers()
+    }
+    expect(renameFiles).toHaveBeenCalledTimes(2)
+    expect(getTorrentFiles).toHaveBeenCalledTimes(1)
   })
 
   it('says a failure in a toast once the sheet is closed', async () => {
@@ -215,8 +275,7 @@ describe('useMediaNames', () => {
     const sheet = await open()
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
     expect(within(sheet).getByRole('button', { name: 'Rename' })).toBeDisabled()
-    // Escape, which jsdom doesn't turn into the dialog's cancel event.
-    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    close(sheet)
     refuse()
     expect(await screen.findByRole('status', { name: saying('Couldn’t rename the files of “Dune: Part Two”') })).toBeInTheDocument()
   })
@@ -226,7 +285,7 @@ describe('useMediaNames', () => {
     const { open } = renderNames()
     const sheet = await open()
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
-    fireEvent(sheet, new Event('cancel', { cancelable: true }))
+    close(sheet)
     const again = await open()
     expect(await within(again).findByRole('button', { name: 'Rename' })).toBeDisabled()
     expect(renameFiles).toHaveBeenCalledTimes(1)
@@ -236,8 +295,85 @@ describe('useMediaNames', () => {
     getTorrentFiles.mockRejectedValueOnce(new api.QbittorrentError('down', 502))
     const { open } = renderNames()
     const sheet = await open()
-    await userEvent.click(await within(sheet).findByRole('button', { name: 'Try again' }))
+    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Try again' }))
     expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+  })
+
+  it('can’t rename while qBittorrent is unreachable', async () => {
+    const { open, rerender } = renderNames()
+    const sheet = await open()
+    expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+    rerender({ offline: true })
+    expect(within(sheet).getByRole('button', { name: 'Rename' })).toBeDisabled()
+  })
+
+  it('keeps the way back and Back off while renames are being sent', async () => {
+    getTorrentFiles.mockResolvedValue(partlyNamedFiles())
+    renameFiles.mockReturnValue(new Promise(() => {}))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Restore original names' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Restore' }))
+    expect(within(sheet).getByRole('button', { name: 'Restore' })).toBeDisabled()
+    expect(within(sheet).getByRole('button', { name: 'Back' })).toBeDisabled()
+  })
+
+  it('keeps the way back off while naming is being sent', async () => {
+    getTorrentFiles.mockResolvedValue(partlyNamedFiles())
+    renameFiles.mockReturnValue(new Promise(() => {}))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    expect(within(sheet).getByRole('button', { name: 'Restore original names' })).toBeDisabled()
+  })
+
+  it('opens again on the way back while it’s being sent, with what’s sent, though the original names can’t be read now', async () => {
+    getTorrentFiles.mockResolvedValue(namedFiles())
+    renameFiles.mockReturnValue(new Promise(() => {}))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Restore original names' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Restore' }))
+    close(sheet)
+    exportTorrent.mockRejectedValue(new api.QbittorrentError('Missing metadata', 409))
+    const again = await open()
+    expect(again).toHaveAccessibleName('Restore original names')
+    await waitFor(() => expect(within(again).getAllByRole('listitem')).toHaveLength(4))
+    expect(within(again).getAllByRole('listitem')[0]).toHaveTextContent(`${NAMED}/${NAMED}.mkvbecomes ${RELEASE}/${RELEASE}.mkv`)
+    expect(within(again).getByRole('button', { name: 'Restore' })).toBeDisabled()
+    expect(within(again).queryByText(/can’t be restored/)).not.toBeInTheDocument()
+    expect(renameFiles).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([
+    ['went away', {}],
+    ['was replaced by another with the same hash', () => ({ [DUNE.hash]: { ...DUNE, added_on: DUNE.added_on + 1 } })],
+  ])('closes the sheet when its torrent %s, and says how the renames went in a toast', async (_case, next) => {
+    let refuse = () => {}
+    renameFiles.mockReturnValue(new Promise((_, reject) => (refuse = () => reject(new Error('500')))))
+    const { open, rerender } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    rerender({ torrents: typeof next === 'function' ? next() : next })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    refuse()
+    expect(await screen.findByRole('status', { name: saying('Couldn’t rename the files of “Dune: Part Two”') })).toBeInTheDocument()
+  })
+
+  it('keeps a torrent’s renames busy after another torrent’s renames started, so they aren’t sent twice', async () => {
+    renameFiles.mockReturnValue(new Promise(() => {}))
+    const other = torrent('a'.repeat(40), { name: RELEASE })
+    const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+    const dune = await open(DUNE.hash)
+    await userEvent.click(await within(dune).findByRole('button', { name: 'Rename' }))
+    close(dune)
+    const second = await open(other.hash)
+    await userEvent.click(await within(second).findByRole('button', { name: 'Rename' }))
+    close(second)
+    const again = await open(DUNE.hash)
+    expect(await within(again).findByRole('button', { name: 'Rename' })).toBeDisabled()
+    expect(renameFiles).toHaveBeenCalledTimes(2)
   })
 
   it('opens nothing for a torrent that isn’t matched to a movie', async () => {
