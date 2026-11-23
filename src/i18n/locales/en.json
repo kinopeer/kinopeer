@@ -319,6 +319,8 @@
   },
   "releases": {
     "title": "Releases",
+    "query": "Search query",
+    "resetQuery": "Reset query",
     "loading": "Searching releases",
     "count_one": "{{shown}} of {{count}} release",
     "count_other": "{{shown}} of {{count}} releases",

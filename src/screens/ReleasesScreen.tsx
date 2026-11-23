@@ -12,6 +12,7 @@ import { Segmented } from '../components/Segmented'
 import { Sheet } from '../components/Sheet'
 import { SortDirectionButton } from '../components/SortDirectionButton'
 import { overPage } from '../lib/background'
+import { isDeepLink } from '../lib/deepLink'
 import { useFormatters } from '../lib/format'
 import { MIN_SEEDS, SORT_KEYS, summary, toggle, type ReleaseRow } from '../releases/filterReleases'
 import { seasonCoverage } from '../releases/parseRelease'
@@ -19,6 +20,7 @@ import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import { useTmdbLanguage } from '../settings/settings'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
+import { ReleaseQueryField } from './ReleaseQueryField'
 import { TmdbFailedState } from './TmdbFailedState'
 import { useTitleDetails } from './useTitleDetails'
 import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
@@ -41,7 +43,7 @@ export function ReleasesScreen() {
   const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
 
-  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(`/title/${type}/${id}`))
+  const goBack = () => (isDeepLink(location) ? navigate(`/title/${type}/${id}`) : navigate(-1))
   const name = details.data ? (details.data.type === 'movie' ? details.data.title : details.data.name) : ''
   const year =
     details.data &&
@@ -100,6 +102,11 @@ export function ReleasesScreen() {
             {name && <p className="t-cap c3 ks-trunc">{[name, year].filter(Boolean).join(' · ')}</p>}
           </div>
         </div>
+        {details.data && (
+          <div className="rel-query-row">
+            <ReleaseQueryField releases={releases} />
+          </div>
+        )}
         {/* The row is there from the start, a skeleton of it while the search runs, so the results
             don't push the list down as they come, and its room stays, empty, when there's nothing
             to filter, so the list doesn't move up either (#393). */}

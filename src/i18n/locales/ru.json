@@ -340,6 +340,8 @@
   },
   "releases": {
     "title": "Раздачи",
+    "query": "Поисковый запрос",
+    "resetQuery": "Сбросить запрос",
     "loading": "Ищем раздачи",
     "count_one": "{{shown}} из {{count}} раздачи",
     "count_few": "{{shown}} из {{count}} раздач",

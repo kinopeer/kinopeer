@@ -25,6 +25,31 @@
   min-width: 0;
 }
 
+/* The search query (ReleaseQueryField), between the title and the filters. */
+.rel-query-row {
+  padding: var(--space-1) var(--space-2) 0;
+}
+
+.rel-query {
+  position: relative;
+}
+
+/* Room for the reset button, and hide the browser's own clear button. */
+.rel-query .ks-input {
+  padding-right: var(--space-12);
+}
+
+.rel-query .ks-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.rel-query-reset {
+  position: absolute;
+  top: 2px; /* inside the field's 1px border, as Search's clear button */
+  right: 2px; /* the same */
+}
+
 .rel-chips {
   display: flex;
   gap: var(--space-2);

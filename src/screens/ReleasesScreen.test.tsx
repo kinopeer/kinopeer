@@ -69,6 +69,107 @@ beforeEach(() => {
   vi.mocked(qbt.getTorrents).mockResolvedValue([])
 })
 
+/** Shows the address's query, for the tests of the edited query; read it with `address()`. */
+function Address() {
+  return <output aria-label="Address">{useLocation().search}</output>
+}
+
+const address = () => screen.getByRole('status', { name: 'Address' }).textContent
+
+/** The releases with the address shown, the title page before them in the history unless `opened`. */
+function renderQueryAt(path: string, { opened = false } = {}) {
+  return renderWithRouter(
+    <Routes>
+      <Route
+        path="/title/:type/:id/releases"
+        element={
+          <>
+            <ReleasesScreen />
+            <Address />
+          </>
+        }
+      />
+      <Route path="/title/:type/:id" element={<h1>Title page</h1>} />
+    </Routes>,
+    opened ? [path] : ['/title/movie/693134', path],
+  )
+}
+
+describe('ReleasesScreen, the search query (#582)', () => {
+  const field = () => screen.getByRole('searchbox', { name: 'Search query' })
+
+  it('searches by the query edited, keeps it in the address, and Reset brings the built one back', async () => {
+    renderQueryAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    expect(field()).toHaveValue('Dune Part Two 2024')
+    expect(screen.queryByRole('button', { name: 'Reset query' })).not.toBeInTheDocument()
+
+    searchReleases.mockResolvedValue([DUNE_RELEASES[0]])
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Dune 2 2024')
+    // Typing searches nothing: a search asks every indexer.
+    expect(searchReleases).toHaveBeenCalledTimes(1)
+    await userEvent.keyboard('{Enter}')
+    expect(await screen.findByText('1 of 1 release')).toBeInTheDocument()
+    expect(searchReleases).toHaveBeenLastCalledWith('Dune 2 2024', expect.anything())
+    expect(address()).toBe('?q=Dune+2+2024')
+
+    searchReleases.mockResolvedValue(DUNE_RELEASES)
+    await userEvent.click(screen.getByRole('button', { name: 'Reset query' }))
+    expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+    expect(searchReleases).toHaveBeenLastCalledWith('Dune Part Two 2024', expect.anything())
+    expect(field()).toHaveValue('Dune Part Two 2024')
+    expect(address()).toBe('')
+    expect(screen.queryByRole('button', { name: 'Reset query' })).not.toBeInTheDocument()
+  })
+
+  it('searches by the query in the address, as after a reload', async () => {
+    renderQueryAt('/title/movie/693134/releases?q=Dune%202')
+    await screen.findByText('3 of 3 releases')
+    expect(searchReleases).toHaveBeenCalledTimes(1)
+    expect(searchReleases).toHaveBeenCalledWith('Dune 2', expect.anything())
+    expect(field()).toHaveValue('Dune 2')
+    expect(screen.getByRole('button', { name: 'Reset query' })).toBeInTheDocument()
+
+    // An emptied query goes back to the built one, as Reset does.
+    await userEvent.clear(field())
+    await userEvent.type(field(), '{Enter}')
+    await waitFor(() => expect(address()).toBe(''))
+    expect(field()).toHaveValue('Dune Part Two 2024')
+    await waitFor(() => expect(searchReleases).toHaveBeenLastCalledWith('Dune Part Two 2024', expect.anything()))
+  })
+
+  it('goes back to the built query on an empty one or the built one, searching nothing more', async () => {
+    renderQueryAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    await userEvent.type(field(), '  {Enter}')
+    await userEvent.clear(field())
+    await userEvent.type(field(), '{Enter}')
+    expect(address()).toBe('')
+    expect(field()).toHaveValue('Dune Part Two 2024')
+    expect(searchReleases).toHaveBeenCalledTimes(1)
+  })
+
+  it('replaces the address’s entry, so Back leaves the releases', async () => {
+    renderQueryAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Dune 2{Enter}')
+    await waitFor(() => expect(address()).toBe('?q=Dune+2'))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('heading', { name: 'Title page' })).toBeInTheDocument()
+  })
+  it('still goes back to the title from releases opened from a link, after the query was edited', async () => {
+    renderQueryAt('/title/movie/693134/releases', { opened: true })
+    await screen.findByText('3 of 3 releases')
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Dune 2{Enter}')
+    await waitFor(() => expect(address()).toBe('?q=Dune+2'))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('heading', { name: 'Title page' })).toBeInTheDocument()
+  })
+})
+
 describe('ReleasesScreen', () => {
   it('searches by original title and year and lists releases by seeders', async () => {
     renderAt('/title/movie/693134/releases')

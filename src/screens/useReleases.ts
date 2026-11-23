@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useSearchParams } from 'react-router'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { ProwlarrKeyReadError, ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
 import { TITLE_FRESH_MS, titleDetailsKey } from '../api/tmdb'
+import { isDeepLink, type DeepLinkState } from '../lib/deepLink'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,
@@ -31,7 +33,7 @@ import {
 import { parseRelease } from '../releases/parseRelease'
 import { sourceName } from '../releases/qualityBadges'
 import { mergeReleases } from '../releases/mergeReleases'
-import { ENGLISH, needsEnglishTitle, releaseQueries, type TitleDetails } from '../releases/releaseQuery'
+import { ENGLISH, needsEnglishTitle, releaseQueries, releaseQuery, type TitleDetails } from '../releases/releaseQuery'
 import { useSettings } from '../settings/settings'
 import { heldIds, sameIds, torrentId } from '../torrents/sameTorrent'
 import { useLastTorrents } from '../torrents/useMainData'
@@ -48,6 +50,9 @@ export const AUDIO_LABEL = {
 } as const
 
 export const SORT_LABEL = { seeds: 'fields.seeds', size: 'fields.size', date: 'fields.date' } as const
+
+/** The address's parameter that holds a query the user edited (#582). */
+export const QUERY_PARAM = 'q'
 
 /** A picked filter value, shown as a removable chip. */
 export interface ActiveFilter {
@@ -73,6 +78,14 @@ export interface Releases {
   /** With `error`, in the WebUI build: qBittorrent didn't give Prowlarr's address and key (`ProwlarrKeyReadError`). */
   unread?: boolean
   retry: () => void
+  /** The query the field shows: the one edited, else the one Kinopeer builds from the title. */
+  query: string
+  /** Whether the search goes by a query the user edited, kept in the address. */
+  edited: boolean
+  /** Searches by the text given; the built query, or nothing, goes back to it. */
+  searchBy: (text: string) => void
+  /** Goes back to the query Kinopeer builds. */
+  resetQuery: () => void
   /** Names of the indexers that didn't answer this search, so their releases are missing. */
   failing: string[]
   /** Every release found. */
@@ -139,9 +152,15 @@ async function find(queries: string[], signal: AbortSignal): Promise<Found> {
  */
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
+  const location = useLocation()
+  // A query the user edited lives in the address, so Back to the screen and a reload keep it, and
+  // another title, opened without it, starts from its own (#582). It's searched as written, alone.
+  const [params, setParams] = useSearchParams()
+  const edited = params.get(QUERY_PARAM)?.trim() || undefined
+  const built = details ? releaseQuery(details) : ''
   // A title whose original name indexers don't list it by is searched by its English name too (#581):
   // its details in English, shared as the title page's are, so a page in English asks nothing more.
-  const wantsEnglish = details !== undefined && enabled && needsEnglishTitle(details)
+  const wantsEnglish = details !== undefined && enabled && !edited && needsEnglishTitle(details)
   const english = useRequest<TitleDetails>(
     wantsEnglish ? titleDetailsKey(details.type, details.id, ENGLISH) : null,
     (signal) => loadTitleDetails(details!.type, details!.id, ENGLISH, signal),
@@ -149,7 +168,7 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   )
   // The search waits for the English name; without it (TMDB didn't answer) it goes by the original alone.
   const englishSettled = !wantsEnglish || english.data !== undefined || english.error !== undefined
-  const queries = details && enabled && englishSettled ? releaseQueries(details, english.data) : null
+  const queries = details && enabled && englishSettled ? (edited ? [edited] : releaseQueries(details, english.data)) : null
   // Try again after the English name failed asks for it again, and the search after it is a new one
   // (`tries`), so the last one's outcome doesn't show while it's on its way, even with the same queries.
   const [tries, setTries] = useState(0)
@@ -216,6 +235,17 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
       : []),
   ]
 
+  // In place of the address's entry, so Back leaves the releases rather than going through the queries,
+  // with its state and whether it was opened from a link, which a replaced entry's key no longer says.
+  const searchBy = (text: string) => {
+    const next = new URLSearchParams(params)
+    const query = text.trim()
+    if (query && query !== built) next.set(QUERY_PARAM, query)
+    else next.delete(QUERY_PARAM)
+    const state = { ...(location.state as object | null), deepLink: isDeepLink(location) } satisfies DeepLinkState
+    setParams(next, { replace: true, state })
+  }
+
   const status: ReleasesStatus =
     search.error instanceof ProwlarrSetupError
       ? search.error.code === 'unauthorized'
@@ -243,6 +273,10 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
             english.retry()
             setTries((count) => count + 1)
           },
+    query: edited ?? built,
+    edited: edited !== undefined,
+    searchBy,
+    resetQuery: () => searchBy(built),
     failing: missing,
     rows,
     visible,

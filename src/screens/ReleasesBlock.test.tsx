@@ -44,6 +44,10 @@ function releases(fields: Partial<Releases> = {}): Releases {
   return {
     status: 'ready',
     retry: vi.fn(),
+    query: 'Dune Part Two 2024',
+    edited: false,
+    searchBy: vi.fn(),
+    resetQuery: vi.fn(),
     failing: [],
     rows: ROWS,
     visible: ROWS,
