@@ -1,6 +1,6 @@
 import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as prowlarr from '../api/prowlarr'
 import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
@@ -60,13 +60,15 @@ const META = {
 
 // 40 GB free and a 50 GB download: 10 GB short.
 const FREE = 40e9
-/** Seconds since the epoch, as qBittorrent's `added_on`, that many days before now. */
-const daysAgo = (days: number) => Math.round(Date.now() / 1000) - days * 86_400
-const MOVIE = torrent('movie', { name: 'Movie.2024.2160p-GRPA', size: 30e9, progress: 1, save_path: '/data/movies', added_on: daysAgo(1), ratio: 0.4 })
-const HALF = torrent('half', { name: 'Show.S01.1080p-GRPB', size: 24e9, progress: 0.5, save_path: '/data', added_on: daysAgo(3), ratio: 2 })
+// The time the tests run at, pinned, so a row's age reads the same every time.
+const NOW = Date.UTC(2026, 10, 23, 12)
+/** Seconds since the epoch, as qBittorrent's `added_on`, that many days before `NOW`. */
+const daysAgo = (days: number) => NOW / 1000 - days * 86_400
+const MOVIE = torrent('movie', { name: 'Movie.2024.2160p-GRPA', size: 30e9, progress: 1, save_path: '/data/movies', content_path: '/data/movies/movie', added_on: daysAgo(1), ratio: 0.4 })
+const HALF = torrent('half', { name: 'Show.S01.1080p-GRPB', size: 24e9, progress: 0.5, save_path: '/data', content_path: '/data/half', added_on: daysAgo(3), ratio: 2 })
 // qBittorrent reports 0 when it doesn't know when a torrent was added.
-const EPISODE = torrent('episode', { name: 'Show.S02E01.720p-GRPC', size: 4e9, progress: 1, save_path: '/data/tv', added_on: 0, ratio: 1 })
-const ARCHIVE = torrent('archive', { name: 'Archive.1999.1080p-GRPD', size: 60e9, progress: 1, save_path: '/mnt/archive', added_on: daysAgo(9), ratio: 5 })
+const EPISODE = torrent('episode', { name: 'Show.S02E01.720p-GRPC', size: 4e9, progress: 1, save_path: '/data/tv', content_path: '/data/tv/episode', added_on: 0, ratio: 1 })
+const ARCHIVE = torrent('archive', { name: 'Archive.1999.1080p-GRPD', size: 60e9, progress: 1, save_path: '/mnt/archive', content_path: '/mnt/archive/archive', added_on: daysAgo(9), ratio: 5 })
 const TORRENTS = [EPISODE, ARCHIVE, HALF, MOVIE]
 
 function renderSheet() {
@@ -89,6 +91,9 @@ const addSheet = () => screen.getByRole('dialog', { name: 'Add to downloads' })
 const step = () => screen.getByRole('dialog', { name: 'Free up space' })
 const names = (list: HTMLElement) => within(list).getAllByRole('checkbox').map((box) => box.getAttribute('aria-label'))
 
+/** Has the poll ask qBittorrent now rather than at its next turn, as it does when the device comes back online. */
+const pollNow = () => act(async () => void window.dispatchEvent(new Event('online')))
+
 /** Opens Free up space from the add sheet's warning. */
 async function openStep() {
   const warning = await within(addSheet()).findByRole('status', { name: saying(/^Not enough free space/) })
@@ -99,6 +104,7 @@ async function openStep() {
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: NOW, toFake: ['Date'] })
   vi.resetAllMocks()
   resetSettings()
   vi.mocked(prowlarr.fetchRelease).mockResolvedValue({ kind: 'torrent', file: new File([new Uint8Array([1])], 'bb.torrent') })
@@ -120,16 +126,18 @@ beforeEach(() => {
   })
 })
 
+afterEach(() => {
+  vi.useRealTimers()
+})
+
 describe('Free up space', () => {
   it('lists the torrents on the default save path’s disk by what they have on it, the rest apart', async () => {
     renderSheet()
     const sheet = await openStep()
     const [counted, elsewhere] = within(sheet).getAllByRole('list')
-    // Half is the larger torrent, but has 12 GB of it.
     expect(names(counted)).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
     const rows = within(counted).getAllByRole('listitem')
-    // Added three days ago, which the compact age may read as 2 d by the time the row renders.
-    expect(rows[1]).toHaveTextContent(/^Show\.S01\.1080p-GRPB12\.0\sGB · [23]\sd · Ratio 2\.00$/)
+    expect(rows[1]).toHaveTextContent(/^Show\.S01\.1080p-GRPB12\.0\sGB · 3\sd · Ratio 2\.00$/)
     // No date added where qBittorrent doesn't know it.
     expect(rows[2]).toHaveTextContent(/^Show\.S02E01\.720p-GRPC4\.00\sGB · Ratio 1\.00$/)
     expect(within(sheet).queryByText('No downloads yet')).not.toBeInTheDocument()
@@ -159,8 +167,8 @@ describe('Free up space', () => {
     renderSheet()
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('radio', { name: 'Date' }))
-    // The oldest first, which is the usual direction for a date here.
-    expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Show.S02E01.720p-GRPC', 'Show.S01.1080p-GRPB', 'Movie.2024.2160p-GRPA'])
+    // The oldest first, which is the usual direction for a date here; an unknown date last either way.
+    expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Show.S01.1080p-GRPB', 'Movie.2024.2160p-GRPA', 'Show.S02E01.720p-GRPC'])
     await userEvent.click(within(sheet).getByRole('button', { name: 'Ascending' }))
     expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
     expect(getSettings()).toMatchObject({ freeUpSort: 'added', freeUpSortDescending: true, downloadsSort: 'priority' })
@@ -209,9 +217,12 @@ describe('Free up space', () => {
     ).toBeInTheDocument()
 
     getMainData.mockResolvedValue({ rid: 2, server_state: { free_space_on_disk: 43e9 } })
-    await waitFor(() => expect(within(addSheet()).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/· 43\.0\sGB free/), {
-      timeout: 4000,
-    })
+    await pollNow()
+    await waitFor(() => expect(within(addSheet()).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/· 43\.0\sGB free/))
+    // Back at the figure the delete was held against, it's qBittorrent's own: the hold went with the new figure.
+    getMainData.mockResolvedValue({ rid: 3, server_state: { free_space_on_disk: FREE } })
+    await pollNow()
+    await waitFor(() => expect(within(addSheet()).getByRole('button', { name: /Files: all \(3\)/ })).toHaveTextContent(/· 40\.0\sGB free/))
   })
 
   it('counts a delete that qBittorrent answers after Back', async () => {
@@ -235,9 +246,14 @@ describe('Free up space', () => {
     renderSheet()
     await userEvent.click(await within(addSheet()).findByRole('button', { name: /Files: all \(3\)/ }))
     const picker = screen.getByRole('dialog', { name: 'Select files' })
+    const season = () => within(screen.getByRole('dialog', { name: 'Select files' })).getByRole('button', { name: /^Season 2/ })
+    const expanded = season().getAttribute('aria-expanded')
+    await userEvent.click(season())
     await userEvent.click(await within(picker).findByRole('button', { name: 'Free up space' }))
     await userEvent.click(within(step()).getByRole('button', { name: 'Back' }))
     expect(screen.getByRole('dialog', { name: 'Select files' })).toBeInTheDocument()
+    // Its folders as they were left.
+    expect(season()).toHaveAttribute('aria-expanded', expanded === 'true' ? 'false' : 'true')
     expect(screen.queryByRole('dialog', { name: 'Free up space' })).not.toBeInTheDocument()
     // Offered only while the selection doesn't fit: 10 GB of Season 1 does.
     await userEvent.click(within(screen.getByRole('dialog', { name: 'Select files' })).getByRole('checkbox', { name: 'Season 2' }))
@@ -249,8 +265,20 @@ describe('Free up space', () => {
     const sheet = await openStep()
     await userEvent.click(within(sheet).getByRole('checkbox', { name: 'Movie.2024.2160p-GRPA' }))
     getMainData.mockRejectedValue(qbittorrentDown())
-    await waitFor(() => expect(within(step()).getByRole('button', { name: 'Delete' })).toBeDisabled(), { timeout: 4000 })
+    await pollNow()
+    await waitFor(() => expect(within(step()).getByRole('button', { name: 'Delete' })).toBeDisabled())
     expect(within(step()).getByRole('alert', { name: saying(/^Couldn’t reach qBittorrent/) })).toBeInTheDocument()
+  })
+
+  it('says when qBittorrent didn’t send its default folder, which nothing can be counted without, and asks again', async () => {
+    vi.mocked(qbt.getSaveLocations).mockRejectedValueOnce(qbittorrentDown())
+    renderSheet()
+    const sheet = await openStep()
+    const failure = within(sheet).getByRole('alert', { name: saying('qBittorrent didn’t send its folders. Try again.') })
+    expect(within(sheet).queryAllByRole('list')).toHaveLength(1)
+    await userEvent.click(within(failure).getByRole('button', { name: 'Try again' }))
+    await waitFor(() => expect(within(step()).queryByRole('alert')).not.toBeInTheDocument())
+    expect(names(within(step()).getAllByRole('list')[0])).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
   })
 
   it('counts the whole download while qBittorrent can’t tell the free space', async () => {
@@ -258,7 +286,8 @@ describe('Free up space', () => {
     const sheet = await openStep()
     // qBittorrent reports 0 or less when it can't tell.
     getMainData.mockResolvedValue({ rid: 2, server_state: { free_space_on_disk: 0 } })
-    expect(await within(sheet).findByText(/^Selected 0\sB of 50\.0\sGB needed$/, undefined, { timeout: 4000 })).toBeInTheDocument()
+    await pollNow()
+    expect(await within(sheet).findByText(/^Selected 0\sB of 50\.0\sGB needed$/)).toBeInTheDocument()
     expect(within(sheet).queryByText(/free$/)).not.toBeInTheDocument()
   })
 

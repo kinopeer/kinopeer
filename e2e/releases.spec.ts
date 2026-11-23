@@ -11,10 +11,10 @@ const daysAgo = (days: number) => NOW / 1000 - days * 86_400
 const TO_FREE_UP: AppOptions = {
   freeSpace: 48 * GB,
   torrents: [
-    torrent('dune', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', size: 76 * GB, progress: 1, ratio: 1.42, added_on: daysAgo(200), save_path: '/downloads/movies' }),
-    torrent('oppenheimer', { name: 'Oppenheimer.2023.1080p.BluRay.x264-GRPB', size: 18 * GB, progress: 1, ratio: 0.31, added_on: daysAgo(45), save_path: '/downloads/movies' }),
-    torrent('bear', { name: 'The.Bear.S03.1080p.WEB-DL-GRPC', size: 24 * GB, progress: 0.5, added_on: daysAgo(3), save_path: '/downloads/tv' }),
-    torrent('archive', { name: 'Blade.Runner.1982.Final.Cut.1080p.BluRay-GRPD', size: 32 * GB, progress: 1, ratio: 4.1, added_on: daysAgo(700), save_path: '/mnt/archive' }),
+    torrent('dune', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', size: 76 * GB, progress: 1, ratio: 1.42, added_on: daysAgo(200), save_path: '/downloads/movies', content_path: '/downloads/movies/dune' }),
+    torrent('oppenheimer', { name: 'Oppenheimer.2023.1080p.BluRay.x264-GRPB', size: 18 * GB, progress: 1, ratio: 0.31, added_on: daysAgo(45), save_path: '/downloads/movies', content_path: '/downloads/movies/oppenheimer' }),
+    torrent('bear', { name: 'The.Bear.S03.1080p.WEB-DL-GRPC', size: 24 * GB, progress: 0.5, added_on: daysAgo(3), save_path: '/downloads/tv', content_path: '/downloads/tv/bear' }),
+    torrent('archive', { name: 'Blade.Runner.1982.Final.Cut.1080p.BluRay-GRPD', size: 32 * GB, progress: 1, ratio: 4.1, added_on: daysAgo(700), save_path: '/mnt/archive', content_path: '/mnt/archive/archive' }),
   ],
 }
 
@@ -210,7 +210,6 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
   })
 
-  // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.
   test('freeing up space for a release', async ({ page }) => {
     await freeUpSpace(page, async () => {
       await findReleases(page, TO_FREE_UP)
@@ -219,6 +218,7 @@ test.describe('releases, desktop', () => {
     await expect(page).toHaveScreenshot('desktop-add-free-up-dark-ru.png')
   })
 
+  // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.
   test('searching', async ({ page }) => {
     await openApp(page, '/title/tv/126308')
     // Never answered, so the search stays in flight.

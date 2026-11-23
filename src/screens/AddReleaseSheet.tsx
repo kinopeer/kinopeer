@@ -104,6 +104,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const reported = useFreeSpace()
   // What deletes from Free up space freed, until qBittorrent measures the disk again.
   const [freed, setFreed] = useState<FreedSpace>()
+  // A new figure has measured what was freed: the hold goes, so it can't come back with an old figure.
+  if (freed && freed.reported !== reported) setFreed(undefined)
   const { free, estimate } = estimatedFreeSpace(freed, reported)
 
   const meta = prepared.data?.meta
@@ -111,6 +113,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
   const [view, setView] = useState<'options' | 'files' | 'free'>('options')
   // Where Free up space goes back to: the sheet or the file picker it was opened from.
   const [freeFrom, setFreeFrom] = useState<'options' | 'files'>()
+  // The file picker's open folders, so it opens again as it was left, after Free up space too.
+  const [pickerFolders, setPickerFolders] = useState<ReadonlySet<string>>()
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [chosenCategory, setChosenCategory] = useState<string>()
   const [savePath, setSavePath] = useState('')
@@ -206,6 +210,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       free={free}
       estimate={estimate}
       defaultSavePath={where.data?.defaultPath}
+      foldersFailed={where.error !== undefined}
+      onRetryFolders={where.retry}
       subtitle={release.title}
       onFreed={(bytes) => setFreed((held) => withFreed(held, reported, bytes))}
       onBack={() => setView(freeFrom)}
@@ -224,6 +230,8 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
           free={free}
           estimate={estimate}
           subtitle={release.title}
+          openFolders={pickerFolders}
+          onOpenFolders={setPickerFolders}
           onFreeUp={() => freeUp('files')}
           onDone={() => setView('options')}
         />

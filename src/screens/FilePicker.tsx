@@ -22,6 +22,10 @@ export interface FilePickerProps {
   estimate?: boolean
   /** Opens Free up space, offered while the selected files don't fit. */
   onFreeUp?: () => void
+  /** The folders to start with open, as the picker was left; else initiallyOpen's. */
+  openFolders?: ReadonlySet<string>
+  /** Each time a folder is opened or closed, so the picker can start as it was left. */
+  onOpenFolders?: (open: ReadonlySet<string>) => void
   subtitle: string
   onDone: () => void
 }
@@ -35,11 +39,11 @@ function treeOf(meta: TorrentMeta): FileFolder {
 }
 
 /** Full-height sheet to pick which files of a torrent to download, as a folder tree. */
-export function FilePicker({ meta, skipped, onChange, free: reported, estimate, onFreeUp, subtitle, onDone }: FilePickerProps) {
+export function FilePicker({ meta, skipped, onChange, free: reported, estimate, onFreeUp, openFolders, onOpenFolders, subtitle, onDone }: FilePickerProps) {
   const { t } = useTranslation()
   const format = useFormatters()
   const tree = useMemo(() => treeOf(meta), [meta])
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => initiallyOpen(tree))
+  const [open, setOpen] = useState<ReadonlySet<string>>(() => openFolders ?? initiallyOpen(tree))
 
   const setFiles = (indexes: number[], selected: boolean) => {
     const next = new Set(skipped)
@@ -85,6 +89,7 @@ export function FilePicker({ meta, skipped, onChange, free: reported, estimate, 
               if (expanded) next.delete(folder.path)
               else next.add(folder.path)
               setOpen(next)
+              onOpenFolders?.(next)
             }}
           >
             <Icon name="folder" className="c2" />

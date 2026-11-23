@@ -48,18 +48,27 @@ export function isUnder(path: string, base: string): boolean {
   return folder === root || folder.startsWith(root.endsWith('/') ? root : `${root}/`)
 }
 
+/**
+ * Where a torrent's data is: its content path, which follows qBittorrent's download path while an
+ * unfinished torrent is kept there ("Keep incomplete torrents in"), else its save path, for one
+ * without metadata, which has no content path yet and nothing on disk.
+ */
+function locationOf(torrent: Pick<Torrent, 'content_path' | 'save_path'>): string {
+  return torrent.content_path || torrent.save_path
+}
+
 /** The torrents split by whether qBittorrent's free space is likely theirs. */
 export interface FreeUpGroups {
-  /** Saved in the default save path or under it, on the disk qBittorrent reports the free space of. */
+  /** With their files in the default save path or under it, on the disk qBittorrent reports the free space of. */
   counted: Torrent[]
-  /** Saved elsewhere, which may be another disk: deleting them may free nothing there. */
+  /** With their files elsewhere, which may be another disk: deleting them may free nothing there. */
   elsewhere: Torrent[]
 }
 
 /**
  * The torrents to free space from, each group in `order`, ties by name. qBittorrent reports free
  * space only for its default save path (`free_space_on_disk`), so a torrent counts toward it only
- * when it's saved there or under it. It misreads a disk mounted under the default save path, and
+ * when its files are there or under it (`locationOf`). It misreads a disk mounted under the default save path, and
  * another path that leads to the same disk: such a torrent lands in the wrong group, which says
  * nothing wrong about the space, only leaves it out of the count or puts it in.
  */
@@ -67,7 +76,7 @@ export function groupForFreeUp(torrents: readonly Torrent[], defaultSavePath: st
   const sorted = [...torrents].sort(compareForFreeUp(order))
   const counted: Torrent[] = []
   const elsewhere: Torrent[] = []
-  for (const torrent of sorted) (isUnder(torrent.save_path, defaultSavePath) ? counted : elsewhere).push(torrent)
+  for (const torrent of sorted) (isUnder(locationOf(torrent), defaultSavePath) ? counted : elsewhere).push(torrent)
   return { counted, elsewhere }
 }
 
@@ -75,17 +84,21 @@ function compareForFreeUp(order: FreeUpOrder): (a: Torrent, b: Torrent) => numbe
   const value = (torrent: Torrent) =>
     order.key === 'size' ? onDisk(torrent) : order.key === 'added' ? torrent.added_on : torrent.ratio
   const direction = order.descending ? -1 : 1
+  // qBittorrent reports 0 for a date it doesn't know, which the row doesn't show: last either way.
+  const unknown = (torrent: Torrent) => (order.key === 'added' && torrent.added_on <= 0 ? 1 : 0)
   return (a, b) =>
-    direction * (value(a) - value(b)) || a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
+    unknown(a) - unknown(b) ||
+    direction * (value(a) - value(b)) ||
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
 }
 
 /**
- * What deleting `torrents` frees where qBittorrent's free space counts it: what those saved in the
+ * What deleting `torrents` frees where qBittorrent's free space counts it: what those with their files in the
  * default save path or under it have on disk. Nothing while the default save path isn't known.
  */
 export function countedSpace(torrents: readonly Torrent[], defaultSavePath: string | undefined): number {
   return torrents.reduce(
-    (sum, torrent) => (defaultSavePath !== undefined && isUnder(torrent.save_path, defaultSavePath) ? sum + onDisk(torrent) : sum),
+    (sum, torrent) => (defaultSavePath !== undefined && isUnder(locationOf(torrent), defaultSavePath) ? sum + onDisk(torrent) : sum),
     0,
   )
 }

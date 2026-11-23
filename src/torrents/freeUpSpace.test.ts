@@ -69,10 +69,10 @@ describe('knownFreeUpOrder', () => {
 })
 
 describe('groupForFreeUp', () => {
-  const big = torrent('big', { name: 'Big', size: 40 * GB, progress: 1, save_path: '/downloads/Movies', added_on: 3, ratio: 0.5 })
-  const half = torrent('half', { name: 'Half', size: 60 * GB, progress: 0.5, save_path: '/downloads', added_on: 1, ratio: 2 })
-  const small = torrent('small', { name: 'Small', size: 2 * GB, progress: 1, save_path: '/downloads/TV', added_on: 2, ratio: 1 })
-  const other = torrent('other', { name: 'Other', size: 90 * GB, progress: 1, save_path: '/mnt/archive', added_on: 0, ratio: 3 })
+  const big = torrent('big', { name: 'Big', size: 40 * GB, progress: 1, save_path: '/downloads/Movies', content_path: '/downloads/Movies/big', added_on: 3, ratio: 0.5 })
+  const half = torrent('half', { name: 'Half', size: 60 * GB, progress: 0.5, save_path: '/downloads', content_path: '/downloads/half', added_on: 1, ratio: 2 })
+  const small = torrent('small', { name: 'Small', size: 2 * GB, progress: 1, save_path: '/downloads/TV', content_path: '/downloads/TV/small', added_on: 2, ratio: 1 })
+  const other = torrent('other', { name: 'Other', size: 90 * GB, progress: 1, save_path: '/mnt/archive', content_path: '/mnt/archive/other', added_on: 0, ratio: 3 })
   const all = [small, other, half, big]
   const hashes = (list: { hash: string }[]) => list.map((item) => item.hash)
 
@@ -93,11 +93,37 @@ describe('groupForFreeUp', () => {
     expect(hashes(groupForFreeUp(all, '/downloads', { key: 'ratio', descending: true }).counted)).toEqual(['half', 'small', 'big'])
   })
 
+  it('puts a torrent whose date added is unknown last by date, either way', () => {
+    const unknown = torrent('unknown', { name: 'Unknown', size: GB, progress: 1, save_path: '/downloads', content_path: '/downloads/unknown', added_on: 0 })
+    const list = [unknown, ...all]
+    expect(hashes(groupForFreeUp(list, '/downloads', { key: 'added', descending: false }).counted)).toEqual(['half', 'small', 'big', 'unknown'])
+    expect(hashes(groupForFreeUp(list, '/downloads', { key: 'added', descending: true }).counted)).toEqual(['big', 'small', 'half', 'unknown'])
+  })
+
   it('breaks ties by name', () => {
-    const a = torrent('a', { name: 'Alpha 10', size: GB, progress: 1, save_path: '/downloads' })
-    const b = torrent('b', { name: 'Alpha 9', size: GB, progress: 1, save_path: '/downloads' })
+    const a = torrent('a', { name: 'Alpha 10', size: GB, progress: 1, save_path: '/downloads', content_path: '/downloads/a' })
+    const b = torrent('b', { name: 'Alpha 9', size: GB, progress: 1, save_path: '/downloads', content_path: '/downloads/b' })
     expect(hashes(groupForFreeUp([a, b], '/downloads', DEFAULT_FREE_UP_ORDER).counted)).toEqual(['b', 'a'])
     expect(hashes(groupForFreeUp([b, a], '/downloads', DEFAULT_FREE_UP_ORDER).counted)).toEqual(['b', 'a'])
+  })
+
+  it('goes by where the data is, so an unfinished torrent kept in another folder is elsewhere', () => {
+    // qBittorrent's "Keep incomplete torrents in": saved under the default save path once it finishes.
+    const unfinished = torrent('unfinished', {
+      size: 10 * GB,
+      progress: 0.5,
+      save_path: '/downloads/Movies',
+      content_path: '/incomplete/Movie.2024.mkv',
+    })
+    const groups = groupForFreeUp([unfinished], '/downloads', DEFAULT_FREE_UP_ORDER)
+    expect(groups.counted).toEqual([])
+    expect(hashes(groups.elsewhere)).toEqual(['unfinished'])
+    expect(countedSpace([unfinished], '/downloads')).toBe(0)
+  })
+
+  it('goes by the save path for a torrent without metadata, which has no content path yet', () => {
+    const magnet = torrent('magnet', { size: 0, progress: 0, save_path: '/downloads/Movies', content_path: '' })
+    expect(hashes(groupForFreeUp([magnet], '/downloads', DEFAULT_FREE_UP_ORDER).counted)).toEqual(['magnet'])
   })
 
   it('puts everything elsewhere when the default save path isn’t known', () => {
@@ -109,9 +135,9 @@ describe('groupForFreeUp', () => {
 
 describe('countedSpace', () => {
   const torrents = [
-    torrent('a', { size: 10 * GB, progress: 1, save_path: '/downloads' }),
-    torrent('b', { size: 8 * GB, progress: 0.5, save_path: '/downloads/TV' }),
-    torrent('c', { size: 5 * GB, progress: 1, save_path: '/mnt/archive' }),
+    torrent('a', { size: 10 * GB, progress: 1, save_path: '/downloads', content_path: '/downloads/a' }),
+    torrent('b', { size: 8 * GB, progress: 0.5, save_path: '/downloads/TV', content_path: '/downloads/TV/b' }),
+    torrent('c', { size: 5 * GB, progress: 1, save_path: '/mnt/archive', content_path: '/mnt/archive/c' }),
   ]
 
   it('adds what the torrents under the default save path have on disk', () => {

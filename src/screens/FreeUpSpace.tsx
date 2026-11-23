@@ -31,6 +31,9 @@ export interface FreeUpSpaceProps {
   estimate: boolean
   /** qBittorrent's default save path, whose disk `free` is for; undefined until it's known. */
   defaultSavePath: string | undefined
+  /** qBittorrent didn't send its folders, so the default save path isn't known: it's said, with Retry. */
+  foldersFailed: boolean
+  onRetryFolders: () => void
   subtitle: string
   /** After qBittorrent deleted torrents from here: what they had on disk where `free` counts. */
   onFreed: (bytes: number) => void
@@ -39,11 +42,22 @@ export interface FreeUpSpaceProps {
 
 /**
  * The add sheet's step that frees space for a download: qBittorrent's torrents with what they have
- * on disk, to pick and delete with their files. Those saved in the default save path or under it
+ * on disk, to pick and delete with their files. Those with their files in the default save path or under it
  * come first and count toward the space needed; the rest may be on another disk (groupForFreeUp).
  * Rendered while the add sheet is, so a delete that settles after Back still reaches `onFreed`.
  */
-export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subtitle, onFreed, onBack }: FreeUpSpaceProps) {
+export function FreeUpSpace({
+  open,
+  size,
+  free,
+  estimate,
+  defaultSavePath,
+  foldersFailed,
+  onRetryFolders,
+  subtitle,
+  onFreed,
+  onBack,
+}: FreeUpSpaceProps) {
   const { t, i18n } = useTranslation()
   const elsewhereId = useId()
   const format = useFormatters()
@@ -148,6 +162,11 @@ export function FreeUpSpace({ open, size, free, estimate, defaultSavePath, subti
           {offline && (
             <Banner tone="error" actionLabel={t('common.retry')} onAction={refresh}>
               {t('common.qbtFailed', { context: unreachableText(unreachable) })}
+            </Banner>
+          )}
+          {foldersFailed && (
+            <Banner tone="error" actionLabel={t('common.retry')} onAction={onRetryFolders}>
+              {t('folders.loadFailed')}
             </Banner>
           )}
           {none && <p className="t-body c2">{t('downloads.emptyTitle')}</p>}
