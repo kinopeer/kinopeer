@@ -736,6 +736,17 @@ describe('AddReleaseSheet', () => {
       })
     })
 
+    it('reads the season of an episode in no folder from the release’s name', async () => {
+      const release = { ...RELEASE, title: 'Breaking.Bad.S04.1080p-GRPA' }
+      readTorrentFile.mockResolvedValue({ ...META, name: 'Episode 3.mkv', files: [{ path: 'Episode 3.mkv', size: 2e9 }], totalSize: 2e9, multiFile: false })
+      renderSheet(release)
+      const sheet = await openOptions()
+      const names = within(sheet).getByRole('switch', { name: 'Name files for a media server' })
+      expect(names).toBeEnabled()
+      await userEvent.click(names)
+      expect(names).toHaveAccessibleDescription('The show’s folder: “Breaking Bad”')
+    })
+
     it('says why a series’ files can’t be named when no episode is read', async () => {
       readTorrentFile.mockResolvedValue({ ...META, files: [{ path: '01.mkv', size: 10e9 }, { path: '02.mkv', size: 10e9 }] })
       renderSheet()

@@ -440,6 +440,15 @@ describe('useMediaNames', () => {
       ])
     })
 
+    it('reads the season of an episode in no folder from the torrent’s name', async () => {
+      const single = torrent('e3'.repeat(20), { name: 'Breaking.Bad.S04.1080p-GRPA', save_path: '/data/tv', content_path: '/data/tv/Episode 3.mkv' })
+      getTorrentFiles.mockResolvedValue([file(0, 'Episode 3.mkv')])
+      const { open } = renderNames(BB, { [single.hash]: single })
+      const sheet = await open(single.hash)
+      const files = within(await within(sheet).findByRole('region', { name: 'Files' })).getAllByRole('listitem')
+      expect(files.map((item) => item.textContent)).toEqual([`Episode 3.mkvbecomes Season 04/${SHOW} S04E03.mkv`])
+    })
+
     it('names a season into the show’s folder another season is in, reading that torrent’s files', async () => {
       getTorrentFiles.mockImplementation(filesBy([file(0, `${SHOW}/Season 01/${SHOW} S01E01.mkv`)]))
       const { open } = renderNames(BB, { [season2.hash]: season2, [season1.hash]: season1 })
