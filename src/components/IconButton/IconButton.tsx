@@ -1,10 +1,11 @@
-import { useId, type ButtonHTMLAttributes } from 'react'
+import { useId, type ButtonHTMLAttributes, type Ref } from 'react'
 import { Link, type LinkProps } from 'react-router'
 import { cx } from '../../lib/cx'
 import { Icon, type IconName } from '../Icon'
 import './IconButton.css'
 
 export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  ref?: Ref<HTMLButtonElement>
   icon: IconName
   /** Required accessible name: icon-only buttons have no visible text. */
   label: string
