@@ -4,6 +4,7 @@ import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { ProwlarrKeyReadError, ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
+import { TITLE_FRESH_MS, titleDetailsKey } from '../api/tmdb'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,
@@ -29,10 +30,12 @@ import {
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { sourceName } from '../releases/qualityBadges'
-import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
+import { mergeReleases } from '../releases/mergeReleases'
+import { ENGLISH, needsEnglishTitle, releaseQueries, type TitleDetails } from '../releases/releaseQuery'
 import { useSettings } from '../settings/settings'
 import { heldIds, sameIds, torrentId } from '../torrents/sameTorrent'
 import { useLastTorrents } from '../torrents/useMainData'
+import { loadTitleDetails } from './useTitleDetails'
 
 export const AUDIO_LABEL = {
   dub: 'releases.audioDub',
@@ -120,10 +123,12 @@ interface Found {
   started: number
 }
 
-async function find(query: string, signal: AbortSignal): Promise<Found> {
+async function find(queries: string[], signal: AbortSignal): Promise<Found> {
   const started = performance.now()
-  // No category filter: some indexers file every release under "Other".
-  return { releases: await searchReleases(query, { signal }), started }
+  // No category filter: some indexers file every release under "Other". The searches go at once, and
+  // one that fails fails them all, so the list is never part of what was asked for without saying so.
+  const lists = await Promise.all(queries.map((query) => searchReleases(query, { signal })))
+  return { releases: mergeReleases(lists), started }
 }
 
 /**
@@ -134,9 +139,19 @@ async function find(query: string, signal: AbortSignal): Promise<Found> {
  */
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
-  const query = details && enabled ? releaseQuery(details) : null
-  const key = query ? `${details!.type}|${query}` : null
-  const search = useRequest<Found>(key, (signal) => find(query!, signal))
+  // A title whose original name indexers don't list it by is searched by its English name too (#581):
+  // its details in English, shared as the title page's are, so a page in English asks nothing more.
+  const wantsEnglish = details !== undefined && enabled && needsEnglishTitle(details)
+  const english = useRequest<TitleDetails>(
+    wantsEnglish ? titleDetailsKey(details.type, details.id, ENGLISH) : null,
+    (signal) => loadTitleDetails(details!.type, details!.id, ENGLISH, signal),
+    { freshFor: TITLE_FRESH_MS },
+  )
+  // The search waits for the English name; without it (TMDB didn't answer) it goes by the original alone.
+  const englishSettled = !wantsEnglish || english.data !== undefined || english.error !== undefined
+  const queries = details && enabled && englishSettled ? releaseQueries(details, english.data) : null
+  const key = queries ? `${details!.type}|${queries.join('|')}` : null
+  const search = useRequest<Found>(key, (signal) => find(queries!, signal))
   // Prowlarr answers with what the working indexers found and says nothing about the rest, so once
   // the search answers, ask which failed since it started. The releases don't wait for it, and
   // without an answer there's just no note.

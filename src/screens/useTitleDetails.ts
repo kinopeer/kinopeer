@@ -10,10 +10,14 @@ import type { TitleDetails } from '../releases/releaseQuery'
 export function useTitleDetails(type: MediaType | undefined, id: number, language: string): RequestState<TitleDetails> {
   return useRequest<TitleDetails>(
     type ? titleDetailsKey(type, id, language) : null,
-    async (signal) =>
-      type === 'movie'
-        ? { ...(await getMovie(id, { language, signal })), type: 'movie' }
-        : { ...(await getTv(id, { language, signal })), type: 'tv' },
+    (signal) => loadTitleDetails(type!, id, language, signal),
     { freshFor: TITLE_FRESH_MS },
   )
+}
+
+/** A title's details in a language, as `useTitleDetails` shares them under `titleDetailsKey`. */
+export async function loadTitleDetails(type: MediaType, id: number, language: string, signal: AbortSignal): Promise<TitleDetails> {
+  return type === 'movie'
+    ? { ...(await getMovie(id, { language, signal })), type: 'movie' }
+    : { ...(await getTv(id, { language, signal })), type: 'tv' }
 }
