@@ -210,8 +210,6 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       free={free}
       estimate={estimate}
       defaultSavePath={where.data?.defaultPath}
-      foldersFailed={where.error !== undefined}
-      onRetryFolders={where.retry}
       subtitle={release.title}
       onFreed={(bytes) => setFreed((held) => withFreed(held, reported, bytes))}
       onBack={() => setView(freeFrom)}

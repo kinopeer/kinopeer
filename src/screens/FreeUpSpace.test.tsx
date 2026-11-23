@@ -270,36 +270,34 @@ describe('Free up space', () => {
     expect(within(step()).getByRole('alert', { name: saying(/^Couldn’t reach qBittorrent/) })).toBeInTheDocument()
   })
 
-  it('says when qBittorrent didn’t send its default folder, which nothing can be counted without, and asks again', async () => {
+  it('lists every torrent as maybe elsewhere, counting none, while qBittorrent’s default folder isn’t known', async () => {
+    // The client answers an empty default save path when qBittorrent didn't send one.
     const locations = await qbt.getSaveLocations()
-    let answer = () => {}
-    vi.mocked(qbt.getSaveLocations)
-      .mockRejectedValueOnce(qbittorrentDown())
-      .mockReturnValueOnce(new Promise((resolve) => (answer = () => resolve(locations))))
+    vi.mocked(qbt.getSaveLocations).mockResolvedValue({ ...locations, defaultPath: '' })
     renderSheet()
     const sheet = await openStep()
-    const failure = within(sheet).getByRole('alert', { name: saying('qBittorrent didn’t send its folders. Try again.') })
-    // Without the default save path, nothing counts: every torrent may be on another disk.
     const elsewhere = within(sheet).getByRole('region', { name: 'May be on another disk' })
+    expect(within(elsewhere).getByText('qBittorrent’s default folder isn’t known, so none of them count.')).toBeInTheDocument()
+    expect(within(elsewhere).queryByText('Outside qBittorrent’s default folder, so not counted.')).not.toBeInTheDocument()
     expect(names(within(elsewhere).getByRole('list'))).toEqual([
       'Archive.1999.1080p-GRPD',
       'Movie.2024.2160p-GRPA',
       'Show.S01.1080p-GRPB',
       'Show.S02E01.720p-GRPC',
     ])
+    await userEvent.click(within(elsewhere).getByRole('checkbox', { name: 'Movie.2024.2160p-GRPA' }))
+    expect(within(sheet).getByText(/^Selected 0\sB of 10\.0\sGB needed$/)).toBeInTheDocument()
+  })
 
-    await userEvent.click(within(elsewhere).getByRole('checkbox', { name: 'Archive.1999.1080p-GRPD' }))
-
-    // While it asks again, the step says so rather than list them all as elsewhere, and deletes nothing.
-    await userEvent.click(within(failure).getByRole('button', { name: 'Try again' }))
-    expect(within(step()).getByText('Loading folders')).toBeInTheDocument()
-    expect(within(step()).queryByRole('alert')).not.toBeInTheDocument()
-    expect(within(step()).queryByRole('region', { name: 'May be on another disk' })).not.toBeInTheDocument()
-    expect(within(step()).queryByRole('checkbox')).not.toBeInTheDocument()
-    expect(within(step()).getByRole('button', { name: 'Delete' })).toBeDisabled()
-
+  it('groups the torrents once the default folder arrives', async () => {
+    const locations = await qbt.getSaveLocations()
+    let answer = () => {}
+    vi.mocked(qbt.getSaveLocations).mockReturnValue(new Promise((resolve) => (answer = () => resolve(locations))))
+    renderSheet()
+    const sheet = await openStep()
+    expect(within(sheet).getByText('qBittorrent’s default folder isn’t known, so none of them count.')).toBeInTheDocument()
     await act(async () => answer())
-    expect(within(step()).queryByText('Loading folders')).not.toBeInTheDocument()
+    expect(within(step()).queryByText('qBittorrent’s default folder isn’t known, so none of them count.')).not.toBeInTheDocument()
     expect(names(within(step()).getAllByRole('list')[0])).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
   })
 
