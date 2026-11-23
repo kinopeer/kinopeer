@@ -1,10 +1,11 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
-import { SpeedLimitsSheet, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
+import { SpeedLimitsSheet, type SpeedLimitsChange, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
 
 describe('SpeedLimitsSheet', () => {
   function renderSheet(fields = {}, props: Partial<SpeedLimitsSheetProps> = {}) {
@@ -123,5 +124,72 @@ describe('SpeedLimitsSheet', () => {
     renderSheet({}, { failure: { download: 2_000_000 } })
     expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
+  })
+
+  describe('Remove limits', () => {
+    it.each([
+      ['a download limit', { dl_limit: 2_000_000 }],
+      ['an upload limit', { up_limit: 500_000 }],
+    ])('is offered for a torrent with %s of its own, and sends both limits as none at once', async (_, fields) => {
+      const handlers = renderSheet(fields)
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(handlers.onSave).toHaveBeenCalledExactlyOnceWith({ download: 0, upload: 0 })
+      expect(handlers.onClose).not.toHaveBeenCalled()
+    })
+
+    it.each([
+      ['0', 0],
+      ['-1', -1],
+    ])('isn’t offered for a torrent with no limit of its own (%s), even with a limit typed', async (_, none) => {
+      renderSheet({ dl_limit: none, up_limit: none })
+      await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
+      expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
+    })
+
+    it('is off while qBittorrent is unreachable, as Save is', async () => {
+      const handlers = renderSheet({ dl_limit: 2_000_000 }, { offline: true })
+      expect(screen.getByRole('button', { name: 'Remove limits' })).toBeDisabled()
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(handlers.onSave).not.toHaveBeenCalled()
+    })
+
+    it('isn’t offered while a save is in flight, which shows busy on Save', () => {
+      renderSheet({ dl_limit: 2_000_000 }, { pending: { download: 0, upload: 0 } })
+      expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+    })
+
+    it('empties the fields as it sends, so they show what’s being saved', async () => {
+      renderSheet({ dl_limit: 2_500_000, up_limit: 500_000 })
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('')
+      expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveValue('')
+    })
+
+    it('leaves Save sending no limits after a failed removal, not the old ones back', async () => {
+      const onSave = vi.fn()
+      // A screen whose every save fails, handing the sheet what it sent as the failure.
+      function Failing() {
+        const [failure, setFailure] = useState<SpeedLimitsChange>()
+        const save = (limits: SpeedLimitsChange) => {
+          onSave(limits)
+          setFailure(limits)
+        }
+        return (
+          <SpeedLimitsSheet torrent={torrent('h1', { dl_limit: 2_500_000 })} title="Inception" offline={false} failure={failure} onSave={save} onClose={vi.fn()} />
+        )
+      }
+      renderWithRouter(<Failing />)
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+      expect(onSave).toHaveBeenNthCalledWith(2, { download: 0, upload: 0 })
+    })
+
+    it('is offered again after a failed save, beside what the failure says', () => {
+      renderSheet({ dl_limit: 2_000_000 }, { failure: { download: 0, upload: 0 } })
+      expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Remove limits' })).toBeEnabled()
+    })
   })
 })
