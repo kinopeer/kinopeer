@@ -131,7 +131,6 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
       onClose={close}
       title={editing ? (editing.category?.name ?? t('folders.default')) : t('move.known')}
       leading={editing && <IconButton icon="chevron-left" label={t('common.back')} iconSize={24} onClick={back} />}
-      action={<IconButton icon="close" label={t('common.close')} onClick={close} />}
     >
       {editing && data ? (
         <FolderForm
