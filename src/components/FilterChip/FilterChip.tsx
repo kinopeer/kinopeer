@@ -12,6 +12,8 @@ export interface FilterChipProps extends ButtonHTMLAttributes<HTMLButtonElement>
   trailingIcon?: IconName
   /** Raised background, for chips over content. */
   solid?: boolean
+  /** Dimmed while not selected, still pressable: a choice that would leave nothing, say. */
+  dim?: boolean
 }
 
 export function FilterChip({
@@ -20,6 +22,7 @@ export function FilterChip({
   icon,
   trailingIcon,
   solid,
+  dim,
   className,
   type = 'button',
   children,
@@ -29,7 +32,7 @@ export function FilterChip({
     <button
       {...rest}
       type={type}
-      className={cx('ks-chip', solid && 'ks-chip-solid', selected && 'is-on', className)}
+      className={cx('ks-chip', solid && 'ks-chip-solid', selected && 'is-on', dim && 'is-dim', className)}
       aria-pressed={selected}
     >
       {icon && <Icon name={icon} size={16} />}

@@ -4,25 +4,62 @@
   margin: 0 auto;
 }
 
+/* The title bar and the filter chips stay pinned; the search query between them scrolls away
+   (#582), so the header makes no box of its own. */
 .rel-head {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: calc(var(--safe-top) + var(--space-1)) var(--space-2) 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  display: contents;
 }
 
 .rel-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 52px;
+  min-height: calc(var(--safe-top) + var(--space-1) + 52px); /* 52px of the bar under its padding */
+  padding: calc(var(--safe-top) + var(--space-1)) var(--space-2) 0;
+  background: var(--bg);
 }
 
 .rel-heading {
   flex: 1;
   min-width: 0;
+}
+
+/* The search query (ReleaseQueryField), between the title and the filters. */
+.rel-query-row {
+  padding: var(--space-1) var(--space-4) 0;
+}
+
+.rel-query {
+  position: relative;
+}
+
+/* Room for the reset button, and hide the browser's own clear button. */
+.rel-query .ks-input {
+  padding-right: var(--space-12);
+}
+
+.rel-query .ks-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.rel-query-reset {
+  position: absolute;
+  top: 2px; /* inside the field's 1px border, as Search's clear button */
+  right: 2px; /* the same */
+}
+
+/* The filter chips' row, pinned under the bar, its chips scrolling inside its padding. */
+.rel-chips-bar {
+  position: sticky;
+  top: calc(var(--safe-top) + var(--space-1) + 52px); /* under the pinned bar (.rel-bar) */
+  z-index: 5;
+  padding: 0 var(--space-2);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .rel-chips {
@@ -218,6 +255,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+}
+
+/* A filter value's count sits closer to its label than a chip's usual gap, so the phone's sheet keeps its rows
+   (TitleReleases.tsx's popovers too, alike): the count belongs to the value. */
+.rel-options .ks-chip,
+.title-rel-options .ks-chip {
+  gap: var(--space-1);
 }
 
 .rel-sort {

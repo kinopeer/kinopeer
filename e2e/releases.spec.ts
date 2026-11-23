@@ -1,7 +1,32 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
-import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
+import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { GB, NOW, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
+
+/**
+ * qBittorrent's torrents for Free up space (#580): three on the default save path's disk, under
+ * /downloads, and one elsewhere, which may be another disk.
+ */
+const daysAgo = (days: number) => NOW / 1000 - days * 86_400
+const TO_FREE_UP: AppOptions = {
+  freeSpace: 48 * GB,
+  torrents: [
+    torrent('dune', { name: 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX-GRPA', size: 76 * GB, progress: 1, ratio: 1.42, added_on: daysAgo(200), save_path: '/downloads/movies', content_path: '/downloads/movies/dune' }),
+    torrent('oppenheimer', { name: 'Oppenheimer.2023.1080p.BluRay.x264-GRPB', size: 18 * GB, progress: 1, ratio: 0.31, added_on: daysAgo(45), save_path: '/downloads/movies', content_path: '/downloads/movies/oppenheimer' }),
+    torrent('bear', { name: 'The.Bear.S03.1080p.WEB-DL-GRPC', size: 24 * GB, progress: 0.5, added_on: daysAgo(3), save_path: '/downloads/tv', content_path: '/downloads/tv/bear' }),
+    torrent('archive', { name: 'Blade.Runner.1982.Final.Cut.1080p.BluRay-GRPD', size: 32 * GB, progress: 1, ratio: 4.1, added_on: daysAgo(700), save_path: '/mnt/archive', content_path: '/mnt/archive/archive' }),
+  ],
+}
+
+/** The add sheet over too little space, then Free up space from its warning, one torrent picked. */
+async function freeUpSpace(page: Page, open: () => Promise<void>) {
+  await open()
+  await page.getByRole('button', { name: 'Освободить место' }).click()
+  const step = page.getByRole('dialog', { name: 'Освободить место' })
+  await expect(step.getByRole('region', { name: 'Может быть на другом диске' })).toBeVisible()
+  await step.getByRole('checkbox', { name: /^Oppenheimer/ }).check()
+  await settle(page)
+}
 
 /** A remembered 2160p, which these releases have, and a dub, which none of them has. */
 const REMEMBERED = { resolution: ['2160p'], audio: ['dub'], source: [], minSeeds: 0 }
@@ -72,6 +97,30 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
   })
 
+  // A query edited and searched, with Reset query in the field (#582).
+  test('an edited query', async ({ page }) => {
+    await openReleases(page)
+    const field = page.getByRole('searchbox', { name: 'Поисковый запрос' })
+    await field.fill('Shogun 2024 2160p')
+    await field.press('Enter')
+    await expect(page.getByRole('button', { name: 'Сбросить запрос' })).toBeVisible()
+    await expect(page.getByText(RELEASES[0].title)).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('query-edited-dark-ru.png')
+  })
+
+  // The query field scrolls away under the title bar; the bar and the filter chips stay pinned (#582).
+  test('the title bar and the filters stay at the top while the list scrolls', async ({ page }) => {
+    await emulateNotch(page)
+    await openReleases(page)
+    await page.evaluate(() => window.scrollTo(0, 400))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(400)
+    await expect(page.getByRole('searchbox', { name: 'Поисковый запрос' })).not.toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Назад' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: /^Фильтры/ })).toBeInViewport()
+    await expect(page).toHaveScreenshot('list-scrolled-safe-area-dark-ru.png')
+  })
+
   // A release qBittorrent has: its card opens the torrent in place of adding it (#375).
   test('a release already in downloads', async ({ page }) => {
     await openReleases(page, TOP_IN_DOWNLOADS)
@@ -107,6 +156,15 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('filters-dark-ru.png')
   })
 
+  // Counts under a minimum of seeds, with a value that would leave none dimmed (#583).
+  test('filters sheet, a value that would leave none', async ({ page }) => {
+    await openReleases(page)
+    await page.getByRole('button', { name: /^Фильтры/ }).click()
+    await page.getByRole('button', { name: /^100\+ \d+$/ }).click()
+    await expect(page.getByRole('button', { name: '720p 0' })).toBeVisible()
+    await expect(page).toHaveScreenshot('filters-dim-dark-ru.png')
+  })
+
   test('adding a release, then picking its files', async ({ page }) => {
     await openReleases(page)
     await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
@@ -128,6 +186,14 @@ test.describe('releases, phone', () => {
     await expect(page.getByRole('button', { name: /Файлы: все \(14\)/ })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('add-low-space-dark-ru.png')
+  })
+
+  test('freeing up space for a release', async ({ page }) => {
+    await freeUpSpace(page, async () => {
+      await openReleases(page, TO_FREE_UP)
+      await page.getByRole('button', { name: 'Добавить в загрузки' }).first().click()
+    })
+    await expect(page).toHaveScreenshot('add-free-up-dark-ru.png')
   })
 
   // qBittorrent has the torrent already: the sheet says so and opens it in place of Download (#375).
@@ -186,6 +252,14 @@ test.describe('releases, desktop', () => {
     await expectActionColumnAt(page.getByRole('table').getByRole('link', { name: 'В загрузках' }))
     await expectActionColumnAt(page.getByRole('table').getByRole('button', { name: 'Добавить' }).first())
     await expect(page).toHaveScreenshot('desktop-in-downloads-dark-ru.png')
+  })
+
+  test('freeing up space for a release', async ({ page }) => {
+    await freeUpSpace(page, async () => {
+      await findReleases(page, TO_FREE_UP)
+      await page.getByRole('table').getByRole('button', { name: 'Добавить' }).first().click()
+    })
+    await expect(page).toHaveScreenshot('desktop-add-free-up-dark-ru.png')
   })
 
   // While the search runs: the filter bar there from the start, its filters as skeletons, the sort working.

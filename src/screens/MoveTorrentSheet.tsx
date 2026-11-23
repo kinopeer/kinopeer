@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next'
 import { getSaveLocations, type Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
-import { IconButton } from '../components/IconButton'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
@@ -41,7 +40,6 @@ export function MoveTorrentSheet({ torrent, offline, pending, failure, onMove, o
       onClose={onClose}
       title={t('move.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={
         <Button
           variant="primary"

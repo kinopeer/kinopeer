@@ -46,7 +46,8 @@
     "qbtFailed": "Couldn’t reach qBittorrent. Try again.",
     "qbtFailed_kinopeer": "Couldn’t reach Kinopeer. Try again.",
     "qbittorrent": "qBittorrent",
-    "tmdb": "TMDB"
+    "tmdb": "TMDB",
+    "approximately": "≈ {{value}}"
   },
   "noAnswer": {
     "qbittorrent": "qBittorrent isn’t answering",
@@ -319,6 +320,8 @@
   },
   "releases": {
     "title": "Releases",
+    "query": "Search query",
+    "resetQuery": "Reset query",
     "loading": "Searching releases",
     "count_one": "{{shown}} of {{count}} release",
     "count_other": "{{shown}} of {{count}} releases",
@@ -428,6 +431,14 @@
     "addAs": "Folder and video: “{{name}}”",
     "addFailed": "Added, but its files weren’t named. Name them from the torrent’s More menu."
   },
+  "freeUp": {
+    "title": "Free up space",
+    "counter": "Selected {{selected}} of {{needed}} needed",
+    "enough": "Enough space for this download",
+    "elsewhere": "May be on another disk",
+    "elsewhereHint": "Outside qBittorrent’s default folder, so not counted.",
+    "folderUnknown": "qBittorrent’s default folder isn’t known, so none of them count."
+  },
   "torrent": {
     "loading": "Loading torrent",
     "notFoundTitle": "Torrent not found",
@@ -465,6 +476,7 @@
     "deleteBodyMany_other": "{{count}} torrents will be removed from qBittorrent.",
     "deleteFiles": "Also delete files · {{size}}",
     "deleteFilesHint": "Files are removed from disk permanently.",
+    "deleteWithFiles": "Files are deleted too · {{size}}",
     "files": "Files",
     "priorityOf": "Priority: {{name}}",
     "prioritySkip": "Skip",
@@ -627,6 +639,7 @@
     "download": "Download limit, MB/s",
     "upload": "Upload limit, MB/s",
     "hint": "Empty: no limit",
+    "remove": "Remove limits",
     "invalid": "Enter a number from {{min}} to {{max}}, or leave it empty for no limit",
     "failed": "Couldn’t save the limits, or saved only some of them. Check the connection to qBittorrent and try again.",
     "failedClosed": "Couldn’t save the speed limits of {{title}}, or saved only some. Open them again to check.",

@@ -93,6 +93,17 @@ describe('settings', () => {
     })
   })
 
+  it('keeps the order of the torrents to free space from apart from the downloads list, checked when read', () => {
+    expect(getSettings()).toMatchObject({ freeUpSort: 'size', freeUpSortDescending: true })
+    const { result } = renderHook(() => useSettings())
+    act(() => result.current[1]({ freeUpSort: 'added', freeUpSortDescending: false }))
+    expect(result.current[0]).toMatchObject({ downloadsSort: 'priority', freeUpSort: 'added', freeUpSortDescending: false })
+    resetSettings()
+    // A sort the step doesn't offer; knownFreeUpOrder's tests own the rest of what's checked.
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({ freeUpSort: 'speed', freeUpSortDescending: false }))
+    expect(getSettings()).toMatchObject({ freeUpSort: 'size', freeUpSortDescending: true })
+  })
+
   it('ignores unreadable storage', () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, '{not json')
     expect(getSettings()).toEqual(DEFAULT_SETTINGS)

@@ -1,9 +1,12 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useLocation, useSearchParams } from 'react-router'
 import { failureOf, type ConnectionFailure } from '../api/connectionFailure'
 import { unreachable, type Torrent, type Unreachable } from '../api/qbittorrent'
 import { ProwlarrKeyReadError, ProwlarrSetupError, getFailingIndexers, searchReleases, type Release } from '../api/prowlarr'
 import { clickedOrder, cycledOrder, reversedOrder, usualOrder } from '../logic/sortOrder'
+import { TITLE_FRESH_MS, titleDetailsKey } from '../api/tmdb'
+import { isDeepLink, type DeepLinkState } from '../lib/deepLink'
 import { useRequest } from '../lib/useRequest'
 import {
   NOT_STATED,
@@ -11,6 +14,7 @@ import {
   NO_REMEMBERED_FILTERS,
   RELEASES_USUALLY_DESCENDING,
   SORT_KEYS,
+  filterCounts,
   filterReleases,
   presentValues,
   remember,
@@ -18,6 +22,7 @@ import {
   startingFilters,
   toggle,
   type AudioFilter,
+  type FilterCounts,
   type Filters,
   type PresentValues,
   type ReleaseRow,
@@ -29,10 +34,12 @@ import {
 } from '../releases/filterReleases'
 import { parseRelease } from '../releases/parseRelease'
 import { sourceName } from '../releases/qualityBadges'
-import { releaseQuery, type TitleDetails } from '../releases/releaseQuery'
+import { mergeReleases } from '../releases/mergeReleases'
+import { ENGLISH, needsEnglishTitle, releaseQueries, releaseQuery, type TitleDetails } from '../releases/releaseQuery'
 import { useSettings } from '../settings/settings'
 import { heldIds, sameIds, torrentId } from '../torrents/sameTorrent'
 import { useLastTorrents } from '../torrents/useMainData'
+import { loadTitleDetails } from './useTitleDetails'
 
 export const AUDIO_LABEL = {
   dub: 'releases.audioDub',
@@ -45,6 +52,9 @@ export const AUDIO_LABEL = {
 } as const
 
 export const SORT_LABEL = { seeds: 'fields.seeds', size: 'fields.size', date: 'fields.date' } as const
+
+/** The address's parameter that holds a query the user edited (#582). */
+export const QUERY_PARAM = 'q'
 
 /** A picked filter value, shown as a removable chip. */
 export interface ActiveFilter {
@@ -70,6 +80,14 @@ export interface Releases {
   /** With `error`, in the WebUI build: qBittorrent didn't give Prowlarr's address and key (`ProwlarrKeyReadError`). */
   unread?: boolean
   retry: () => void
+  /** The query the field shows: the one edited, else the one Kinopeer builds from the title. */
+  query: string
+  /** Whether the search goes by a query the user edited, kept in the address. */
+  edited: boolean
+  /** Searches by the text given; the built query, or nothing, goes back to it. */
+  searchBy: (text: string) => void
+  /** Goes back to the query Kinopeer builds. */
+  resetQuery: () => void
   /** Names of the indexers that didn't answer this search, so their releases are missing. */
   failing: string[]
   /** Every release found. */
@@ -77,6 +95,8 @@ export interface Releases {
   /** The releases the filters let through, sorted. */
   visible: ReleaseRow[]
   present: PresentValues
+  /** How many releases each filter value would leave, the other filters as they are (#583). */
+  counts: FilterCounts
   filters: Filters
   updateFilters: (change: Partial<Filters>) => void
   clearFilters: () => void
@@ -120,10 +140,12 @@ interface Found {
   started: number
 }
 
-async function find(query: string, signal: AbortSignal): Promise<Found> {
+async function find(queries: string[], signal: AbortSignal): Promise<Found> {
   const started = performance.now()
-  // No category filter: some indexers file every release under "Other".
-  return { releases: await searchReleases(query, { signal }), started }
+  // No category filter: some indexers file every release under "Other". The searches go at once, and
+  // one that fails fails them all, so the list is never part of what was asked for without saying so.
+  const lists = await Promise.all(queries.map((query) => searchReleases(query, { signal })))
+  return { releases: mergeReleases(lists), started }
 }
 
 /**
@@ -134,9 +156,28 @@ async function find(query: string, signal: AbortSignal): Promise<Found> {
  */
 export function useReleases(details: TitleDetails | undefined, enabled = true): Releases {
   const { t } = useTranslation()
-  const query = details && enabled ? releaseQuery(details) : null
-  const key = query ? `${details!.type}|${query}` : null
-  const search = useRequest<Found>(key, (signal) => find(query!, signal))
+  const location = useLocation()
+  // A query the user edited lives in the address, so Back to the screen and a reload keep it, and
+  // another title, opened without it, starts from its own (#582). It's searched as written, alone.
+  const [params, setParams] = useSearchParams()
+  const edited = params.get(QUERY_PARAM)?.trim() || undefined
+  const built = details ? releaseQuery(details) : ''
+  // A title whose original name indexers don't list it by is searched by its English name too (#581):
+  // its details in English, shared as the title page's are, so a page in English asks nothing more.
+  const wantsEnglish = details !== undefined && enabled && !edited && needsEnglishTitle(details)
+  const english = useRequest<TitleDetails>(
+    wantsEnglish ? titleDetailsKey(details.type, details.id, ENGLISH) : null,
+    (signal) => loadTitleDetails(details!.type, details!.id, ENGLISH, signal),
+    { freshFor: TITLE_FRESH_MS },
+  )
+  // The search waits for the English name; without it (TMDB didn't answer) it goes by the original alone.
+  const englishSettled = !wantsEnglish || english.data !== undefined || english.error !== undefined
+  const queries = details && enabled && englishSettled ? (edited ? [edited] : releaseQueries(details, english.data)) : null
+  // Try again after the English name failed asks for it again, and the search after it is a new one
+  // (`tries`), so the last one's outcome doesn't show while it's on its way, even with the same queries.
+  const [tries, setTries] = useState(0)
+  const key = queries ? `${details!.type}|${tries}|${queries.join('|')}` : null
+  const search = useRequest<Found>(key, (signal) => find(queries!, signal))
   // Prowlarr answers with what the working indexers found and says nothing about the rest, so once
   // the search answers, ask which failed since it started. The releases don't wait for it, and
   // without an answer there's just no note.
@@ -147,6 +188,8 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
 
   const [settings, updateSettings] = useSettings()
   // Unset until the user changes a filter in this search; till then they follow the remembered ones.
+  // Picks belong to the title, so they last through Try again and the English name's search.
+  const title = details ? `${details.type}|${details.id}` : null
   const [picked, setPicked] = useState<{ key: string | null; filters: Filters }>()
   const [adding, setAdding] = useState<ReleaseRow>()
 
@@ -171,11 +214,12 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   )
   const present = useMemo(() => presentValues(rows), [rows])
   const { releaseFilters: remembered, releaseSort: sort } = settings
-  // Picks from another search (another title) don't carry over.
-  const own = picked?.key === key ? picked.filters : undefined
+  // Picks from another title don't carry over.
+  const own = picked?.key === title ? picked.filters : undefined
   // The starting filters are worked out only until the first pick, which every later pick builds on.
   const filters = useMemo(() => own ?? startingFilters(remembered, rows, present), [own, remembered, rows, present])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
+  const counts = useMemo(() => filterCounts(rows, filters), [rows, filters])
   const { applied, aside } = useMemo(() => split(remembered, filters), [remembered, filters])
 
   // Resolutions and sources show as named; Not stated says which filter, as AUDIO_LABEL.none does.
@@ -196,6 +240,23 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
       : []),
   ]
 
+  // In place of the address's entry, so Back leaves the releases rather than going through the queries,
+  // saying whether it was opened from a link, which a replaced entry's key no longer says (as the title
+  // page's Find releases does). The query already searched searches again once that search has
+  // settled, since the address, and so the search's key, stays the same.
+  const searchBy = (text: string) => {
+    const query = text.trim()
+    const wanted = query && query !== built ? query : undefined
+    if (wanted === edited) {
+      if (search.data || search.error) search.retry()
+      return
+    }
+    const next = new URLSearchParams(params)
+    if (wanted) next.set(QUERY_PARAM, wanted)
+    else next.delete(QUERY_PARAM)
+    setParams(next, { replace: true, state: { deepLink: isDeepLink(location) } satisfies DeepLinkState })
+  }
+
   const status: ReleasesStatus =
     search.error instanceof ProwlarrSetupError
       ? search.error.code === 'unauthorized'
@@ -215,21 +276,33 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     unreachable: status === 'error' ? unreachable(search.error) : undefined,
     // Only the WebUI build reads Prowlarr's address and key from qBittorrent.
     ...(__WEBUI__ && { unread: search.error instanceof ProwlarrKeyReadError }),
-    retry: search.retry,
+    // Try again asks TMDB for the English name again when it failed, and searches with what comes.
+    retry:
+      english.error === undefined
+        ? search.retry
+        : () => {
+            english.retry()
+            setTries((count) => count + 1)
+          },
+    query: edited ?? built,
+    edited: edited !== undefined,
+    searchBy,
+    resetQuery: () => searchBy(built),
     failing: missing,
     rows,
     visible,
     present,
+    counts,
     filters,
     updateFilters: (change) => {
-      setPicked({ key, filters: { ...filters, ...change } })
+      setPicked({ key: title, filters: { ...filters, ...change } })
       // The indexer isn't remembered: a pick of it alone leaves the settings as they are.
       if (Object.keys(change).some((name) => name !== 'indexer')) {
         updateSettings({ releaseFilters: remember(remembered, change, filters) })
       }
     },
     clearFilters: () => {
-      setPicked({ key, filters: NO_FILTERS })
+      setPicked({ key: title, filters: NO_FILTERS })
       updateSettings({ releaseFilters: NO_REMEMBERED_FILTERS })
     },
     active,

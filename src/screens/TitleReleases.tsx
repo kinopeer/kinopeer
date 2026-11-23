@@ -16,6 +16,7 @@ import { qualityBadges, sourceName } from '../releases/qualityBadges'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { IndexerLink } from './IndexerLink'
 import { ReleaseName } from './ReleaseName'
+import { ReleaseQueryField } from './ReleaseQueryField'
 import { AddingRelease, ReleasesBody, ReleasesCount } from './ReleasesBlock'
 import { AUDIO_LABEL, SORT_LABEL, useReleases, type Releases } from './useReleases'
 import './ReleasesScreen.css'
@@ -36,7 +37,7 @@ export interface TitleReleasesProps {
 export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
   const { t } = useTranslation()
   const releases = useReleases(details)
-  const { filters, sort, present, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters, status } = releases
+  const { filters, sort, present, counts, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters, status } = releases
   const [open, setOpen] = useState<PopoverKey | null>(null)
 
   const popover = (key: PopoverKey) => ({
@@ -44,9 +45,15 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
     onOpenChange: (next: boolean) => setOpen(next ? key : (current) => (current === key ? null : current)),
   })
   const options = <T,>(present: T[], selected: T[]) => [...new Set([...present, ...selected])]
-  const choices = <T extends string>(values: T[], selected: T[], pick: (value: T) => void, show: (value: T) => string = (value) => value) =>
+  const choices = <T extends string>(
+    values: T[],
+    selected: T[],
+    counted: Partial<Record<T, number>>,
+    pick: (value: T) => void,
+    show: (value: T) => string = (value) => value,
+  ) =>
     values.map((value) => (
-      <FilterChip key={value} selected={selected.includes(value)} onClick={() => pick(value)}>
+      <FilterChip key={value} selected={selected.includes(value)} count={counted[value] ?? 0} dim={!counted[value]} onClick={() => pick(value)}>
         {show(value)}
       </FilterChip>
     ))
@@ -82,6 +89,10 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
         {(status === 'loading' || status === 'ready') && sorting}
       </div>
 
+      <div className="title-rel-query">
+        <ReleaseQueryField releases={releases} />
+      </div>
+
       {/* The bar is there from the start, skeletons of the filters while the search runs, so the
           results don't push the table down as they come (#393); with nothing to filter, its room
           stays, empty, so what's said instead doesn't move up either. */}
@@ -97,17 +108,17 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
         <div className={open ? 'title-rel-bar is-open' : 'title-rel-bar'}>
           {resolutions.length > 0 && (
             <FilterPopover name={t('releases.resolution')} label={summary(filters.resolution, t('releases.resolution'), resolutionLabel)} selected={filters.resolution.length > 0} {...popover('resolution')}>
-              {choices(resolutions, filters.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }), optionLabel(resolutionLabel))}
+              {choices(resolutions, filters.resolution, counts.resolution, (value) => updateFilters({ resolution: toggle(filters.resolution, value) }), optionLabel(resolutionLabel))}
             </FilterPopover>
           )}
           {audio.length > 0 && (
             <FilterPopover name={t('releases.audio')} label={summary(filters.audio, t('releases.audio'), audioLabel)} selected={filters.audio.length > 0} {...popover('audio')}>
-              {choices(audio, filters.audio, (value) => updateFilters({ audio: toggle(filters.audio, value) }), optionLabel(audioLabel))}
+              {choices(audio, filters.audio, counts.audio, (value) => updateFilters({ audio: toggle(filters.audio, value) }), optionLabel(audioLabel))}
             </FilterPopover>
           )}
           {sources.length > 0 && (
             <FilterPopover name={t('releases.source')} label={summary(filters.source, t('releases.source'), sourceLabel)} selected={filters.source.length > 0} {...popover('source')}>
-              {choices(sources, filters.source, (value) => updateFilters({ source: toggle(filters.source, value) }), optionLabel(sourceLabel))}
+              {choices(sources, filters.source, counts.source, (value) => updateFilters({ source: toggle(filters.source, value) }), optionLabel(sourceLabel))}
             </FilterPopover>
           )}
           <FilterPopover
@@ -117,14 +128,20 @@ export function TitleReleases({ details, sectionRef }: TitleReleasesProps) {
             {...popover('seeds')}
           >
             {MIN_SEEDS.map((value) => (
-              <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => updateFilters({ minSeeds: value })}>
+              <FilterChip
+                key={value}
+                selected={filters.minSeeds === value}
+                count={counts.minSeeds[value] ?? 0}
+                dim={!counts.minSeeds[value]}
+                onClick={() => updateFilters({ minSeeds: value })}
+              >
                 {value ? `${value}+` : t('releases.any')}
               </FilterChip>
             ))}
           </FilterPopover>
           {present.indexer.length > 1 && (
             <FilterPopover name={t('releases.indexer')} label={summary(filters.indexer, t('releases.indexer'))} selected={filters.indexer.length > 0} {...popover('indexer')}>
-              {choices(present.indexer, filters.indexer, (value) => updateFilters({ indexer: toggle(filters.indexer, value) }))}
+              {choices(present.indexer, filters.indexer, counts.indexer, (value) => updateFilters({ indexer: toggle(filters.indexer, value) }))}
             </FilterPopover>
           )}
         </div>

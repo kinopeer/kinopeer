@@ -665,7 +665,7 @@ describe('TorrentScreen title matching', () => {
       await userEvent.click(within(screen.getByRole('dialog', { name: 'Dune.Part.Two.Fan.Edit' })).getByRole('button', { name: 'Match title' }))
       return screen.getByRole('dialog', { name: 'Title match' })
     }
-    await userEvent.click(within(await openSearch()).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(within(await openSearch()).getByRole('button', { name: 'Close' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(matchesApi.saveMatches).not.toHaveBeenCalled()
     expect(dotted()).toHaveAccessibleDescription(UNMATCHED)

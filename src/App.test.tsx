@@ -496,7 +496,7 @@ describe('App', () => {
     await userEvent.clear(field)
     await userEvent.type(field, '/media/new')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(await screen.findByRole('heading', { name: 'Downloads' })).toBeInTheDocument()
     fail(new api.QbittorrentError('conflict', 409))
@@ -514,7 +514,7 @@ describe('App', () => {
     await userEvent.clear(field)
     await userEvent.type(field, '/media/new')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Move' }))
-    await userEvent.click(within(sheet).getByRole('button', { name: 'Cancel' }))
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
     await userEvent.click(screen.getByRole('button', { name: 'Back' }))
 
     // Downloads, another screen, shares the move through App's requests.

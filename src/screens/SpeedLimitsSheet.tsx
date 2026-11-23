@@ -5,7 +5,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
-import { changedLimit, isUnfinished, limitToField, MAX_MB, MIN_MB } from '../torrents/speedLimits'
+import { changedLimit, isUnfinished, limitToField, MAX_MB, MIN_MB, ownLimits } from '../torrents/speedLimits'
 import './SpeedLimitsSheet.css'
 
 /** The limits a save sends, in bytes/s: 0 removes one, and one left out stays as it is. */
@@ -57,6 +57,15 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
   const valid = download !== null && upload !== null
   const invalid = t('limits.invalid', { min: MIN_MB.toLocaleString(language), max: MAX_MB })
 
+  // The torrent's own limits as qBittorrent has them now, not as the fields read.
+  const limited = ownLimits(torrent) !== null
+  // Empties the fields as it sends, so they show what's being saved, and Save after a failure sends
+  // no limits again rather than the old ones back.
+  const removeLimits = () => {
+    setText({ download: '', upload: '' })
+    onSave({ download: 0, upload: 0 })
+  }
+
   const save = (event: FormEvent) => {
     event.preventDefault()
     if (!valid || offline || saving) return
@@ -102,6 +111,11 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
             error={limits[direction] === null && !isUnfinished(text[direction]) ? invalid : false}
           />
         ))}
+        {limited && !saving && (
+          <Button variant="secondary" block disabled={offline} onClick={removeLimits}>
+            {t('limits.remove')}
+          </Button>
+        )}
         {failure && <Banner tone="error">{t('limits.failed')}</Banner>}
       </form>
     </Sheet>

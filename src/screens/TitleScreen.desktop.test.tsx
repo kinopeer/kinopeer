@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react'
+import { act, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,6 +11,7 @@ import { stubDesktop } from '../lib/stubDesktop'
 import { restoreLayout, stubLayout } from '../lib/stubLayout'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
+import { counted, labelOf } from '../test/filterChips'
 import { DUNE_RELEASES, release, torrent } from '../test/fixtures'
 import { Opened, Where, opened, renderWithRouter, saying, where } from '../test/render'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
@@ -234,6 +235,84 @@ describe('TitleScreen on desktop', () => {
     expect(searchReleases).toHaveBeenCalledTimes(1)
   })
 
+  it('searches by the query edited above the filters, and Reset brings the built one back (#582)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const field = () => screen.getByRole('searchbox', { name: 'Search query' })
+    expect(field()).toHaveValue('Dune Part Two 2024')
+
+    searchReleases.mockResolvedValue([DUNE_RELEASES[0]])
+    await userEvent.clear(field())
+    await userEvent.type(field(), 'Dune 2{Enter}')
+    expect(await screen.findByText('1 of 1 release')).toBeInTheDocument()
+    expect(searchReleases).toHaveBeenLastCalledWith('Dune 2', expect.anything())
+    expect(where()).toBe('/title/movie/693134/releases')
+
+    searchReleases.mockResolvedValue(DUNE_RELEASES)
+    await userEvent.click(screen.getByRole('button', { name: 'Reset query' }))
+    expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+    expect(field()).toHaveValue('Dune Part Two 2024')
+  })
+
+  it('goes back to Search from releases opened from a link, after the query was edited (#582)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    await userEvent.type(screen.getByRole('searchbox', { name: 'Search query' }), ' remux{Enter}')
+    await waitFor(() => expect(searchReleases).toHaveBeenLastCalledWith('Dune Part Two 2024 remux', expect.anything()))
+    await userEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(where()).toBe('/search')
+  })
+
+  it('searches by the query in the address (#582)', async () => {
+    renderAt('/title/movie/693134/releases?q=Dune%202')
+    await screen.findByText('3 of 3 releases')
+    expect(searchReleases).toHaveBeenCalledTimes(1)
+    expect(searchReleases).toHaveBeenCalledWith('Dune 2', expect.anything())
+    expect(screen.getByRole('searchbox', { name: 'Search query' })).toHaveValue('Dune 2')
+  })
+
+  it('shows in the popovers how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    await userEvent.click(screen.getByRole('button', { name: 'Min seeds' }))
+    const seeds = screen.getByRole('group', { name: 'Min seeds' })
+    expect(within(seeds).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Any 3', '10+ 3', '50+ 2', '100+ 2'])
+    await userEvent.click(within(seeds).getByRole('button', { name: counted('100+') }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
+    const resolution = screen.getByRole('group', { name: 'Resolution' })
+    expect(within(resolution).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
+    // is-dim is what dims the chip; no role or attribute says it.
+    expect(within(resolution).getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
+    expect(within(resolution).getByRole('button', { name: '2160p 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(resolution).getByRole('button', { name: '720p 0' }))
+
+    // The 720p release has 12 seeds: 100+, still picked, and 50+ would leave none.
+    await userEvent.click(screen.getByRole('button', { name: '100+ seeds', expanded: false }))
+    const picked = screen.getByRole('group', { name: 'Min seeds' })
+    expect(within(picked).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
+    expect(within(picked).getByRole('button', { name: '100+ 0' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).toHaveAttribute('aria-pressed', 'false')
+    // is-dim is what dims the chip; no role or attribute says it.
+    expect(within(picked).getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(picked).getByRole('button', { name: '10+ 1' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Indexer' }))
+    const indexers = screen.getByRole('group', { name: 'Indexer' })
+    expect(within(indexers).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C 1', 'Indexer D 0'])
+    // is-dim is what dims the chip; no role or attribute says it.
+    expect(within(indexers).getByRole('button', { name: 'Indexer D 0' })).toHaveClass('is-dim')
+    await userEvent.click(within(indexers).getByRole('button', { name: 'Indexer C 1' }))
+    expect(within(indexers).getByRole('button', { name: 'Indexer C 1' })).toHaveAttribute('aria-pressed', 'true')
+
+    // Under 720p, 10+ seeds and Indexer C.
+    await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
+    expect(within(screen.getByRole('group', { name: 'Audio' })).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Dubbed 0', 'Not stated 1'])
+    await userEvent.click(screen.getByRole('button', { name: 'Source' }))
+    expect(within(screen.getByRole('group', { name: 'Source' })).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['REMUX 0', 'BluRay 1', 'WEB-DL 0'])
+  })
+
   it('filters in popovers, removes filters and sorts', async () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
@@ -242,8 +321,8 @@ describe('TitleScreen on desktop', () => {
     expect(chip).toHaveAttribute('aria-expanded', 'false')
     await userEvent.click(chip)
     const popover = screen.getByRole('group', { name: 'Resolution' })
-    expect(within(popover).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p'])
-    await userEvent.click(within(popover).getByRole('button', { name: '2160p' }))
+    expect(within(popover).getAllByRole('button').map(labelOf)).toEqual(['2160p', '1080p', '720p'])
+    await userEvent.click(within(popover).getByRole('button', { name: counted('2160p') }))
     expect(screen.getByText('1 of 3 releases')).toBeInTheDocument()
     expect(names()).toEqual([DUNE_RELEASES[0].title])
     expect(screen.getByRole('button', { name: '2160p', expanded: true })).toHaveAttribute('aria-pressed', 'true')
@@ -310,22 +389,22 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
     const resolution = screen.getByRole('group', { name: 'Resolution' })
     // The option says just Not stated under the filter's name; the filter's button names the filter.
-    expect(within(resolution).getAllByRole('button').map((option) => option.textContent)).toEqual(['2160p', '1080p', '720p', 'Not stated'])
-    await userEvent.click(within(resolution).getByRole('button', { name: 'Not stated' }))
+    expect(within(resolution).getAllByRole('button').map(labelOf)).toEqual(['2160p', '1080p', '720p', 'Not stated'])
+    await userEvent.click(within(resolution).getByRole('button', { name: counted('Not stated') }))
     expect(screen.getByRole('button', { name: 'Resolution not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
 
     await userEvent.click(screen.getByRole('button', { name: 'Source' }))
     const source = screen.getByRole('group', { name: 'Source' })
-    expect(within(source).getAllByRole('button').map((option) => option.textContent)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
-    await userEvent.click(within(source).getByRole('button', { name: 'Not stated' }))
+    expect(within(source).getAllByRole('button').map(labelOf)).toEqual(['REMUX', 'BluRay', 'WEB-DL', 'Not stated'])
+    await userEvent.click(within(source).getByRole('button', { name: counted('Not stated') }))
     expect(screen.getByRole('button', { name: 'Source not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('1 of 4 releases')).toBeInTheDocument()
     expect(names()).toEqual([bare.title])
 
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
     const audio = screen.getByRole('group', { name: 'Audio' })
-    expect(within(audio).getAllByRole('button').map((option) => option.textContent)).toEqual(['Dubbed', 'Not stated'])
-    await userEvent.click(within(audio).getByRole('button', { name: 'Not stated' }))
+    expect(within(audio).getAllByRole('button').map(labelOf)).toEqual(['Dubbed', 'Not stated'])
+    await userEvent.click(within(audio).getByRole('button', { name: counted('Not stated') }))
     expect(screen.getByRole('button', { name: 'Audio not stated', expanded: true })).toHaveAttribute('aria-pressed', 'true')
     expect(names()).toEqual([bare.title])
   })
@@ -337,7 +416,7 @@ describe('TitleScreen on desktop', () => {
     expect(screen.getByRole('group', { name: 'Audio' })).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Min seeds' }))
     expect(screen.queryByRole('group', { name: 'Audio' })).not.toBeInTheDocument()
-    await userEvent.click(within(screen.getByRole('group', { name: 'Min seeds' })).getByRole('button', { name: '100+' }))
+    await userEvent.click(within(screen.getByRole('group', { name: 'Min seeds' })).getByRole('button', { name: counted('100+') }))
     expect(screen.getByText('2 of 3 releases')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '100+ seeds' })).toHaveAttribute('aria-pressed', 'true')
   })
@@ -346,9 +425,9 @@ describe('TitleScreen on desktop', () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
     await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
-    await userEvent.click(screen.getByRole('button', { name: '720p' }))
+    await userEvent.click(screen.getByRole('button', { name: counted('720p') }))
     await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Dubbed' }))
+    await userEvent.click(screen.getByRole('button', { name: counted('Dubbed') }))
     expect(screen.getByRole('heading', { name: 'Nothing matches' })).toBeInTheDocument()
   })
 
@@ -377,7 +456,7 @@ describe('TitleScreen on desktop', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Источник' }))
     const source = screen.getByRole('group', { name: 'Источник' })
-    expect(within(source).getByRole('button', { name: 'Экранка' })).toBeInTheDocument()
+    expect(within(source).getByRole('button', { name: counted('Экранка') })).toBeInTheDocument()
 
     await userEvent.click(within(row).getByRole('button', { name: 'Добавить в загрузки' }))
     expect(within(screen.getByRole('dialog', { name: 'Добавить в загрузки' })).getByText('Экранка')).toBeInTheDocument()

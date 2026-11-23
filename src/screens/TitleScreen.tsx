@@ -29,6 +29,7 @@ import { TitleRelated } from './TitleRelated'
 import { TitleReleases } from './TitleReleases'
 import { useTitleDetails } from './useTitleDetails'
 import './TitleScreen.css'
+import { isDeepLink, type DeepLinkState } from '../lib/deepLink'
 
 
 function year(date: string | null | undefined): string | undefined {
@@ -68,10 +69,7 @@ export interface TitleScreenProps {
   onSessionLost: () => void
 }
 
-export interface TitleLocationState {
-  /** The title page was opened from a link, so Back has nowhere to go in the app. */
-  deepLink?: boolean
-}
+export type TitleLocationState = DeepLinkState
 
 /**
  * The title's routes. On a phone its releases are a screen of their own; on desktop they're on the
@@ -107,7 +105,7 @@ export function TitleScreen({ onSessionLost }: TitleScreenProps) {
   const request = useTitleDetails(valid ? type : undefined, id, language)
 
   // Opened from inside the app: go back. Opened from a shared link: there's nothing to go back to.
-  const deepLink = location.key === 'default' || (location.state as TitleLocationState | null)?.deepLink === true
+  const deepLink = isDeepLink(location)
   const goBack = () => (deepLink ? navigate('/search') : navigate(-1))
 
   const scrollTo = (section: HTMLElement | null, behavior: ScrollBehavior = 'smooth') =>

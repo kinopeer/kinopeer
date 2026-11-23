@@ -16,6 +16,11 @@ export interface BannerProps {
   /** A second ghost sm Button after the action. */
   secondaryActionLabel?: string
   onSecondaryAction?: () => void
+  /**
+   * The action goes under the text on a narrow banner, as two always do: for a long one that would
+   * leave the text a narrow column beside it.
+   */
+  wrapActions?: boolean
   /** False when a live region around the banner announces it instead. */
   live?: boolean
   className?: string
@@ -37,13 +42,14 @@ export function Banner({
   actionDisabled,
   secondaryActionLabel,
   onSecondaryAction,
+  wrapActions,
   live = true,
   className,
   children,
 }: BannerProps) {
   return (
     <div
-      className={cx('ks-banner', tone !== 'warning' && `ks-banner-${tone}`, secondaryActionLabel && 'has-two-actions', className)}
+      className={cx('ks-banner', tone !== 'warning' && `ks-banner-${tone}`, (secondaryActionLabel || wrapActions) && 'wraps-actions', className)}
       role={live ? (tone === 'error' ? 'alert' : 'status') : undefined}
     >
       <Icon name={icon ?? DEFAULT_ICON[tone]} size={20} />
