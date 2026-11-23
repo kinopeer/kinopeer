@@ -311,6 +311,21 @@ describe('useReleases', () => {
       expect(prowlarr.searchReleases).toHaveBeenCalledTimes(1)
     })
 
+    it('searches again on Try again once the English name came, or for an original in Latin script', async () => {
+      vi.mocked(tmdb.getMovie).mockResolvedValue(english)
+      vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
+      const korean = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(korean.result.current.status).toBe('none'))
+      act(() => korean.result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(4))
+      korean.unmount()
+
+      const latin = renderHook(() => useReleases(movie(1, 'Dune')))
+      await waitFor(() => expect(latin.result.current.status).toBe('none'))
+      act(() => latin.result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(6))
+    })
+
     it('asks nothing until enabled', async () => {
       renderHook(() => useReleases(parasite, false))
       await act(() => Promise.resolve())
