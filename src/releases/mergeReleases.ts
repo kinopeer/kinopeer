@@ -1,12 +1,13 @@
 import type { Release } from '../api/prowlarr'
 
-const identity = (release: Release) => release.infoHash?.toLowerCase() ?? release.download ?? release.id
+const identity = (release: Release) => release.infoHash?.toLowerCase() || release.id
 
 /**
  * The releases of several searches for one title as one list, in the order found: a release a later
- * search found again is left out, by its info hash, else its download link, else Prowlarr's guid (a
- * hash and a link never read as each other: a link has a slash). What one search answered is kept as
- * it is, so a single search's list is Prowlarr's own.
+ * search found again is left out, by its info hash, else Prowlarr's guid, which the indexer gives
+ * and Prowlarr passes on as it is. Not by the download link: Prowlarr encrypts each search's links
+ * afresh, so the same release comes with another one. What one search answered is kept as it is, so
+ * a single search's list is Prowlarr's own.
  */
 export function mergeReleases(lists: readonly Release[][]): Release[] {
   const merged: Release[] = []

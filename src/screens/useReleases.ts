@@ -230,7 +230,8 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     unreachable: status === 'error' ? unreachable(search.error) : undefined,
     // Only the WebUI build reads Prowlarr's address and key from qBittorrent.
     ...(__WEBUI__ && { unread: search.error instanceof ProwlarrKeyReadError }),
-    retry: search.retry,
+    // Try again asks TMDB for the English name again when it failed, and searches with what comes.
+    retry: english.error === undefined ? search.retry : english.retry,
     failing: missing,
     rows,
     visible,

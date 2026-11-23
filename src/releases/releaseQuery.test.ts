@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
+import { PARASITE_RU } from '../test/fixtures'
 import { needsEnglishTitle, releaseQueries, releaseQuery } from './releaseQuery'
 
 describe('releaseQuery', () => {
@@ -19,7 +20,7 @@ describe('releaseQuery', () => {
   })
 })
 
-const parasite = { title: 'Паразиты', original_title: '기생충', release_date: '2019-05-30' } as MovieDetails
+const parasite = PARASITE_RU
 const inEnglish = (title: string) => ({ type: 'movie' as const, ...parasite, title })
 
 describe('needsEnglishTitle', () => {

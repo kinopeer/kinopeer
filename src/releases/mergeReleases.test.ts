@@ -18,30 +18,30 @@ describe('mergeReleases', () => {
     expect(mergeReleases([[first], [again]])).toEqual([first])
   })
 
-  it('tells releases without a hash apart by their download link', () => {
-    const first = release('a', { download: '1/download?link=x' })
-    const again = release('b', { download: '1/download?link=x' })
-    const other = release('c', { download: '1/download?link=y' })
+  it('tells releases without a hash apart by Prowlarr’s guid, which each search gives the same, unlike the download link', () => {
+    // Prowlarr encrypts each search's download links afresh, so the same release comes with another token.
+    const first = release('https://indexer-a.example.org/1', { download: '1/download?link=x' })
+    const again = release('https://indexer-a.example.org/1', { download: '1/download?link=y' })
+    const other = release('https://indexer-a.example.org/2', { download: '1/download?link=x' })
     expect(mergeReleases([[first], [again, other]])).toEqual([first, other])
   })
 
-  it('tells releases with neither by Prowlarr’s guid', () => {
-    const bare = release('c')
-    const sameBare = release('c')
-    const otherBare = release('d')
-    expect(mergeReleases([[bare], [sameBare, otherBare]])).toEqual([bare, otherBare])
+  it('takes an empty hash for none', () => {
+    const a = release('a', { infoHash: '' })
+    const b = release('b', { infoHash: '' })
+    expect(mergeReleases([[a], [b]])).toEqual([a, b])
   })
 
   it('keeps a search’s own list as it is, releases that read as the same included', () => {
-    const a = release('a', { download: 'same' })
-    const b = release('b', { download: 'same' })
+    const a = release('same', { download: 'x' })
+    const b = release('same', { download: 'y' })
     expect(mergeReleases([[a, b]])).toEqual([a, b])
-    expect(mergeReleases([[a, b], [release('c', { download: 'same' })]])).toEqual([a, b])
+    expect(mergeReleases([[a, b], [release('same', { download: 'z' })]])).toEqual([a, b])
   })
 
-  it('keeps two releases with the same download link but different hashes', () => {
-    const a = release('a', { infoHash: 'aa', download: 'same' })
-    const b = release('b', { infoHash: 'bb', download: 'same' })
+  it('keeps two releases with the same guid but different hashes', () => {
+    const a = release('same', { infoHash: 'aa' })
+    const b = release('same', { infoHash: 'bb' })
     expect(mergeReleases([[a], [b]])).toEqual([a, b])
   })
 })

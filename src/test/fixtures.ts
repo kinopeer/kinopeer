@@ -355,6 +355,9 @@ export function release(id: string, title: string, size: number, seeders: number
 }
 
 /** Three Dune releases: a remux, a Russian dub and a small one, two indexers. */
+/** Parasite's details in Russian: an original title in Korean, so its releases are searched by its English name too (#581). */
+export const PARASITE_RU = { id: 496243, title: 'Паразиты', original_title: '기생충', release_date: '2019-05-30' } as MovieDetails
+
 export const DUNE_RELEASES: Release[] = [
   release('a', 'Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.DV.HDR10.HEVC-GRPA', 78e9, 214, 'Indexer D'),
   release('b', 'Дюна 2 / Dune: Part Two (2024) WEB-DL 1080p | Дубляж', 9.4e9, 2451),

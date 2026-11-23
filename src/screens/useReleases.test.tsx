@@ -8,7 +8,7 @@ import type { MovieDetails } from '../api/tmdb'
 import type { Release } from '../api/prowlarr'
 import type { TitleDetails } from '../releases/releaseQuery'
 import { SETTINGS_STORAGE_KEY, resetSettings } from '../settings/settings'
-import { DUNE_RELEASES, torrent } from '../test/fixtures'
+import { DUNE_RELEASES, PARASITE_RU, torrent } from '../test/fixtures'
 import { MainDataProvider } from '../torrents/MainDataProvider'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { POLL_INTERVAL_MS } from '../torrents/pollIntervals'
@@ -226,8 +226,8 @@ describe('useReleases', () => {
   })
 
   describe('a title whose original name isn’t in Latin script (#581)', () => {
-    const parasite = { type: 'movie', id: 496243, title: 'Паразиты', original_title: '기생충', release_date: '2019-05-30' } as TitleDetails
-    const english = { id: 496243, title: 'Parasite', original_title: '기생충', release_date: '2019-05-30' } as MovieDetails
+    const parasite: TitleDetails = { type: 'movie', ...PARASITE_RU }
+    const english: MovieDetails = { ...PARASITE_RU, title: 'Parasite' }
     const found = (id: string, more: Partial<Release> = {}): Release => ({ ...DUNE_RELEASES[0], id, title: `Parasite.2019.1080p.${id}-GRPA`, ...more })
 
     it('searches by the original and the English name, and lists a release both found once', async () => {
@@ -267,6 +267,30 @@ describe('useReleases', () => {
       const { result } = renderHook(() => useReleases(parasite))
       await waitFor(() => expect(result.current.status).toBe('ready'))
       expect(vi.mocked(prowlarr.searchReleases).mock.calls.map(([query]) => query)).toEqual(['기생충 2019'])
+    })
+
+    it('asks TMDB for the English name again on Try again, after it failed', async () => {
+      vi.mocked(tmdb.getMovie).mockRejectedValueOnce(new tmdb.TmdbError('down', 503)).mockResolvedValue(english)
+      vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
+      const { result } = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(result.current.status).toBe('none'))
+      expect(vi.mocked(prowlarr.searchReleases).mock.calls.map(([query]) => query)).toEqual(['기생충 2019'])
+
+      act(() => result.current.retry())
+      await waitFor(() => expect(vi.mocked(prowlarr.searchReleases).mock.calls.map(([query]) => query)).toEqual(['기생충 2019', '기생충 2019', 'Parasite 2019']))
+      expect(tmdb.getMovie).toHaveBeenCalledTimes(2)
+      await waitFor(() => expect(result.current.status).toBe('none'))
+    })
+
+    it('searches again by the original alone when the English name fails again on Try again', async () => {
+      vi.mocked(tmdb.getMovie).mockRejectedValue(new tmdb.TmdbError('down', 503))
+      vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
+      const { result } = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(result.current.status).toBe('none'))
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2))
+      expect(vi.mocked(prowlarr.searchReleases).mock.calls.map(([query]) => query)).toEqual(['기생충 2019', '기생충 2019'])
+      expect(tmdb.getMovie).toHaveBeenCalledTimes(2)
     })
 
     it('fails the list when one of the searches fails, so it never shows part of it as all', async () => {
