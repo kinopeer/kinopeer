@@ -10,7 +10,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
-- Every sheet has the same close button at the end of its title row, on a phone and on desktop: Speed limits, the torrent's More menu on a phone, the releases' filters, the file picker, Prowlarr's setup, the install sheet and Settings' sheets had none, the others called it Cancel or Close, and the sort sheet's Done, which only closed it, gives way to it. ([#578](https://github.com/kinopeer/kinopeer/issues/578))
+- Every sheet has the same close button at the end of its title row, on a phone and on desktop: Speed limits, the torrent's More menu on a phone, the releases' filters, the file picker, Prowlarr's setup, the install sheet and Settings' sheets had none, the others called it Cancel or Close, and the sort sheet's Done, which only closed it, gives way to it. Move files and Fix match open on their field, as the other form sheets do. ([#578](https://github.com/kinopeer/kinopeer/issues/578))
 - In Settings, saving qBittorrent's folders, setting up Telegram notifications, changing qBittorrent's or Prowlarr's address, login or key, and turning push notifications on or off or testing them go on when the sheet is closed or Settings is left: the sheet or card shown again shows the request on its way, and a toast says how it went, the failure included, which Telegram's, the connections' and push's used to lose. ([#500](https://github.com/kinopeer/kinopeer/issues/500))
 
 ### Fixed
