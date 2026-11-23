@@ -1,10 +1,11 @@
 import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
-import { SpeedLimitsSheet, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
+import { SpeedLimitsSheet, type SpeedLimitsChange, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
 
 describe('SpeedLimitsSheet', () => {
   function renderSheet(fields = {}, props: Partial<SpeedLimitsSheetProps> = {}) {
@@ -156,6 +157,33 @@ describe('SpeedLimitsSheet', () => {
       renderSheet({ dl_limit: 2_000_000 }, { pending: { download: 0, upload: 0 } })
       expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+      expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('aria-busy', 'true')
+    })
+
+    it('empties the fields as it sends, so they show what’s being saved', async () => {
+      renderSheet({ dl_limit: 2_500_000, up_limit: 500_000 })
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('')
+      expect(screen.getByRole('textbox', { name: 'Upload limit, MB/s' })).toHaveValue('')
+    })
+
+    it('leaves Save sending no limits after a failed removal, not the old ones back', async () => {
+      const onSave = vi.fn()
+      // A screen whose every save fails, handing the sheet what it sent as the failure.
+      function Failing() {
+        const [failure, setFailure] = useState<SpeedLimitsChange>()
+        const save = (limits: SpeedLimitsChange) => {
+          onSave(limits)
+          setFailure(limits)
+        }
+        return (
+          <SpeedLimitsSheet torrent={torrent('h1', { dl_limit: 2_500_000 })} title="Inception" offline={false} failure={failure} onSave={save} onClose={vi.fn()} />
+        )
+      }
+      renderWithRouter(<Failing />)
+      await userEvent.click(screen.getByRole('button', { name: 'Remove limits' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+      expect(onSave).toHaveBeenNthCalledWith(2, { download: 0, upload: 0 })
     })
 
     it('is offered again after a failed save, beside what the failure says', () => {
