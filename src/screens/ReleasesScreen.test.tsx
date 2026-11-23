@@ -1,4 +1,4 @@
-import { act, screen, waitFor, within } from '@testing-library/react'
+import { act, createEvent, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -142,12 +142,26 @@ describe('ReleasesScreen, the search query (#582)', () => {
   it('goes back to the built query on an empty one or the built one, searching nothing more', async () => {
     renderQueryAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
+    // The built query with spaces after it is the built query.
     await userEvent.type(field(), '  {Enter}')
+    expect(address()).toBe('')
+    await userEvent.clear(field())
+    await userEvent.type(field(), '  {Enter}')
+    expect(address()).toBe('')
+    expect(field()).toHaveValue('Dune Part Two 2024')
     await userEvent.clear(field())
     await userEvent.type(field(), '{Enter}')
     expect(address()).toBe('')
     expect(field()).toHaveValue('Dune Part Two 2024')
     expect(searchReleases).toHaveBeenCalledTimes(1)
+  })
+
+  it('submits without the browser sending the form', async () => {
+    renderQueryAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const submit = createEvent.submit(screen.getByRole('search'))
+    fireEvent(screen.getByRole('search'), submit)
+    expect(submit.defaultPrevented).toBe(true)
   })
 
   it('replaces the address’s entry, so Back leaves the releases', async () => {
