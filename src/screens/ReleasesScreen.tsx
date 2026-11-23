@@ -108,38 +108,40 @@ export function ReleasesScreen() {
             <ReleaseQueryField releases={releases} disabled={!details.data} />
           </div>
         )}
-        {/* The row is there from the start, a skeleton of it while the search runs, so the results
-            don't push the list down as they come, and its room stays, empty, when there's nothing
-            to filter, so the list doesn't move up either (#393). */}
-        {!ready && (
-          <div className="rel-chips rel-chips-skel" aria-hidden="true">
-            {loading && [104, 116, 128, 104, 112].map((width, index) => <div key={index} className="ks-skel rel-chip-skel" style={{ width }} />)}
-          </div>
-        )}
-        {ready && (
-          <div className="rel-chips ks-hscroll">
-            <FilterChip solid icon="filter" selected={active.length > 0} count={active.length || undefined} onClick={() => setSheetOpen(true)}>
-              {t('releases.filters')}
-            </FilterChip>
-            {/* A press turns the sort the other way, the next one goes on to the next sort. */}
-            <FilterChip
-              icon="sort"
-              aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
-              onClick={releases.cycleSort}
-            >
-              {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
-            </FilterChip>
-            <FilterChip selected={filters.resolution.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
-              {summary(filters.resolution, t('releases.resolution'), resolutionLabel)}
-            </FilterChip>
-            <FilterChip selected={filters.audio.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
-              {summary(filters.audio, t('releases.audio'), audioLabel)}
-            </FilterChip>
-            <FilterChip selected={filters.source.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
-              {summary(filters.source, t('releases.source'), sourceLabel)}
-            </FilterChip>
-          </div>
-        )}
+        <div className="rel-chips-bar">
+          {/* The row is there from the start, a skeleton of it while the search runs, so the results
+              don't push the list down as they come, and its room stays, empty, when there's nothing
+              to filter, so the list doesn't move up either (#393). */}
+          {!ready && (
+            <div className="rel-chips rel-chips-skel" aria-hidden="true">
+              {loading && [104, 116, 128, 104, 112].map((width, index) => <div key={index} className="ks-skel rel-chip-skel" style={{ width }} />)}
+            </div>
+          )}
+          {ready && (
+            <div className="rel-chips ks-hscroll">
+              <FilterChip solid icon="filter" selected={active.length > 0} count={active.length || undefined} onClick={() => setSheetOpen(true)}>
+                {t('releases.filters')}
+              </FilterChip>
+              {/* A press turns the sort the other way, the next one goes on to the next sort. */}
+              <FilterChip
+                icon="sort"
+                aria-label={`${t('common.sort')}: ${t(SORT_LABEL[sort.key])}, ${t(sort.descending ? 'common.descending' : 'common.ascending')}`}
+                onClick={releases.cycleSort}
+              >
+                {t(SORT_LABEL[sort.key])} {sort.descending ? '↓' : '↑'}
+              </FilterChip>
+              <FilterChip selected={filters.resolution.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
+                {summary(filters.resolution, t('releases.resolution'), resolutionLabel)}
+              </FilterChip>
+              <FilterChip selected={filters.audio.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
+                {summary(filters.audio, t('releases.audio'), audioLabel)}
+              </FilterChip>
+              <FilterChip selected={filters.source.length > 0} trailingIcon="chevron-down" onClick={() => setSheetOpen(true)}>
+                {summary(filters.source, t('releases.source'), sourceLabel)}
+              </FilterChip>
+            </div>
+          )}
+        </div>
       </header>
 
       <section className="rel-body" aria-busy={loading}>

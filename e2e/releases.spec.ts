@@ -1,6 +1,6 @@
 import type { Locator, Page } from '@playwright/test'
 import { expect, test } from './test.ts'
-import { DESKTOP, DESKTOP_RAIL, openApp, settle, showWholePage, type AppOptions } from './app.ts'
+import { DESKTOP, DESKTOP_RAIL, emulateNotch, openApp, settle, showWholePage, type AppOptions } from './app.ts'
 import { GB, RELEASES, shogunInfoHash, torrent } from './fixtures.ts'
 
 /** A remembered 2160p, which these releases have, and a dub, which none of them has. */
@@ -82,6 +82,18 @@ test.describe('releases, phone', () => {
     await expect(page.getByText(RELEASES[0].title)).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('query-edited-dark-ru.png')
+  })
+
+  // The query field scrolls away under the title bar; the bar and the filter chips stay pinned (#582).
+  test('the title bar and the filters stay at the top while the list scrolls', async ({ page }) => {
+    await emulateNotch(page)
+    await openReleases(page)
+    await page.evaluate(() => window.scrollTo(0, 400))
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(400)
+    await expect(page.getByRole('searchbox', { name: 'Поисковый запрос' })).not.toBeInViewport()
+    await expect(page.getByRole('button', { name: 'Назад' })).toBeInViewport()
+    await expect(page.getByRole('button', { name: /^Фильтры/ })).toBeInViewport()
+    await expect(page).toHaveScreenshot('list-scrolled-safe-area-dark-ru.png')
   })
 
   // A release qBittorrent has: its card opens the torrent in place of adding it (#375).
