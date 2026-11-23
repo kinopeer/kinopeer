@@ -311,19 +311,45 @@ describe('useReleases', () => {
       expect(prowlarr.searchReleases).toHaveBeenCalledTimes(1)
     })
 
-    it('searches again on Try again once the English name came, or for an original in Latin script', async () => {
+    it.each([
+      ['once the English name came', () => parasite, 2],
+      ['for an original in Latin script', () => movie(1, 'Dune'), 1],
+    ])('searches again on Try again %s', async (_case, details, searches) => {
       vi.mocked(tmdb.getMovie).mockResolvedValue(english)
       vi.mocked(prowlarr.searchReleases).mockResolvedValue([])
-      const korean = renderHook(() => useReleases(parasite))
-      await waitFor(() => expect(korean.result.current.status).toBe('none'))
-      act(() => korean.result.current.retry())
-      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(4))
-      korean.unmount()
+      const { result } = renderHook(() => useReleases(details()))
+      await waitFor(() => expect(result.current.status).toBe('none'))
+      expect(prowlarr.searchReleases).toHaveBeenCalledTimes(searches)
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2 * searches))
+    })
 
-      const latin = renderHook(() => useReleases(movie(1, 'Dune')))
-      await waitFor(() => expect(latin.result.current.status).toBe('none'))
-      act(() => latin.result.current.retry())
-      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(6))
+    it('shows the new search on its way after Try again, not the last one’s outcome, when the English name fails again', async () => {
+      vi.mocked(tmdb.getMovie).mockRejectedValue(new tmdb.TmdbError('down', 503))
+      let answer: (releases: Release[]) => void = () => {}
+      vi.mocked(prowlarr.searchReleases)
+        .mockRejectedValueOnce(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
+        .mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+      const { result } = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(result.current.status).toBe('error'))
+
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2))
+      expect(tmdb.getMovie).toHaveBeenCalledTimes(2)
+      expect(result.current.status).toBe('loading')
+      act(() => answer([found('original', { infoHash: 'bb' })]))
+      await waitFor(() => expect(result.current.status).toBe('ready'))
+    })
+
+    it('keeps the picks of the search through Try again', async () => {
+      vi.mocked(tmdb.getMovie).mockRejectedValueOnce(new tmdb.TmdbError('down', 503)).mockResolvedValue(english)
+      vi.mocked(prowlarr.searchReleases).mockResolvedValue([found('original', { infoHash: 'bb' })])
+      const { result } = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(result.current.status).toBe('ready'))
+      act(() => result.current.updateFilters({ indexer: ['Indexer A'] }))
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(3))
+      expect(result.current.filters.indexer).toEqual(['Indexer A'])
     })
 
     it('asks nothing until enabled', async () => {

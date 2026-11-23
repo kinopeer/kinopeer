@@ -1,13 +1,13 @@
 import type { Release } from '../api/prowlarr'
 
-const identity = (release: Release) => release.infoHash?.toLowerCase() || release.id
+const identity = (release: Release) => `${release.indexer}|${release.infoHash?.toLowerCase() || release.id}`
 
 /**
- * The releases of several searches for one title as one list, in the order found: a release a later
- * search found again is left out, by its info hash, else Prowlarr's guid, which the indexer gives
+ * The releases of several searches for one title as one list, in the order found: an indexer's
+ * release a later search found again is left out, by its info hash, else Prowlarr's guid, which the indexer gives
  * and Prowlarr passes on as it is. Not by the download link: Prowlarr encrypts each search's links
  * afresh, so the same release comes with another one. What one search answered is kept as it is, so
- * a single search's list is Prowlarr's own.
+ * a single search's list is Prowlarr's own, the same torrent from two indexers included.
  */
 export function mergeReleases(lists: readonly Release[][]): Release[] {
   const merged: Release[] = []

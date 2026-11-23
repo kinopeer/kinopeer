@@ -150,7 +150,10 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   // The search waits for the English name; without it (TMDB didn't answer) it goes by the original alone.
   const englishSettled = !wantsEnglish || english.data !== undefined || english.error !== undefined
   const queries = details && enabled && englishSettled ? releaseQueries(details, english.data) : null
-  const key = queries ? `${details!.type}|${queries.join('|')}` : null
+  // Try again after the English name failed asks for it again, and the search after it is a new one
+  // (`tries`), so the last one's outcome doesn't show while it's on its way, even with the same queries.
+  const [tries, setTries] = useState(0)
+  const key = queries ? `${details!.type}|${tries}|${queries.join('|')}` : null
   const search = useRequest<Found>(key, (signal) => find(queries!, signal))
   // Prowlarr answers with what the working indexers found and says nothing about the rest, so once
   // the search answers, ask which failed since it started. The releases don't wait for it, and
@@ -162,6 +165,8 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
 
   const [settings, updateSettings] = useSettings()
   // Unset until the user changes a filter in this search; till then they follow the remembered ones.
+  // Picks belong to the title, so they last through Try again and the English name's search.
+  const title = details ? `${details.type}|${details.id}` : null
   const [picked, setPicked] = useState<{ key: string | null; filters: Filters }>()
   const [adding, setAdding] = useState<ReleaseRow>()
 
@@ -186,8 +191,8 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   )
   const present = useMemo(() => presentValues(rows), [rows])
   const { releaseFilters: remembered, releaseSort: sort } = settings
-  // Picks from another search (another title) don't carry over.
-  const own = picked?.key === key ? picked.filters : undefined
+  // Picks from another title don't carry over.
+  const own = picked?.key === title ? picked.filters : undefined
   // The starting filters are worked out only until the first pick, which every later pick builds on.
   const filters = useMemo(() => own ?? startingFilters(remembered, rows, present), [own, remembered, rows, present])
   const visible = useMemo(() => filterReleases(rows, filters, sort), [rows, filters, sort])
@@ -231,21 +236,27 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
     // Only the WebUI build reads Prowlarr's address and key from qBittorrent.
     ...(__WEBUI__ && { unread: search.error instanceof ProwlarrKeyReadError }),
     // Try again asks TMDB for the English name again when it failed, and searches with what comes.
-    retry: english.error === undefined ? search.retry : english.retry,
+    retry:
+      english.error === undefined
+        ? search.retry
+        : () => {
+            english.retry()
+            setTries((count) => count + 1)
+          },
     failing: missing,
     rows,
     visible,
     present,
     filters,
     updateFilters: (change) => {
-      setPicked({ key, filters: { ...filters, ...change } })
+      setPicked({ key: title, filters: { ...filters, ...change } })
       // The indexer isn't remembered: a pick of it alone leaves the settings as they are.
       if (Object.keys(change).some((name) => name !== 'indexer')) {
         updateSettings({ releaseFilters: remember(remembered, change, filters) })
       }
     },
     clearFilters: () => {
-      setPicked({ key, filters: NO_FILTERS })
+      setPicked({ key: title, filters: NO_FILTERS })
       updateSettings({ releaseFilters: NO_REMEMBERED_FILTERS })
     },
     active,
