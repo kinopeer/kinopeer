@@ -4,7 +4,6 @@ import { exportTorrent, getTorrentFiles, type Torrent, type TorrentFile } from '
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
-import { IconButton } from '../components/IconButton'
 import { Sheet } from '../components/Sheet'
 import { useRequest } from '../lib/useRequest'
 import { movieNames, originalNames, type FileRename, type MediaNames } from '../torrents/mediaNames'
@@ -103,7 +102,6 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
       onClose={onClose}
       title={mode === 'restore' ? t('names.restoreOriginal') : t('names.title')}
       subtitle={torrent.name}
-      action={<IconButton icon="close" label={t('common.cancel')} onClick={onClose} />}
       footer={footer}
     >
       <div className="names-body">
