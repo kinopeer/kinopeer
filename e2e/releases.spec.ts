@@ -72,6 +72,18 @@ test.describe('releases, phone', () => {
     await expect(page).toHaveScreenshot('remembered-dark-ru.png')
   })
 
+  // A query edited and searched, with Reset query in the field (#582).
+  test('an edited query', async ({ page }) => {
+    await openReleases(page)
+    const field = page.getByRole('searchbox', { name: 'Поисковый запрос' })
+    await field.fill('Shogun 2024 2160p')
+    await field.press('Enter')
+    await expect(page.getByRole('button', { name: 'Сбросить запрос' })).toBeVisible()
+    await expect(page.getByText(RELEASES[0].title)).toBeVisible()
+    await settle(page)
+    await expect(page).toHaveScreenshot('query-edited-dark-ru.png')
+  })
+
   // A release qBittorrent has: its card opens the torrent in place of adding it (#375).
   test('a release already in downloads', async ({ page }) => {
     await openReleases(page, TOP_IN_DOWNLOADS)
