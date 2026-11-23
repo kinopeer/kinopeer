@@ -106,6 +106,13 @@ describe('readTorrentFile', () => {
     expect(files.multiFile).toBe(true)
   })
 
+  it('lists a v2-only torrent’s files in its file tree’s byte order, as qBittorrent indexes them, numbers too', async () => {
+    const tree = { '2': { '': { length: 2 } }, '10': { 'b.mkv': { '': { length: 10 } } }, '1': { '': { length: 1 } } }
+    const meta = await readTorrentFile(encode({ info: { name: 'Parts', 'meta version': 2, 'piece length': 16384, 'file tree': tree } }))
+    // Not as a JS object lists them, integer-like keys first in numeric order: 1, 2, 10.
+    expect(meta.files.map((file) => file.path)).toEqual(['1', '10/b.mkv', '2'])
+  })
+
   it('reads a v2-only torrent and truncates its SHA-256 hash', async () => {
     const info: Value = {
       name: 'Show',
@@ -127,6 +134,8 @@ describe('readTorrentFile', () => {
     await expect(readTorrentFile(new TextEncoder().encode('<html>Cloudflare</html>'))).rejects.toBeInstanceOf(InvalidTorrentError)
     await expect(readTorrentFile(encode({ announce: 'x' }))).rejects.toBeInstanceOf(InvalidTorrentError)
     await expect(readTorrentFile(new Uint8Array())).rejects.toBeInstanceOf(InvalidTorrentError)
+    // A torrent that lists no file: neither a length, nor files, nor a file tree.
+    await expect(readTorrentFile(encode({ info: { name: 'Empty', 'piece length': 16384, pieces } }))).rejects.toBeInstanceOf(InvalidTorrentError)
   })
 
   it('hashes without Web Crypto, as over plain HTTP', async () => {

@@ -3,12 +3,13 @@ import {
   QbittorrentError,
   addTorrents,
   getTorrentFiles,
+  getTorrents,
   renameFiles,
   setFilePriority,
   startTorrents,
   type TorrentFile,
 } from '../api/qbittorrent'
-import { movieNames } from '../torrents/mediaNames'
+import { folderTakenBy, movieNames } from '../torrents/mediaNames'
 import type { TorrentMeta } from '../torrents/torrentFile'
 
 export interface AddReleaseOptions {
@@ -23,11 +24,16 @@ export interface AddReleaseOptions {
   mediaNames?: { title: string; year?: number }
 }
 
-/** The torrent was added, but naming its files for a media server failed: `cause` says why. */
+/**
+ * The torrent was added, but its files weren't named for a media server: `taken` when another torrent
+ * is in the folder naming would use (`folderTakenBy`), else `cause` says why it failed.
+ */
 export class MediaNamesError extends Error {
-  constructor(cause: unknown) {
+  readonly taken?: { name: string; folder: string }
+  constructor(cause: unknown, taken?: { name: string; folder: string }) {
     super('The torrent was added, but its files were not named', { cause })
     this.name = 'MediaNamesError'
+    this.taken = taken
   }
 }
 
@@ -108,7 +114,15 @@ export async function addRelease(
     // Naming alone stopped a torrent that would have started at once: whatever fails here, it starts.
     try {
       const names = movieNames(files ?? (await filesOf(hash, wait)), options.mediaNames.title, options.mediaNames.year)
-      if (names.named) await renameFiles(hash, names.renames)
+      if (names.named && names.renames.length) {
+        // Where qBittorrent put it, and whether another torrent is in the folder naming would use there.
+        const torrents = await getTorrents()
+        const own = torrents.find((torrent) => torrent.hash === hash)
+        if (!own) throw new QbittorrentError('qBittorrent did not list the torrent', 404)
+        const other = folderTakenBy(torrents, own, names.folder.to)
+        if (other) failure = new MediaNamesError(undefined, { name: other.name, folder: names.folder.to })
+        else await renameFiles(hash, names.renames)
+      }
     } catch (error) {
       failure = new MediaNamesError(error)
     }

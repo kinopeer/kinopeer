@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { renameFiles, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
+import { folderTakenBy, movieName } from '../torrents/mediaNames'
 import type { TitleMatch } from '../torrents/titleLookup'
 import { MediaNamesSheet, type NamesChange } from './MediaNamesSheet'
 import { useTorrentSheet } from './useTorrentSheet'
@@ -47,6 +48,7 @@ export function useMediaNames({ torrents, offline, matchOf }: {
       torrent={torrent}
       title={match.title}
       year={match.year}
+      taken={folderTakenBy(Object.values(torrents ?? {}), torrent, movieName(match.title, match.year))?.name}
       offline={offline}
       pending={pending(torrent.hash)}
       failed={failure !== undefined}

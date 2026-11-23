@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
@@ -218,18 +218,18 @@ describe('useMediaNames', () => {
     // qBittorrent took the video's rename, a moment after it answered.
     getTorrentFiles.mockResolvedValue(duneFiles().map((file, index) => (index === 0 ? { ...file, name: `${RELEASE}/${NAMED}.mkv` } : file)))
     vi.useFakeTimers()
-    try {
-      await act(async () => refuse())
-      expect(within(sheet).getByRole('alert', { name: saying('qBittorrent didn’t rename every file. The list shows the names it has now.') })).toBeInTheDocument()
-      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS - 1))
-      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
-      await act(async () => vi.advanceTimersByTime(1))
-      expect(getTorrentFiles).toHaveBeenCalledTimes(2)
-    } finally {
+    onTestFinished(() => {
       vi.useRealTimers()
-    }
-    // The video is named: only the folder is left.
-    await waitFor(() => expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument())
+    })
+    await act(async () => refuse())
+    expect(within(sheet).getByRole('alert', { name: saying('qBittorrent didn’t rename every file. The list shows the names it has now.') })).toBeInTheDocument()
+    await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS - 1))
+    expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+    await act(async () => vi.advanceTimersByTime(1))
+    expect(getTorrentFiles).toHaveBeenCalledTimes(2)
+    // The video is named: only the folder is left, once the answer is in.
+    await act(async () => {})
+    expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument()
     expect(within(sheet).getByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     expect(screen.queryByRole('status', { name: saying(/Couldn’t rename/) })).not.toBeInTheDocument()
   })
@@ -239,11 +239,10 @@ describe('useMediaNames', () => {
     const sheet = await open()
     expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
     vi.useFakeTimers()
-    try {
-      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS * 2))
-    } finally {
+    onTestFinished(() => {
       vi.useRealTimers()
-    }
+    })
+    await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS * 2))
     expect(getTorrentFiles).toHaveBeenCalledTimes(1)
   })
 
@@ -256,14 +255,13 @@ describe('useMediaNames', () => {
     const sheet = await open()
     await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
     vi.useFakeTimers()
-    try {
-      await act(async () => refuse())
-      expect(within(sheet).getByRole('alert', { name: saying(/didn’t rename every file/) })).toBeInTheDocument()
-      fireEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
-      await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS))
-    } finally {
+    onTestFinished(() => {
       vi.useRealTimers()
-    }
+    })
+    await act(async () => refuse())
+    expect(within(sheet).getByRole('alert', { name: saying(/didn’t rename every file/) })).toBeInTheDocument()
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Rename' }))
+    await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS))
     expect(renameFiles).toHaveBeenCalledTimes(2)
     expect(getTorrentFiles).toHaveBeenCalledTimes(1)
   })
@@ -298,6 +296,35 @@ describe('useMediaNames', () => {
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     await userEvent.click(within(sheet).getByRole('button', { name: 'Try again' }))
     expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+  })
+
+  it('shows the renames being sent in a sheet opened again, not the names qBittorrent has half applied', async () => {
+    renameFiles.mockReturnValue(new Promise(() => {}))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    close(sheet)
+    // qBittorrent has applied every rename but the last.
+    getTorrentFiles.mockResolvedValue(namedFiles().map((file, index) => (index === 3 ? duneFiles()[3] : file)))
+    const again = await open()
+    await waitFor(() => expect(within(again).getAllByRole('listitem')).toHaveLength(4))
+    expect(within(again).getAllByRole('listitem')[0]).toHaveTextContent(`${RELEASE}/${RELEASE}.mkvbecomes ${NAMED}/${NAMED}.mkv`)
+    expect(within(again).queryByRole('status', { name: saying('The files are named for a media server already') })).not.toBeInTheDocument()
+    expect(within(again).queryByRole('region', { name: 'Folder' })).not.toBeInTheDocument()
+    expect(within(again).getByRole('button', { name: 'Rename' })).toBeDisabled()
+  })
+
+  it('names nothing while another torrent is in the folder naming would use, and says which', async () => {
+    const other = torrent('b'.repeat(40), { name: 'Dune.Part.Two.2024.1080p', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/${NAMED}` })
+    const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+    const sheet = await open(DUNE.hash)
+    expect(
+      await within(sheet).findByRole('status', {
+        name: saying(`Another torrent, “Dune.Part.Two.2024.1080p”, is in the folder “${NAMED}” already. Naming this one too would mix their files.`),
+      }),
+    ).toBeInTheDocument()
+    expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
+    expect(within(sheet).queryByRole('region', { name: 'Folder' })).not.toBeInTheDocument()
   })
 
   it('can’t rename while qBittorrent is unreachable', async () => {

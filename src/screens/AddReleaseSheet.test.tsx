@@ -745,6 +745,17 @@ describe('AddReleaseSheet', () => {
       expect(onAdded).not.toHaveBeenCalled()
     })
 
+    it('says which torrent is in the folder when that’s why the files weren’t named', async () => {
+      updateSettings({ mediaNames: true })
+      readTorrentFile.mockResolvedValue(MOVIE_META)
+      addRelease.mockRejectedValue(new adding.MediaNamesError(undefined, { name: 'Arrival.2016.2160p', folder: 'Arrival (2016)' }))
+      renderSheet(RELEASE, undefined, MOVIE_TITLE)
+      await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+      expect(
+        await screen.findByRole('alert', { name: saying('Added, but its files weren’t named. Another torrent, “Arrival.2016.2160p”, is in the folder “Arrival (2016)” already. Naming this one too would mix their files.') }),
+      ).toBeInTheDocument()
+    })
+
     it('says so too when qBittorrent doesn’t answer whether it has the torrent, and offers no second Download', async () => {
       updateSettings({ mediaNames: true })
       readTorrentFile.mockResolvedValue(MOVIE_META)

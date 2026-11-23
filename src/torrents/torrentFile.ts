@@ -23,8 +23,11 @@ export class InvalidTorrentError extends Error {
 }
 
 type BValue = number | Uint8Array | BValue[] | BDict
+/** The keys of a dictionary in the order the file has them, which an object's own order isn't: it lists integer-like keys first. */
+const KEYS = Symbol('keys')
 interface BDict {
   [key: string]: BValue
+  [KEYS]?: string[]
 }
 
 /** Decodes bencode, also returning where the top-level "info" dictionary starts and ends. */
@@ -59,12 +62,14 @@ function decode(bytes: Uint8Array): { value: BValue; info?: [number, number] } {
     }
     if (byte === 0x64 /* d */) {
       pos++
-      const dict: BDict = {}
+      const keys: string[] = []
+      const dict: BDict = { [KEYS]: keys }
       while (bytes[pos] !== 0x65) {
         const key = next(depth + 1)
         if (!isBytes(key)) fail()
         const name = new TextDecoder().decode(key as Uint8Array)
         const start = pos
+        keys.push(name)
         dict[name] = next(depth + 1)
         if (depth === 0 && name === 'info') info = [start, pos]
       }
@@ -96,9 +101,10 @@ async function hex(algorithm: DigestAlgorithm, data: Uint8Array): Promise<string
   return toHex(await digest(algorithm, data))
 }
 
-/** v2 "file tree": nested dictionaries ending in { "": { length } }. */
+/** v2 "file tree": nested dictionaries ending in { "": { length } }, walked in the file's order, as libtorrent indexes the files. */
 function walkFileTree(tree: BDict, prefix: string[], out: TorrentMeta['files']): void {
-  for (const [name, node] of Object.entries(tree)) {
+  for (const name of tree[KEYS] ?? []) {
+    const node = tree[name]
     if (!isDict(node)) continue
     const leaf = node['']
     if (isDict(leaf) && typeof leaf.length === 'number') out.push({ path: [...prefix, name].join('/'), size: leaf.length })

@@ -214,7 +214,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
         setAdding(false)
         setAddedUnnamed(true)
         if (there) setRefusedAsAdded(there)
-        setAddError(t('names.addFailed'))
+        setAddError(error.taken ? t('names.addTaken', error.taken) : t('names.addFailed'))
         return
       }
       if (!(error instanceof TorrentRefusedError)) {

@@ -27,6 +27,8 @@ export interface MediaNamesSheetProps {
   /** The movie the torrent is matched to, in the app's TMDB language: the names are made of it. */
   title: string
   year?: number
+  /** Another torrent in the folder naming would put this one's files in (`folderTakenBy`): its name. Nothing is named then. */
+  taken?: string
   /** qBittorrent is unreachable: nothing can be sent. */
   offline: boolean
   /** What's being sent for this torrent, from this sheet or one closed before it opened. */
@@ -64,7 +66,7 @@ async function load(torrent: Torrent, signal: AbortSignal): Promise<Loaded> {
  * "Name for a media server": what naming a movie's files would rename, old name over new, or why
  * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
  */
-export function MediaNamesSheet({ torrent, title, year, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
+export function MediaNamesSheet({ torrent, title, year, taken, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
   const { t } = useTranslation()
   const loaded = useRequest(`qbt|names|${torrent.hash}`, (signal) => load(torrent, signal))
   // Opened while a restore is in flight, it shows the restore, as the sheet that sent it did.
@@ -82,7 +84,7 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
   const names = data && movieNames(data.files, title, year)
   const restore = data?.original?.length ? data.original : undefined
   // What's being sent is what the sheet shows, whatever the files' names read now.
-  const renames = pending ? pending.renames : mode === 'restore' ? (restore ?? []) : names?.named ? names.renames : []
+  const renames = pending ? pending.renames : mode === 'restore' ? (restore ?? []) : names?.named && !taken ? names.renames : []
 
   const footer = data && (
     <div className="names-stack">
@@ -124,8 +126,9 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
             {t('common.qbtFailed')}
           </Banner>
         )}
-        {data && mode === 'name' && names && <NamesPreview names={names} />}
-        {data && mode === 'restore' && <RenamesList renames={renames} />}
+        {/* While renames are on their way, the sheet shows them, not names qBittorrent may have half applied. */}
+        {data && (pending || mode === 'restore') && <RenamesList renames={renames} />}
+        {data && !pending && mode === 'name' && names && <NamesPreview names={names} taken={taken} />}
         {data && mode === 'name' && data.original === undefined && <p className="t-cap c3">{t('names.originalUnread')}</p>}
         {failed && <Banner tone="error">{t('names.failed')}</Banner>}
       </div>
@@ -134,13 +137,16 @@ export function MediaNamesSheet({ torrent, title, year, offline, pending, failed
 }
 
 /** What naming does: the folder, then each file whose own name changes; or why nothing is named. */
-function NamesPreview({ names }: { names: MediaNames }) {
+function NamesPreview({ names, taken }: { names: MediaNames; taken?: string }) {
   const { t } = useTranslation()
   const id = useId()
   if (!names.named) {
     return <Banner tone="info" title={t('names.notNamed')}>{notNamedText(names.reason, t)}</Banner>
   }
   if (!names.renames.length) return <Banner tone="info" icon="check-circle" title={t('names.already')} />
+  if (taken) {
+    return <Banner tone="info" title={t('names.notNamed')}>{t('names.taken', { folder: names.folder.to, name: taken })}</Banner>
+  }
   const { folder, files } = names
   return (
     <>

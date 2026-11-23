@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { GB, MB } from '../test/fixtures'
-import { movieName, movieNames, originalNames } from './mediaNames'
+import { folderTakenBy, movieName, movieNames, originalNames } from './mediaNames'
 
 const file = (name: string, size = 1 * MB) => ({ name, size })
+
+const base = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
 describe('movieName', () => {
   it('is the title with its year', () => {
@@ -108,14 +110,26 @@ describe('movieNames', () => {
     expect(named.named && named.files).toEqual([{ from: 'Arrival.mkv', to: 'Arrival (2016).mkv' }])
   })
 
-  it('picks the largest video that isn’t a sample, however large the sample', () => {
-    const named = movieNames([file('A/sample.mkv', 9 * GB), file('A/movie.mp4', 8 * GB), file('A/Extras/trailer.mkv', 1 * GB)], 'Arrival', 2016)
+  it('takes the largest video for the movie, never for a sample, however its name and folder read', () => {
+    // A movie whose title has the word: the folder's name and the file's differ, in case and order.
+    for (const files of [
+      [file('Free Sample (2012)/Free.Sample.2012.1080p.mkv', 8 * GB), file('Free Sample (2012)/Extras/featurette.mkv', 1 * GB)],
+      [file('free.sample.2012.1080p-grpa/grpa-free.sample.2012.1080p.mkv', 8 * GB)],
+      // Without a folder, qBittorrent's "Don't create subfolder".
+      [file('Free.Sample.2012.1080p.mkv', 8 * GB), file('Free.Sample.2012.1080p.srt')],
+    ]) {
+      const named = movieNames(files, 'Free Sample', 2012)
+      expect(named.named && named.files[0]).toEqual({ from: base(files[0].name), to: 'Free Sample (2012).mkv' })
+    }
+  })
+
+  it('doesn’t count a sample, however large, as a second video', () => {
+    const named = movieNames([file('A/sample.mkv', 7 * GB), file('A/movie.mp4', 8 * GB), file('A/Extras/trailer.mkv', 1 * GB)], 'Arrival', 2016)
     expect(named.named && named.files).toEqual([{ from: 'movie.mp4', to: 'Arrival (2016).mp4' }])
   })
 
   it('doesn’t name a torrent without a video', () => {
     expect(movieNames([file('A/book.pdf', 10 * MB), file('A/cover.jpg')], 'Arrival', 2016)).toEqual({ named: false, reason: 'no-video' })
-    expect(movieNames([file('A/Sample/sample.mkv', 100 * MB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'no-video' })
   })
 
   it('doesn’t name a torrent with a second video over a quarter of the main one’s size: parts or versions', () => {
@@ -135,11 +149,11 @@ describe('movieNames', () => {
   })
 
   it('takes a sample by the word in any folder or file name, a large one too', () => {
-    const named = movieNames([file('A/Sample/clip.mkv', 9 * GB), file('A/Arrival-sample.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)
+    const named = movieNames([file('A/Sample/clip.mkv', 7 * GB), file('A/Arrival-sample.mkv', 7 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)
     expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Arrival (2016).mkv' }])
     // Only the word: "Samples" and "Resample" are names of their own.
-    expect(movieNames([file('A/Resample.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
-    expect(movieNames([file('A/Samples/clip.mkv', 9 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
+    expect(movieNames([file('A/Resample.mkv', 7 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
+    expect(movieNames([file('A/Samples/clip.mkv', 7 * GB), file('A/movie.mkv', 8 * GB)], 'Arrival', 2016)).toEqual({ named: false, reason: 'several-videos' })
   })
 
   it('takes a sample by the word at the start of a path too, for files without a shared folder', () => {
@@ -163,6 +177,11 @@ describe('movieNames', () => {
     expect(movieNames([file('A/NoBDMV/movie.mkv', 8 * GB)], 'Arrival', 2016).named).toBe(true)
     // A disc's folder as the torrent's own, its files laid out without a folder of the release's name.
     expect(movieNames([file('BDMV/STREAM/00001.m2ts', 30 * GB), file('BDMV/index.bdmv')], 'Arrival', 2016)).toEqual({ named: false, reason: 'disc' })
+  })
+
+  it('keeps a folder named “undefined” when the files share no folder', () => {
+    const named = movieNames([file('A/movie.mkv', 8 * GB), file('undefined/x.srt')], 'Arrival', 2016)
+    expect(named.named && named.renames[1]).toEqual({ from: 'undefined/x.srt', to: 'Arrival (2016)/undefined/x.srt' })
   })
 
   it('keeps each file’s whole path when the files aren’t all in one folder', () => {
@@ -225,5 +244,33 @@ describe('originalNames', () => {
   it('says nothing when the metadata doesn’t list the same files', () => {
     expect(originalNames([{ index: 0, name: 'Arrival.mkv', size: 1 }], meta)).toBeUndefined()
     expect(originalNames([{ index: 0, name: 'a', size: 1 }, { index: 2, name: 'b', size: 1 }], meta)).toBeUndefined()
+  })
+})
+
+describe('folderTakenBy', () => {
+  const placed = (hash: string, save_path: string, content_path: string) => ({ hash, name: `Release ${hash}`, save_path, content_path })
+  const own = placed('new', '/media/movies', '/media/movies/Arrival.2016.2160p')
+
+  it('names the other torrent at the folder naming would use, or under it, in the same save path', () => {
+    const folder = placed('folder', '/media/movies', '/media/movies/Arrival (2016)')
+    expect(folderTakenBy([own, folder], own, 'Arrival (2016)')).toBe(folder)
+    const file = placed('file', '/media/movies', '/media/movies/Arrival (2016)/Arrival (2016).mkv')
+    expect(folderTakenBy([own, file], own, 'Arrival (2016)')).toBe(file)
+  })
+
+  it('takes a folder that differs only in case, and reads Windows’ paths and a trailing separator', () => {
+    const other = placed('other', '/media/movies', '/media/movies/arrival (2016)')
+    expect(folderTakenBy([other], own, 'Arrival (2016)')).toBe(other)
+    const windows = { ...own, save_path: 'D:\\Movies\\' }
+    const there = placed('there', 'D:\\Movies', 'D:\\Movies\\Arrival (2016)\\Arrival (2016).mkv')
+    expect(folderTakenBy([there], windows, 'Arrival (2016)')).toBe(there)
+  })
+
+  it('leaves the torrent itself, another save path, a folder that only starts the same and one without metadata out', () => {
+    const named = { ...own, content_path: '/media/movies/Arrival (2016)' }
+    expect(folderTakenBy([named], named, 'Arrival (2016)')).toBeUndefined()
+    expect(folderTakenBy([placed('a', '/media/other', '/media/other/Arrival (2016)')], own, 'Arrival (2016)')).toBeUndefined()
+    expect(folderTakenBy([placed('b', '/media/movies', '/media/movies/Arrival (2016) 2')], own, 'Arrival (2016)')).toBeUndefined()
+    expect(folderTakenBy([placed('c', '/media/movies', '')], own, 'Arrival (2016)')).toBeUndefined()
   })
 })

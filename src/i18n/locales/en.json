@@ -428,6 +428,8 @@
     "restored": "Original names of “{{title}}” restored",
     "addNoFiles": "The files aren’t known until the torrent starts. Name them from its page then.",
     "addAs": "Folder and video: “{{name}}”",
+    "taken": "Another torrent, “{{name}}”, is in the folder “{{folder}}” already. Naming this one too would mix their files.",
+    "addTaken": "Added, but its files weren’t named. $t(names.taken)",
     "addFailed": "Added, but its files weren’t named. Name them from the torrent’s More menu."
   },
   "freeUp": {

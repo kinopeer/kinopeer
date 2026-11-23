@@ -4,12 +4,14 @@
  * video (subtitles, `Title (Year).ru.srt`), keeping what follows its name. qBittorrent renames them
  * in place, so the torrent keeps seeding (docs/SPEC.md's decision log, 2026-11-23).
  *
- * The heuristic's scope: one main video file, the largest file of a video type that isn't a sample.
- * A torrent with no video, with another video over a quarter of the main one's size (parts of a
+ * The heuristic's scope: one main video file, the largest file of a video type, never a sample, which
+ * is a small cut of the movie. A torrent with no video, with another video over a quarter of the main one's size (parts of a
  * movie, versions of it) or with a disc's folders (BDMV, VIDEO_TS) isn't named, and says why. Every
  * other file (samples, extras, a release's .nfo) keeps its name and moves into the movie's folder
  * with it, where it was under the torrent's own folder.
  */
+
+import { isUnder } from './freeUpSpace'
 
 /** A torrent's file as qBittorrent lists it: its path under the save path, with "/" between folders. */
 export interface NamedFile {
@@ -93,12 +95,6 @@ function rootFolder(paths: readonly string[]): string | undefined {
 /** A path below the torrent's folder, or the whole path when it has none. */
 const belowRoot = (path: string, root: string | undefined) => (root !== undefined && path.startsWith(`${root}/`) ? path.slice(root.length + 1) : path)
 
-/**
- * "sample" as a word of a folder's or a file's name below the torrent's folder, beside the release's
- * name, which is that folder's: a release named "Free.Sample.2012" has samples named
- * "Free.Sample.2012-sample.mkv", and its movie is "Free.Sample.2012.mkv".
- */
-const isSample = (path: string, root: string | undefined) => SAMPLE.test(root ? path.replaceAll(root, '') : path)
 
 /**
  * The renames that name a movie's files for a media server, from the torrent's files as qBittorrent
@@ -107,9 +103,10 @@ const isSample = (path: string, root: string | undefined) => SAMPLE.test(root ? 
 export function movieNames(files: readonly NamedFile[], title: string, year?: number): MediaNames {
   if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
   const root = rootFolder(files.map((file) => file.name))
-  const videos = files.filter((file) => isVideo(file.name) && !isSample(file.name, root)).sort((a, b) => b.size - a.size)
-  const [main, second] = videos
+  const [main, ...others] = files.filter((file) => isVideo(file.name)).sort((a, b) => b.size - a.size)
   if (!main) return { named: false, reason: 'no-video' }
+  // The word tells a sample only among the other videos: the movie's own title may have it.
+  const second = others.find((file) => !SAMPLE.test(file.name))
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
   const name = movieName(title, year)
@@ -158,4 +155,26 @@ export function originalNames(
     if (original.path !== file.name && original.path !== belowRoot(file.name, root)) renamed = true
   }
   return renamed ? renames : []
+}
+
+/** What `folderTakenBy` reads of a torrent: qBittorrent's `torrents/info` fields. */
+export interface PlacedTorrent {
+  hash: string
+  name: string
+  save_path: string
+  content_path: string
+}
+
+/**
+ * Another torrent whose files are at or under the folder naming would put this one's in, in its save
+ * path: naming would make the two share files, which libtorrent then writes over or refuses after
+ * qBittorrent said OK (docs/SPEC.md's decision log, 2026-11-23). Letters' case doesn't count, so a
+ * folder that differs only in case on a disk that ignores it (Windows, macOS) is taken too.
+ */
+export function folderTakenBy<T extends PlacedTorrent>(torrents: Iterable<T>, own: PlacedTorrent, folder: string): T | undefined {
+  const target = `${own.save_path.replace(/[\\/]+$/, '')}/${folder}`.toLowerCase()
+  for (const torrent of torrents) {
+    if (torrent.hash !== own.hash && isUnder(torrent.content_path.toLowerCase(), target)) return torrent
+  }
+  return undefined
 }
