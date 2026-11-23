@@ -296,30 +296,18 @@ describe('ReleasesScreen', () => {
     expect(screen.getByRole('button', { name: 'Remove filter Indexer D' })).toBeInTheDocument()
   })
 
-  it('shows how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
+  // The counting rules are `filterReleases.test.ts`'s and the dimming `FilterChip.test.tsx`'s; this checks the sheet shows the counts and takes the picks into account.
+  it('shows how many releases each value would leave (#583)', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
     const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
     const chips = (name: string) => within(sheet.getByRole('group', { name })).getAllByRole('button')
     expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 3', '10+ 3', '50+ 2', '100+ 2'])
-    expect(chips('Audio').map((chip) => chip.textContent)).toEqual(['Dubbed 1', 'Not stated 2'])
-    expect(chips('Indexer').map((chip) => chip.textContent)).toEqual(['Indexer C 2', 'Indexer D 1'])
-    expect(chips('Source').map((chip) => chip.textContent)).toEqual(['REMUX 1', 'BluRay 1', 'WEB-DL 1'])
     await userEvent.click(sheet.getByRole('button', { name: counted('100+') }))
     expect(sheet.getByRole('button', { name: '100+ 2' })).toHaveAttribute('aria-pressed', 'true')
     expect(sheet.getByRole('button', { name: 'Any 3' })).toHaveAttribute('aria-pressed', 'false')
     // The 720p release has 12 seeds.
     expect(chips('Resolution').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
-    // is-dim is what dims the chip; no role or attribute says it.
-    expect(sheet.getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
-    expect(sheet.getByRole('button', { name: '1080p 1' })).not.toHaveClass('is-dim')
-    // Still a choice: it leaves nothing, as it says.
-    await userEvent.click(sheet.getByRole('button', { name: '720p 0' }))
-    expect(sheet.getByRole('button', { name: 'Show 0' })).toBeInTheDocument()
-    expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
-    // is-dim is what dims the chip; no role or attribute says it.
-    expect(sheet.getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
-    expect(sheet.getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
   })
 
   it('opens the filters from each chip over the list, and presses the chips of what’s picked', async () => {
@@ -509,13 +497,12 @@ describe('ReleasesScreen', () => {
     expect(searchReleases).not.toHaveBeenCalled()
   })
 
-  it('explains a missing TMDB key and sends the user to enter it in Settings', async () => {
+  // The state's texts and its Enter key button are `TmdbFailedState.test.tsx`'s; this checks the screen shows it for a title that fails with no key.
+  it('shows the missing TMDB key’s state instead of the releases', async () => {
     getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
     renderAt('/title/movie/693134/releases')
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-    expect(screen.getByText(/Search needs a TMDB key/)).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Enter key' }))
-    expect(screen.getByRole('heading', { name: /^Settings page/ })).toHaveTextContent('{"editTmdbKey":true}')
+    expect(searchReleases).not.toHaveBeenCalled()
   })
 
   it('explains a missing Prowlarr setup', async () => {
