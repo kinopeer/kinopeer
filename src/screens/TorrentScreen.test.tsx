@@ -431,7 +431,7 @@ describe('TorrentScreen', () => {
 
   it('names nothing while another torrent qBittorrent lists is in the folder naming would use, and says which', async () => {
     getTorrentTrackers.mockResolvedValue([])
-    const other = torrent('other', { name: 'Dune.Part.Two.2024.1080p', save_path: '/data/movies', content_path: '/data/movies/Dune - Part Two (2024)' })
+    const other = torrent('other', { name: 'Dune.Part.Two.2024.1080p', save_path: DUNE_TORRENT.save_path, content_path: `${DUNE_TORRENT.save_path}/Dune - Part Two (2024)` })
     getMainData.mockResolvedValue(mainData([DUNE_TORRENT, other]))
     vi.mocked(api.getTorrentFiles).mockResolvedValue([{ index: 0, name: 'Dune.Part.Two.2024.mkv', size: 5e9, progress: 0, priority: 1 }])
     vi.mocked(api.exportTorrent).mockRejectedValue(new Error('no metadata'))

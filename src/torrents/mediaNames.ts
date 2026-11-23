@@ -4,11 +4,11 @@
  * video (subtitles, `Title (Year).ru.srt`), keeping what follows its name. qBittorrent renames them
  * in place, so the torrent keeps seeding (docs/SPEC.md's decision log, 2026-11-23).
  *
- * The heuristic's scope: one main video file, the largest file of a video type that isn't a sample
- * ("sample" as a word in its path). A torrent with no such video, with another over a quarter of the
- * main one's size (parts of a movie, versions of it) or with a disc's folders (BDMV, VIDEO_TS) isn't
- * named, and says why. Nor is one whose movie has the word in its title while a video's path has it
- * too, where the word tells no sample apart (docs/SPEC.md's decision log, 2026-11-23). Every
+ * The heuristic's scope: one main video file, the largest file of a video type. A torrent with no
+ * video, whose largest is a sample ("sample" as a word in its path), with another video that isn't
+ * one over a quarter of the main one's size (parts of a movie, versions of it) or with a disc's
+ * folders (BDMV, VIDEO_TS) isn't named, and says why: the word never moves naming to a smaller
+ * video (docs/SPEC.md's decision log, 2026-11-23). Every
  * other file (samples, extras, a release's .nfo) keeps its name and moves into the movie's folder
  * with it, where it was under the torrent's own folder.
  */
@@ -28,7 +28,7 @@ export interface FileRename {
 }
 
 /** Why a torrent's files aren't named for a media server. */
-export type NotNamedReason = 'no-video' | 'several-videos' | 'disc' | 'sample-title'
+export type NotNamedReason = 'no-video' | 'several-videos' | 'disc'
 
 export type MediaNames =
   | {
@@ -105,12 +105,11 @@ const belowRoot = (path: string, root: string | undefined) => (root !== undefine
 export function movieNames(files: readonly NamedFile[], title: string, year?: number): MediaNames {
   if (files.some((file) => DISC_FOLDER.test(file.name))) return { named: false, reason: 'disc' }
   const root = rootFolder(files.map((file) => file.name))
-  const videos = files.filter((file) => isVideo(file.name))
-  const isSample = (file: NamedFile) => SAMPLE.test(file.name)
-  // A title with the word itself: a release named after it has the word too, so it tells no sample apart.
-  if (SAMPLE.test(`${title} `) && videos.some(isSample)) return { named: false, reason: 'sample-title' }
-  const [main, second] = videos.filter((file) => !isSample(file)).sort((a, b) => b.size - a.size)
-  if (!main) return { named: false, reason: 'no-video' }
+  const [main, ...others] = files.filter((file) => isVideo(file.name)).sort((a, b) => b.size - a.size)
+  // The largest video with the word may be a sample beside a packed movie, or the movie with the word
+  // in its name: either way naming says nothing rather than name a smaller video.
+  if (!main || SAMPLE.test(main.name)) return { named: false, reason: 'no-video' }
+  const second = others.find((file) => !SAMPLE.test(file.name))
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
 
   const name = movieName(title, year)

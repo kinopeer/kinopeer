@@ -108,31 +108,29 @@ describe('movieNames', () => {
     expect(named.named && named.files).toEqual([{ from: 'Arrival.mkv', to: 'Arrival (2016).mkv' }])
   })
 
-  it('names nothing when the movie’s title has the word “sample” and a video’s path has it too', () => {
-    const reason = { named: false, reason: 'sample-title' }
+  it('names nothing when the largest video’s path has the word “sample”, never a smaller video in its place', () => {
+    const reason = { named: false, reason: 'no-video' }
     for (const files of [
-      // The folder's name and the file's differ, in case and order, or there's no folder.
+      // A movie with the word in its name: the folder's name and the file's differ, in case and order, or there's no folder.
       [file('Free Sample (2012)/Free.Sample.2012.1080p.mkv', 8 * GB), file('Free Sample (2012)/Extras/featurette.mkv', 1 * GB)],
       [file('free.sample.2012.1080p-grpa/grpa-free.sample.2012.1080p.mkv', 8 * GB)],
       [file('Free.Sample.2012.1080p.mkv', 8 * GB), file('Free.Sample.2012.1080p.srt')],
-      // Two parts, which a sample read from the folder's name would hide.
+      // Two parts in a folder with the word.
       [file('Free.Sample.2012/CD1.mkv', 4 * GB), file('Free.Sample.2012/CD2.mkv', 4 * GB)],
-      [file('Free.Sample.2012/Free.Sample.2012.mkv', 8 * GB), file('Free.Sample.2012/Free.Sample.2012-sample.mkv', 100 * MB)],
+      // With its extra outside the word: the extra isn't named the movie.
+      [file('Free.Sample.2012.1080p.mkv', 8 * GB), file('Extras/featurette.mkv', 1 * GB)],
+      [file('grpa-release/Free.Sample.2012.1080p.mkv', 8 * GB), file('grpa-release/Extras/featurette.mkv', 1 * GB)],
     ]) {
+      // The title, in the app's language, has the word or doesn't: it changes nothing.
       expect(movieNames(files, 'Free Sample', 2012)).toEqual(reason)
+      expect(movieNames(files, 'Бесплатный образец', 2012)).toEqual(reason)
     }
-    expect(movieNames([file('Sample/clip.mkv', 100 * MB), file('movie.mkv', 8 * GB)], 'Sample', 2026)).toEqual(reason)
   })
 
-  it('goes by size alone when the movie’s title has the word and no video’s path has it', () => {
+  it('goes by size alone when no video’s path has the word, whatever the title', () => {
     const named = movieNames([file('A/movie.mkv', 8 * GB), file('A/Extras/trailer.mkv', 1 * GB)], 'Free Sample', 2012)
     expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Free Sample (2012).mkv' }])
     expect(movieNames([file('A/CD1.mkv', 4 * GB), file('A/CD2.mkv', 4 * GB)], 'Free Sample', 2012)).toEqual({ named: false, reason: 'several-videos' })
-  })
-
-  it('takes the word in a title only as a word', () => {
-    const named = movieNames([file('A/Sample/clip.mkv', 100 * MB), file('A/movie.mkv', 8 * GB)], 'Samples', 2026)
-    expect(named.named && named.files).toEqual([{ from: 'movie.mkv', to: 'Samples (2026).mkv' }])
   })
 
   it('doesn’t count a sample, however large, as a second video', () => {
