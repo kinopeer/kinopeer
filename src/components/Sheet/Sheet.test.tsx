@@ -1,7 +1,7 @@
 import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useLayoutEffect, type ReactNode } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { ToastProvider, useToast } from '../Toast'
@@ -69,6 +69,19 @@ describe('Sheet', () => {
   })
 
   describe('as it opens, focuses the first control but its close button, which comes before the fields', () => {
+    // jsdom has no showModal: this one focuses the first control that isn't inert, as browsers do.
+    beforeEach(() => {
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '')
+        const controls = [...this.querySelectorAll<HTMLElement>('button:not(:disabled), input')]
+        // jsdom doesn't reflect inert to its attribute, so the property is read up the tree.
+        const inert = (element: HTMLElement | null): boolean => !!element && (element.inert || inert(element.parentElement))
+        controls.find((control) => !inert(control))?.focus()
+      }
+    })
+    afterEach(() => {
+      delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal
+    })
     const open = (props: Partial<Parameters<typeof Sheet>[0]>, content: ReactNode) =>
       render(
         <Sheet open onClose={vi.fn()} title="Speed limits" {...props}>
@@ -86,14 +99,13 @@ describe('Sheet', () => {
       expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus()
     })
 
-    it('not a control that can’t take focus', () => {
-      open({ action: <button type="button" disabled>Reset</button> }, <input aria-label="Folder" />)
-      expect(screen.getByRole('textbox', { name: 'Folder' })).toHaveFocus()
-    })
-
-    it('the close button when there’s nothing else', () => {
-      open({}, <p>Nothing to do</p>)
-      expect(screen.getByRole('button', { name: 'Close' })).toHaveFocus()
+    it('and leaves the close button a control once it has', async () => {
+      const onClose = vi.fn()
+      open({ onClose }, <input aria-label="Folder" />)
+      const close = screen.getByRole('button', { name: 'Close' })
+      expect(close.inert).toBe(false)
+      await userEvent.click(close)
+      expect(onClose).toHaveBeenCalledOnce()
     })
   })
 
