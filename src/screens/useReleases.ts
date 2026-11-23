@@ -236,14 +236,14 @@ export function useReleases(details: TitleDetails | undefined, enabled = true): 
   ]
 
   // In place of the address's entry, so Back leaves the releases rather than going through the queries,
-  // with its state and whether it was opened from a link, which a replaced entry's key no longer says.
+  // saying whether it was opened from a link, which a replaced entry's key no longer says (as the title
+  // page's Find releases does).
   const searchBy = (text: string) => {
     const next = new URLSearchParams(params)
     const query = text.trim()
     if (query && query !== built) next.set(QUERY_PARAM, query)
     else next.delete(QUERY_PARAM)
-    const state = { ...(location.state as object | null), deepLink: isDeepLink(location) } satisfies DeepLinkState
-    setParams(next, { replace: true, state })
+    setParams(next, { replace: true, state: { deepLink: isDeepLink(location) } satisfies DeepLinkState })
   }
 
   const status: ReleasesStatus =
