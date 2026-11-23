@@ -271,8 +271,8 @@ describe('TitleScreen on desktop', () => {
     expect(screen.getByRole('searchbox', { name: 'Search query' })).toHaveValue('Dune 2')
   })
 
-  // The counting rules are `filterReleases.test.ts`'s and the dimming `FilterChip.test.tsx`'s; this checks the popovers show the counts and take the picks into account.
-  it('shows in the popovers how many releases each value would leave (#583)', async () => {
+  // The counting rules are `filterReleases.test.ts`'s and the `dim` class `FilterChip.test.tsx`'s; this checks which counts and which `dim` the popovers give each group's chips.
+  it('shows in the popovers how many releases each value would leave, a value that would leave none dimmed (#583)', async () => {
     renderAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
     await userEvent.click(screen.getByRole('button', { name: 'Min seeds' }))
@@ -283,6 +283,33 @@ describe('TitleScreen on desktop', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Resolution' }))
     const resolution = screen.getByRole('group', { name: 'Resolution' })
     expect(within(resolution).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
+    // is-dim is what dims the chip; no role or attribute says it.
+    expect(within(resolution).getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
+    expect(within(resolution).getByRole('button', { name: '2160p 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(resolution).getByRole('button', { name: '720p 0' }))
+
+    // The 720p release has 12 seeds: 100+, still picked, and 50+ would leave none.
+    await userEvent.click(screen.getByRole('button', { name: '100+ seeds', expanded: false }))
+    const picked = screen.getByRole('group', { name: 'Min seeds' })
+    expect(within(picked).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
+    expect(within(picked).getByRole('button', { name: '100+ 0' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).toHaveAttribute('aria-pressed', 'false')
+    // is-dim is what dims the chip; no role or attribute says it.
+    expect(within(picked).getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
+    expect(within(picked).getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
+    await userEvent.click(within(picked).getByRole('button', { name: '10+ 1' }))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Indexer' }))
+    const indexers = screen.getByRole('group', { name: 'Indexer' })
+    expect(within(indexers).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Indexer C 1', 'Indexer D 0'])
+    await userEvent.click(within(indexers).getByRole('button', { name: 'Indexer C 1' }))
+    expect(within(indexers).getByRole('button', { name: 'Indexer C 1' })).toHaveAttribute('aria-pressed', 'true')
+
+    // Under 720p, 10+ seeds and Indexer C.
+    await userEvent.click(screen.getByRole('button', { name: 'Audio' }))
+    expect(within(screen.getByRole('group', { name: 'Audio' })).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['Dubbed 0', 'Not stated 1'])
+    await userEvent.click(screen.getByRole('button', { name: 'Source' }))
+    expect(within(screen.getByRole('group', { name: 'Source' })).getAllByRole('button').map((chip) => chip.textContent)).toEqual(['REMUX 0', 'BluRay 1', 'WEB-DL 0'])
   })
 
   it('filters in popovers, removes filters and sorts', async () => {

@@ -171,6 +171,7 @@ describe('Free up space', () => {
     // The orders themselves (oldest first, an unknown date last, the ratio) are `freeUpSpace.test.ts`'s; this checks the sheet's wiring: the pick and the direction reach the list and are kept under their own keys.
     expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Show.S01.1080p-GRPB', 'Movie.2024.2160p-GRPA', 'Show.S02E01.720p-GRPC'])
     await userEvent.click(within(sheet).getByRole('button', { name: 'Ascending' }))
+    expect(names(within(sheet).getAllByRole('list')[0])).toEqual(['Movie.2024.2160p-GRPA', 'Show.S01.1080p-GRPB', 'Show.S02E01.720p-GRPC'])
     expect(getSettings()).toMatchObject({ freeUpSort: 'added', freeUpSortDescending: true, downloadsSort: 'priority' })
   })
 
