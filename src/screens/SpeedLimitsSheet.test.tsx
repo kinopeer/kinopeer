@@ -136,8 +136,11 @@ describe('SpeedLimitsSheet', () => {
       expect(handlers.onClose).not.toHaveBeenCalled()
     })
 
-    it('isn’t offered for a torrent with no limit of its own, even with a limit typed', async () => {
-      renderSheet({ dl_limit: 0, up_limit: -1 })
+    it.each([
+      ['0', 0],
+      ['-1', -1],
+    ])('isn’t offered for a torrent with no limit of its own (%s), even with a limit typed', async (_, none) => {
+      renderSheet({ dl_limit: none, up_limit: none })
       await userEvent.type(screen.getByRole('textbox', { name: 'Download limit, MB/s' }), '3')
       expect(screen.queryByRole('button', { name: 'Remove limits' })).not.toBeInTheDocument()
     })
