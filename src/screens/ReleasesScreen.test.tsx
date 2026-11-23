@@ -14,7 +14,6 @@ import { Opened, opened, renderWithRouter, saying } from '../test/render'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
 import { ReleasesScreen } from './ReleasesScreen'
 
-
 vi.mock('../api/tmdb', async (importOriginal) => {
   const actual = await importOriginal<typeof tmdb>()
   return { ...actual, getMovie: vi.fn(), getTv: vi.fn() }
@@ -131,15 +130,20 @@ describe('ReleasesScreen', () => {
     expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 3', '10+ 3', '50+ 2', '100+ 2'])
     expect(chips('Audio').map((chip) => chip.textContent)).toEqual(['Dubbed 1', 'Not stated 2'])
     expect(chips('Indexer').map((chip) => chip.textContent)).toEqual(['Indexer C 2', 'Indexer D 1'])
+    expect(chips('Source').map((chip) => chip.textContent)).toEqual(['REMUX 1', 'BluRay 1', 'WEB-DL 1'])
     await userEvent.click(sheet.getByRole('button', { name: counted('100+') }))
+    expect(sheet.getByRole('button', { name: '100+ 2' })).toHaveAttribute('aria-pressed', 'true')
+    expect(sheet.getByRole('button', { name: 'Any 3' })).toHaveAttribute('aria-pressed', 'false')
     // The 720p release has 12 seeds.
     expect(chips('Resolution').map((chip) => chip.textContent)).toEqual(['2160p 1', '1080p 1', '720p 0'])
+    // is-dim is what dims the chip; no role or attribute says it.
     expect(sheet.getByRole('button', { name: '720p 0' })).toHaveClass('is-dim')
     expect(sheet.getByRole('button', { name: '1080p 1' })).not.toHaveClass('is-dim')
     // Still a choice: it leaves nothing, as it says.
     await userEvent.click(sheet.getByRole('button', { name: '720p 0' }))
     expect(sheet.getByRole('button', { name: 'Show 0' })).toBeInTheDocument()
     expect(chips('Min seeds').map((chip) => chip.textContent)).toEqual(['Any 1', '10+ 1', '50+ 0', '100+ 0'])
+    // is-dim is what dims the chip; no role or attribute says it.
     expect(sheet.getByRole('button', { name: '50+ 0' })).toHaveClass('is-dim')
     expect(sheet.getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
   })

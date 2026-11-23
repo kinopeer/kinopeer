@@ -108,8 +108,9 @@ export interface FilterCounts {
 export function filterCounts(rows: ReleaseRow[], filters: Filters): FilterCounts {
   const tally = <T extends string | number>(key: keyof Filters, valueOf: (row: ReleaseRow) => T[]) => {
     const counts: Partial<Record<T, number>> = {}
+    const others = { ...filters, [key]: NO_FILTERS[key] }
     for (const row of rows) {
-      if (!matchesFilters(row, { ...filters, [key]: NO_FILTERS[key] })) continue
+      if (!matchesFilters(row, others)) continue
       for (const value of valueOf(row)) counts[value] = (counts[value] ?? 0) + 1
     }
     return counts
