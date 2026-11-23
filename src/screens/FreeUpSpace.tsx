@@ -67,6 +67,8 @@ export function FreeUpSpace({
   const order = useMemo(() => ({ key: freeUpSort, descending: freeUpSortDescending }), [freeUpSort, freeUpSortDescending])
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set())
 
+  // qBittorrent's folders are on their way, so which torrents count isn't known yet: said, nothing listed.
+  const foldersLoading = defaultSavePath === undefined && !foldersFailed
   const torrents = data?.torrents
   const groups = useMemo(
     () => groupForFreeUp(Object.values(torrents ?? {}), defaultSavePath ?? '', order),
@@ -143,7 +145,7 @@ export function FreeUpSpace({
               </span>
               <span className="t-cap ks-num c3">{freeText}</span>
             </div>
-            <Button variant="danger" block icon="trash" disabled={chosen.length === 0 || offline} onClick={() => deleting.open(chosen)}>
+            <Button variant="danger" block icon="trash" disabled={chosen.length === 0 || offline || foldersLoading} onClick={() => deleting.open(chosen)}>
               {t('torrent.delete')}
             </Button>
           </div>
@@ -169,18 +171,24 @@ export function FreeUpSpace({
               {t('folders.loadFailed')}
             </Banner>
           )}
-          {none && <p className="t-body c2">{t('downloads.emptyTitle')}</p>}
-          {groups.counted.length > 0 && <ul className="fu-list">{groups.counted.map(row)}</ul>}
-          {groups.elsewhere.length > 0 && (
-            <section className="fu-group" aria-labelledby={elsewhereId}>
-              <div className="fu-group-head">
-                <h3 id={elsewhereId} className="t-label">
-                  {t('freeUp.elsewhere')}
-                </h3>
-                <p className="t-cap c3">{t('freeUp.elsewhereHint')}</p>
-              </div>
-              <ul className="fu-list">{groups.elsewhere.map(row)}</ul>
-            </section>
+          {foldersLoading ? (
+            <p className="t-body c2">{t('folders.loading')}</p>
+          ) : (
+            <>
+              {none && <p className="t-body c2">{t('downloads.emptyTitle')}</p>}
+              {groups.counted.length > 0 && <ul className="fu-list">{groups.counted.map(row)}</ul>}
+              {groups.elsewhere.length > 0 && (
+                <section className="fu-group" aria-labelledby={elsewhereId}>
+                  <div className="fu-group-head">
+                    <h3 id={elsewhereId} className="t-label">
+                      {t('freeUp.elsewhere')}
+                    </h3>
+                    <p className="t-cap c3">{t('freeUp.elsewhereHint')}</p>
+                  </div>
+                  <ul className="fu-list">{groups.elsewhere.map(row)}</ul>
+                </section>
+              )}
+            </>
           )}
         </div>
       </Sheet>
