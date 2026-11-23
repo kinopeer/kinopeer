@@ -39,6 +39,14 @@
 
 .ks-chip.is-on .n { color: inherit; }
 
+/* Dimmed, but still a choice, so its text keeps the contrast of the chip's count rather than the disabled color's. */
+.ks-chip.is-dim:not(.is-on) {
+  color: var(--text3);
+  border-color: var(--border);
+}
+
+.ks-chip.is-dim:not(.is-on) .n { color: inherit; }
+
 .ks-chip:disabled {
   color: var(--disabled);
   border-color: var(--border);

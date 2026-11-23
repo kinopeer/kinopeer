@@ -38,7 +38,7 @@ export function ReleasesScreen() {
 
   const details = useTitleDetails(valid ? type : undefined, id, language)
   const releases = useReleases(details.data)
-  const { filters, sort, active, visible, present, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters } = releases
+  const { filters, sort, active, visible, present, counts, resolutionLabel, audioLabel, sourceLabel, optionLabel, updateFilters } = releases
   const [sheetOpen, setSheetOpen] = useState(false)
 
   const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate(`/title/${type}/${id}`))
@@ -158,6 +158,7 @@ export function ReleasesScreen() {
             label={t('releases.resolution')}
             options={[...new Set([...present.resolution, ...filters.resolution])]}
             selected={filters.resolution}
+            count={(value) => counts.resolution[value] ?? 0}
             show={optionLabel(resolutionLabel)}
             onToggle={(value) => updateFilters({ resolution: toggle(filters.resolution, value) })}
           />
@@ -165,6 +166,7 @@ export function ReleasesScreen() {
             label={t('releases.audio')}
             options={[...new Set([...present.audio, ...filters.audio])]}
             selected={filters.audio}
+            count={(value) => counts.audio[value] ?? 0}
             show={optionLabel(audioLabel)}
             onToggle={(value) => updateFilters({ audio: toggle(filters.audio, value) })}
           />
@@ -172,6 +174,7 @@ export function ReleasesScreen() {
             label={t('releases.source')}
             options={[...new Set([...present.source, ...filters.source])]}
             selected={filters.source}
+            count={(value) => counts.source[value] ?? 0}
             show={optionLabel(sourceLabel)}
             onToggle={(value) => updateFilters({ source: toggle(filters.source, value) })}
           />
@@ -179,7 +182,13 @@ export function ReleasesScreen() {
             <span className="ks-label">{t('releases.minSeeds')}</span>
             <div className="rel-options">
               {MIN_SEEDS.map((value) => (
-                <FilterChip key={value} selected={filters.minSeeds === value} onClick={() => updateFilters({ minSeeds: value })}>
+                <FilterChip
+                  key={value}
+                  selected={filters.minSeeds === value}
+                  count={counts.minSeeds[value] ?? 0}
+                  dim={!counts.minSeeds[value]}
+                  onClick={() => updateFilters({ minSeeds: value })}
+                >
                   {value ? `${value}+` : t('releases.any')}
                 </FilterChip>
               ))}
@@ -190,6 +199,7 @@ export function ReleasesScreen() {
               label={t('releases.indexer')}
               options={present.indexer}
               selected={filters.indexer}
+              count={(value) => counts.indexer[value] ?? 0}
               onToggle={(value) => updateFilters({ indexer: toggle(filters.indexer, value) })}
             />
           )}
@@ -217,12 +227,15 @@ function OptionGroup<T extends string>({
   label,
   options,
   selected,
+  count,
   show = (value) => value,
   onToggle,
 }: {
   label: string
   options: T[]
   selected: T[]
+  /** How many releases the value would leave (`FilterCounts`). */
+  count: (value: T) => number
   show?: (value: T) => string
   onToggle: (value: T) => void
 }) {
@@ -232,7 +245,7 @@ function OptionGroup<T extends string>({
       <span className="ks-label">{label}</span>
       <div className="rel-options">
         {options.map((value) => (
-          <FilterChip key={value} selected={selected.includes(value)} onClick={() => onToggle(value)}>
+          <FilterChip key={value} selected={selected.includes(value)} count={count(value)} dim={!count(value)} onClick={() => onToggle(value)}>
             {show(value)}
           </FilterChip>
         ))}

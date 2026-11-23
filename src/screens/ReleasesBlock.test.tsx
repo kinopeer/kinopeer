@@ -48,6 +48,7 @@ function releases(fields: Partial<Releases> = {}): Releases {
     rows: ROWS,
     visible: ROWS,
     present: { resolution: [], audio: [], source: [], indexer: [] },
+    counts: { resolution: {}, audio: {}, source: {}, indexer: {}, minSeeds: {} },
     filters: NO_FILTERS,
     updateFilters: vi.fn(),
     clearFilters: vi.fn(),
