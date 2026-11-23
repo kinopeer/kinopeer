@@ -95,6 +95,14 @@ describe('useReleases', () => {
     expect(result.current.filters.indexer).toEqual([])
   })
 
+  it('clears the picks of the search with Clear all', async () => {
+    const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    act(() => result.current.updateFilters({ indexer: ['Indexer D'] }))
+    act(() => result.current.clearFilters())
+    expect(result.current.filters.indexer).toEqual([])
+  })
+
   it('leaves the stored settings alone on an indexer pick, which isn\'t remembered', async () => {
     const { result } = renderHook(() => useReleases(movie(1, 'Dune')))
     await waitFor(() => expect(result.current.status).toBe('ready'))
@@ -322,6 +330,8 @@ describe('useReleases', () => {
       expect(prowlarr.searchReleases).toHaveBeenCalledTimes(searches)
       act(() => result.current.retry())
       await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2 * searches))
+      // The English name that came isn't asked for again.
+      expect(tmdb.getMovie).toHaveBeenCalledTimes(searches - 1)
     })
 
     it('shows the new search on its way after Try again, not the last one’s outcome, when the English name fails again', async () => {
@@ -339,6 +349,21 @@ describe('useReleases', () => {
       expect(result.current.status).toBe('loading')
       act(() => answer([found('original', { infoHash: 'bb' })]))
       await waitFor(() => expect(result.current.status).toBe('ready'))
+    })
+
+    it('shows each new search on its way, Try again after Try again', async () => {
+      vi.mocked(tmdb.getMovie).mockRejectedValue(new tmdb.TmdbError('down', 503))
+      vi.mocked(prowlarr.searchReleases).mockRejectedValueOnce(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
+      vi.mocked(prowlarr.searchReleases).mockRejectedValueOnce(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
+      vi.mocked(prowlarr.searchReleases).mockReturnValueOnce(new Promise(() => {}))
+      const { result } = renderHook(() => useReleases(parasite))
+      await waitFor(() => expect(result.current.status).toBe('error'))
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(2))
+      await waitFor(() => expect(result.current.status).toBe('error'))
+      act(() => result.current.retry())
+      await waitFor(() => expect(prowlarr.searchReleases).toHaveBeenCalledTimes(3))
+      expect(result.current.status).toBe('loading')
     })
 
     it('keeps the picks of the search through Try again', async () => {
