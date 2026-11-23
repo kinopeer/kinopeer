@@ -1,6 +1,5 @@
 import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Menu, MenuItemRadio } from '../components/Menu'
 import { Segmented } from '../components/Segmented'
@@ -28,11 +27,6 @@ export function SortSheet({ open, value, onChange, type, onTypeChange, onClose }
       open={open}
       onClose={onClose}
       title={t('downloads.sortFilter')}
-      action={
-        <Button variant="ghost" size="sm" onClick={onClose}>
-          {t('common.done')}
-        </Button>
-      }
     >
       <div className="sort-sheet">
         <div className="ks-field">

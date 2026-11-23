@@ -1,7 +1,9 @@
 import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { cx } from '../../lib/cx'
 import { holdPage } from '../../lib/holdPage'
 import { useIsDesktop } from '../../lib/useIsDesktop'
+import { IconButton } from '../IconButton'
 import { useToastLayer } from '../Toast'
 import './Sheet.css'
 import { useSheetDrag } from './useSheetDrag'
@@ -14,7 +16,7 @@ export interface SheetProps {
   subtitle?: string
   /** Before the title, e.g. a Back button. */
   leading?: ReactNode
-  /** Next to the title, e.g. a Reset button. */
+  /** Next to the title, before the close button, e.g. a Reset button. */
   action?: ReactNode
   /** Pinned under the scrolling content, e.g. the primary button. */
   footer?: ReactNode
@@ -29,8 +31,9 @@ export interface SheetProps {
 
 /**
  * Bottom sheet on a native modal <dialog>, a centered modal on desktop: focus moves in and stays
- * there, Escape and a tap on the backdrop close it, and focus returns to what opened it. On a phone
- * its top (the grabber and the title row) also drags it down to close it.
+ * there, its close button in the title row, Escape and a tap on the backdrop close it, and focus
+ * returns to what opened it. On a phone its top (the grabber and the title row) also drags it down to
+ * close it.
  */
 export function Sheet({
   open,
@@ -44,13 +47,15 @@ export function Sheet({
   className,
   children,
 }: SheetProps) {
+  const { t } = useTranslation()
   const ref = useRef<HTMLDialogElement>(null)
+  const closeRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
   // On desktop it's a centered modal with no grabber.
   const isDesktop = useIsDesktop()
   const drag = useSheetDrag(ref, { open, onClose, enabled: !isDesktop })
 
-  // Before showModal, which focuses the first field. A layout effect, so a sheet that goes with its
+  // Before showModal, which focuses the first control. A layout effect, so a sheet that goes with its
   // screen puts the page back before the next screen's layout effects restore their own place.
   useLayoutEffect(() => (open ? holdPage(ref.current) : undefined), [open])
 
@@ -58,9 +63,14 @@ export function Sheet({
     const dialog = ref.current
     if (!dialog) return
     if (open && !dialog.open) {
+      // showModal focuses the first control, which would be the close button, ahead of the fields
+      // at the end of the title row: inert meanwhile, it's skipped.
+      const close = closeRef.current
+      if (close) close.inert = true
       // jsdom has no showModal; the open attribute is enough there.
       if (typeof dialog.showModal === 'function') dialog.showModal()
       else dialog.setAttribute('open', '')
+      if (close) close.inert = false
     } else if (!open && dialog.open) {
       if (typeof dialog.close === 'function') dialog.close()
       else dialog.removeAttribute('open')
@@ -104,6 +114,7 @@ export function Sheet({
                 {subtitle && <div className="t-cap c3 ks-trunc">{subtitle}</div>}
               </div>
               {action}
+              <IconButton ref={closeRef} icon="close" label={t('common.close')} onClick={onClose} />
             </div>
           </div>
           <div className="ks-sheet-body">{children}</div>

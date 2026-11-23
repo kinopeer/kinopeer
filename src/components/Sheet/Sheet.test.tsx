@@ -1,7 +1,7 @@
 import { createEvent, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useLayoutEffect } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useLayoutEffect, type ReactNode } from 'react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { stubDesktop } from '../../lib/stubDesktop'
 import { stubTouchScreen, swipeMovesPage } from '../../lib/stubTouchScreen'
 import { ToastProvider, useToast } from '../Toast'
@@ -55,6 +55,58 @@ describe('Sheet', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
     fireEvent(screen.getByRole('dialog'), new Event('cancel', { cancelable: true }))
     expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it.each([
+    ['on a phone', () => {}],
+    ['on desktop', stubDesktop],
+  ])('has one close button %s, which closes it', async (_, layout) => {
+    layout()
+    const onClose = renderSheet({ action: <button type="button">Reset</button> })
+    expect(screen.getAllByRole('button', { name: 'Close' })).toHaveLength(1)
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  describe('as it opens, focuses the first control but its close button, which comes before the fields', () => {
+    // jsdom has no showModal: this one focuses the first control that isn't inert, as browsers do.
+    beforeEach(() => {
+      HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+        this.setAttribute('open', '')
+        const controls = [...this.querySelectorAll<HTMLElement>('button:not(:disabled), input')]
+        // jsdom doesn't reflect inert to its attribute, so the property is read up the tree.
+        const inert = (element: HTMLElement | null): boolean => !!element && (element.inert || inert(element.parentElement))
+        controls.find((control) => !inert(control))?.focus()
+      }
+    })
+    afterEach(() => {
+      delete (HTMLDialogElement.prototype as Partial<HTMLDialogElement>).showModal
+    })
+    const open = (props: Partial<Parameters<typeof Sheet>[0]>, content: ReactNode) =>
+      render(
+        <Sheet open onClose={vi.fn()} title="Speed limits" {...props}>
+          {content}
+        </Sheet>,
+      )
+
+    it('a field', () => {
+      open({}, <input aria-label="Download limit" />)
+      expect(screen.getByRole('textbox', { name: 'Download limit' })).toHaveFocus()
+    })
+
+    it('a control before the title, as the first thing in it', () => {
+      open({ leading: <button type="button">Back</button> }, <input aria-label="Folder" />)
+      expect(screen.getByRole('button', { name: 'Back' })).toHaveFocus()
+    })
+
+    it('and leaves the close button a control once it has', async () => {
+      const onClose = vi.fn()
+      open({ onClose }, <input aria-label="Folder" />)
+      const close = screen.getByRole('button', { name: 'Close' })
+      expect(close.inert).toBe(false)
+      await userEvent.click(close)
+      expect(onClose).toHaveBeenCalledOnce()
+    })
   })
 
   it('stays open when a dialog inside it is cancelled', () => {

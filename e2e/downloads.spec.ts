@@ -139,7 +139,7 @@ test.describe('downloads, phone', () => {
     await openDownloads(page)
     await page.getByRole('button', { name: 'Сортировка: Приоритет' }).click()
     await page.getByRole('radio', { name: 'Сериалы' }).click()
-    await page.getByRole('dialog').getByRole('button', { name: 'Готово' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Закрыть' }).click()
     await expect(page.getByRole('button', { name: 'Сортировка: Приоритет, Сериалы' })).toBeVisible()
     await settle(page)
     await expect(page).toHaveScreenshot('series-dark-ru.png')
