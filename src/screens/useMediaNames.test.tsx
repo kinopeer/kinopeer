@@ -463,11 +463,30 @@ describe('useMediaNames', () => {
       expect(within(sheet).queryByRole('button', { name: 'Rename' })).not.toBeInTheDocument()
     })
 
-    it('reads no other torrent’s files for a movie', async () => {
+    it('reads the files of a torrent that comes into the show’s folder while the sheet is open', async () => {
+      getTorrentFiles.mockImplementation(filesBy([file(0, `${SHOW}/Season 02/${SHOW} S02E01.mkv`)]))
+      const { open, rerender } = renderNames(BB, { [season2.hash]: season2 })
+      const sheet = await open(season2.hash)
+      expect(await within(sheet).findByRole('button', { name: 'Rename' })).toBeEnabled()
+      rerender({ torrents: { [season2.hash]: season2, [season1.hash]: season1 } })
+      expect(await within(sheet).findByRole('status', { name: saying(`Another torrent, “${SHOW}”, is in the folder “${SHOW}”, and its files may be where naming would put this one’s.`) })).toBeInTheDocument()
+      expect(getTorrentFiles).toHaveBeenCalledWith(season1.hash, expect.anything())
+    })
+
+    it('reads no other torrent’s files for a movie, and lists no unread episodes', async () => {
       const other = torrent('b'.repeat(40), { name: 'Elsewhere', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/Elsewhere` })
       const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
       const sheet = await open(DUNE.hash)
       await within(sheet).findByRole('button', { name: 'Rename' })
+      expect(getTorrentFiles).toHaveBeenCalledTimes(1)
+      expect(within(sheet).queryByRole('region', { name: 'Episode not read' })).not.toBeInTheDocument()
+    })
+
+    it('reads no files of a torrent in a movie’s folder either: the movie names nothing', async () => {
+      const other = torrent('b'.repeat(40), { name: 'Another copy', save_path: DUNE.save_path, content_path: `${DUNE.save_path}/${NAMED}` })
+      const { open } = renderNames(DUNE_MATCH, { [DUNE.hash]: DUNE, [other.hash]: other })
+      const sheet = await open(DUNE.hash)
+      expect(await within(sheet).findByRole('status', { name: saying(/^Another torrent, “Another copy”/) })).toBeInTheDocument()
       expect(getTorrentFiles).toHaveBeenCalledTimes(1)
     })
   })

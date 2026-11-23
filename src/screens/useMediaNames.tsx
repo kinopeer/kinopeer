@@ -43,26 +43,28 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
     else if (!settled.showing) toast.show(t('names.failedClosed', { title }), { icon: 'alert' })
   }
 
+  /** The sheet for a matched torrent: a movie's folder is its own, while a series' seasons share the show's, so the sheet reads the files of the torrents there and checks them against its own. */
+  const sheet = (shown: Torrent, match: TitleMatch) => {
+    const folder = titleName(match.title, match.year)
+    const others = Object.values(listed ?? {})
+    return (
+      <MediaNamesSheet
+        key={shown.hash}
+        torrent={shown}
+        type={match.type}
+        title={match.title}
+        year={match.year}
+        taken={match.type === 'movie' ? folderTakenBy(others, shown, folder)?.name : undefined}
+        neighbours={match.type === 'tv' ? torrentsIn(others, shown, folder) : []}
+        offline={offline}
+        pending={pending(shown.hash)}
+        failed={failure !== undefined}
+        onSend={(change) => void rename(shown, change)}
+        onClose={close}
+      />
+    )
+  }
   const match = torrent && matchOf(torrent)
-  const folder = match ? titleName(match.title, match.year) : undefined
-  const others = torrent && folder !== undefined ? Object.values(listed ?? {}) : []
-  const element = torrent && match && folder !== undefined && (
-    <MediaNamesSheet
-      key={torrent.hash}
-      torrent={torrent}
-      type={match.type}
-      title={match.title}
-      year={match.year}
-      // A movie's folder is its own; a series' seasons share the show's, so the sheet reads the
-      // files of the torrents there and checks them against its own.
-      taken={match.type === 'movie' ? folderTakenBy(others, torrent, folder)?.name : undefined}
-      neighbours={match.type === 'tv' ? torrentsIn(others, torrent, folder) : []}
-      offline={offline}
-      pending={pending(torrent.hash)}
-      failed={failure !== undefined}
-      onSend={(change) => void rename(torrent, change)}
-      onClose={close}
-    />
-  )
+  const element = torrent && match && sheet(torrent, match)
   return { open, element }
 }

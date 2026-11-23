@@ -11,6 +11,7 @@ describe('episodeOf', () => {
     expect(episodeOf('show.s01.e05.mkv')).toEqual({ season: 1, first: 5, last: 5 })
     expect(episodeOf('Show S1E5.mkv')).toEqual({ season: 1, first: 5, last: 5 })
     expect(episodeOf('Show.S01E05E06.mkv')).toEqual({ season: 1, first: 5, last: 6 })
+    expect(episodeOf('Show.S01E09E10.mkv')).toEqual({ season: 1, first: 9, last: 10 })
     expect(episodeOf('Show.S01E05-E07.mkv')).toEqual({ season: 1, first: 5, last: 7 })
     expect(episodeOf('Show.S01E05-07.mkv')).toEqual({ season: 1, first: 5, last: 7 })
     // A resolution after a dash isn't a range's end.
@@ -53,6 +54,16 @@ describe('episodeOf', () => {
     expect(episodeOf('Show.S01E05.S01E09.mkv')).toBeUndefined()
     expect(episodeOf('Show.S01E05.1x09.mkv')).toBeUndefined()
     expect(episodeOf('Season 1/E05 E06.mkv')).toBeUndefined()
+    // …that differ in one number only, the season, the first episode or the last.
+    expect(episodeOf('Show.1x05.2x05.mkv')).toBeUndefined()
+    expect(episodeOf('Show.S01E05-E07.S01E06-E07.mkv')).toBeUndefined()
+    expect(episodeOf('Show.S01E05.S01E05-E06.mkv')).toBeUndefined()
+    expect(episodeOf('Season 1/Серии 4-5 E05.mkv')).toBeUndefined()
+    expect(episodeOf('Season 1/Серии 5-6 E05.mkv')).toBeUndefined()
+    // …the second of them a range that runs back, or a marker beside two episodes that differ.
+    expect(episodeOf('Show.S01E05.S01E07-03.mkv')).toBeUndefined()
+    expect(episodeOf('Season 1/E05 Серии 7-3.mkv')).toBeUndefined()
+    expect(episodeOf('Show S01E05 S01E09 - Episode 5.mkv')).toBeUndefined()
     // A marker without a season, a bare number, a range that runs back.
     expect(episodeOf('Show/E05.mkv')).toBeUndefined()
     expect(episodeOf('Show/Season 1/05.mkv')).toBeUndefined()
@@ -176,6 +187,7 @@ describe('seriesNames', () => {
     expect(seriesNames([file('A/01.mkv'), file('A/02.mkv')], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'no-episodes' })
     expect(seriesNames([file('A/Sample/a.S01E01.mkv')], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'no-episodes' })
     expect(seriesNames([file('A/S01/BDMV/STREAM/00001.m2ts')], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'disc' })
+    expect(seriesNames([file('A/S01/BDMV/STREAM/00001.m2ts'), file('A/S01E02.mkv'), file('A/info.nfo', 1)], 'Breaking Bad', 2008)).toEqual({ named: false, reason: 'disc' })
   })
 })
 
@@ -184,6 +196,7 @@ describe('filesTakenBy', () => {
 
   it('finds another torrent with a file where naming would put one, in any case', () => {
     expect(filesTakenBy(ours, [{ torrent: 'a', files: [`${SHOW}/Season 01/${SHOW} S01E01.mkv`] }, { torrent: 'b', files: [`${SHOW.toUpperCase()}/SEASON 02/INFO.NFO`] }])).toBe('b')
+    expect(filesTakenBy(ours, [{ torrent: 'a', files: [`${SHOW}/Season 01/${SHOW} S01E01.mkv`, `${SHOW}/Season 02/info.nfo`] }])).toBe('a')
   })
 
   it('finds a file where naming needs a folder, and a folder where it puts a file', () => {
