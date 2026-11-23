@@ -322,6 +322,30 @@ describe('ReleasesScreen', () => {
     expect(sheet.getByRole('button', { name: '10+ 1' })).not.toHaveClass('is-dim')
   })
 
+  it('opens the filters from each chip over the list, and presses the chips of what’s picked', async () => {
+    renderAt('/title/movie/693134/releases')
+    await screen.findByText('3 of 3 releases')
+    const close = () => userEvent.click(within(screen.getByRole('dialog', { name: 'Filters' })).getByRole('button', { name: /^Show / }))
+    for (const name of ['Filters', 'Resolution', 'Audio', 'Source']) {
+      expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'false')
+      await userEvent.click(screen.getByRole('button', { name }))
+      expect(screen.getByRole('dialog', { name: 'Filters' })).toBeInTheDocument()
+      await close()
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    }
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    const sheet = within(screen.getByRole('dialog', { name: 'Filters' }))
+    await userEvent.click(within(sheet.getByRole('group', { name: 'Resolution' })).getByRole('button', { name: counted('1080p') }))
+    await userEvent.click(within(sheet.getByRole('group', { name: 'Audio' })).getByRole('button', { name: counted('Not stated') }))
+    await userEvent.click(within(sheet.getByRole('group', { name: 'Source' })).getByRole('button', { name: counted('BluRay') }))
+    await close()
+    expect(screen.getByRole('button', { name: 'Filters 3' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: '1080p' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Audio not stated' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'BluRay' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('filters in the sheet and removes filters from the list', async () => {
     renderAt('/title/movie/693134/releases')
     await userEvent.click(await screen.findByRole('button', { name: 'Filters' }))
