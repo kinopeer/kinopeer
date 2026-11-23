@@ -220,6 +220,13 @@
   gap: var(--space-2);
 }
 
+/* A filter value's count sits closer to its label than a chip's usual gap, so the phone's sheet keeps its rows
+   (TitleReleases.tsx's popovers too, alike): the count belongs to the value. */
+.rel-options .ks-chip,
+.title-rel-options .ks-chip {
+  gap: var(--space-1);
+}
+
 .rel-sort {
   display: flex;
   gap: var(--space-2);
