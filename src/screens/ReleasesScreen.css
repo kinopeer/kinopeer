@@ -4,20 +4,22 @@
   margin: 0 auto;
 }
 
+/* The title bar and the filter chips stay pinned; the search query between them scrolls away
+   (#582), so the header makes no box of its own. */
 .rel-head {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: calc(var(--safe-top) + var(--space-1)) var(--space-2) 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
+  display: contents;
 }
 
 .rel-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 52px;
+  min-height: calc(var(--safe-top) + var(--space-1) + 52px); /* 52px of the bar under its padding */
+  padding: calc(var(--safe-top) + var(--space-1)) var(--space-2) 0;
+  background: var(--bg);
 }
 
 .rel-heading {
@@ -27,7 +29,7 @@
 
 /* The search query (ReleaseQueryField), between the title and the filters. */
 .rel-query-row {
-  padding: var(--space-1) var(--space-2) 0;
+  padding: var(--space-1) var(--space-4) 0;
 }
 
 .rel-query {
@@ -51,13 +53,18 @@
 }
 
 .rel-chips {
+  position: sticky;
+  top: calc(var(--safe-top) + var(--space-1) + 52px); /* under the pinned bar (.rel-bar) */
+  z-index: 5;
   display: flex;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
 }
 
 .rel-chips-skel {
-  min-height: calc(38px + var(--space-2) + var(--space-3)); /* a chip's (FilterChip.css) and the row's padding, kept when the row is empty */
+  min-height: calc(38px + var(--space-2) + var(--space-3) + 1px); /* a chip's (FilterChip.css), the row's padding and its border, kept when the row is empty */
   overflow: hidden;
 }
 

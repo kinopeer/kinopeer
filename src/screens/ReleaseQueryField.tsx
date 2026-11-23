@@ -45,7 +45,7 @@ function QueryForm({ releases, disabled }: QueryFormProps) {
         autoComplete="off"
       />
       {releases.edited && (
-        <IconButton icon="close" label={t('releases.resetQuery')} iconSize={18} className="rel-query-reset" onClick={releases.resetQuery} />
+        <IconButton icon="close" label={t('releases.resetQuery')} iconSize={18} className="rel-query-reset" disabled={disabled} onClick={releases.resetQuery} />
       )}
     </form>
   )

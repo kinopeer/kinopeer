@@ -124,7 +124,7 @@ describe('ReleasesScreen, the search query (#582)', () => {
     expect(screen.queryByRole('button', { name: 'Reset query' })).not.toBeInTheDocument()
   })
 
-  it('keeps the field’s room, off, until the title’s details come, so the list doesn’t move', async () => {
+  it('shows the field, off and empty, until the title’s details come', async () => {
     let answer: (details: MovieDetails) => void = () => {}
     getMovie.mockReturnValue(new Promise((resolve) => (answer = resolve)))
     renderQueryAt('/title/movie/693134/releases')
@@ -134,6 +134,51 @@ describe('ReleasesScreen, the search query (#582)', () => {
     await screen.findByText('3 of 3 releases')
     expect(field()).toBeEnabled()
     expect(field()).toHaveValue('Dune Part Two 2024')
+  })
+
+  it('keeps Reset off with the field, before the title’s details come', async () => {
+    let answer: (details: MovieDetails) => void = () => {}
+    getMovie.mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    renderQueryAt('/title/movie/693134/releases?q=Dune%202')
+    expect(field()).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Reset query' })).toBeDisabled()
+    act(() => answer(DUNE))
+    await screen.findByText('3 of 3 releases')
+    expect(screen.getByRole('button', { name: 'Reset query' })).toBeEnabled()
+  })
+
+  it('shows no field for a title that isn’t found', async () => {
+    getMovie.mockRejectedValue(new tmdb.TmdbError('TMDB responded 404', 404))
+    renderQueryAt('/title/movie/1/releases')
+    expect(await screen.findByRole('heading', { name: 'Title not found' })).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox', { name: 'Search query' })).not.toBeInTheDocument()
+  })
+
+  it('shows no field for a link that names no title', () => {
+    renderQueryAt('/title/person/abc/releases')
+    expect(screen.getByRole('heading', { name: 'Title not found' })).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox', { name: 'Search query' })).not.toBeInTheDocument()
+  })
+
+  it('searches the query already searched again on Enter, once its search has settled', async () => {
+    searchReleases.mockRejectedValueOnce(new prowlarr.ProwlarrError('Prowlarr responded 500', 500))
+    renderQueryAt('/title/movie/693134/releases?q=Dune%202')
+    await waitFor(() => expect(searchReleases).toHaveBeenCalledTimes(1))
+    await screen.findByRole('button', { name: 'Try again' })
+    await userEvent.type(field(), '{Enter}')
+    expect(await screen.findByText('3 of 3 releases')).toBeInTheDocument()
+    expect(searchReleases).toHaveBeenCalledTimes(2)
+    expect(searchReleases).toHaveBeenLastCalledWith('Dune 2', expect.anything())
+    // The address is left as it was.
+    expect(address()).toBe('?q=Dune%202')
+  })
+
+  it('sends no second search for the query while its search is on its way', async () => {
+    searchReleases.mockReturnValue(new Promise(() => {}))
+    renderQueryAt('/title/movie/693134/releases?q=Dune%202')
+    await waitFor(() => expect(searchReleases).toHaveBeenCalledTimes(1))
+    await userEvent.type(field(), '{Enter}')
+    expect(searchReleases).toHaveBeenCalledTimes(1)
   })
 
   it('searches by the query in the address, as after a reload', async () => {
@@ -152,7 +197,7 @@ describe('ReleasesScreen, the search query (#582)', () => {
     await waitFor(() => expect(searchReleases).toHaveBeenLastCalledWith('Dune Part Two 2024', expect.anything()))
   })
 
-  it('goes back to the built query on an empty one or the built one, searching nothing more', async () => {
+  it('goes back to the built query on an empty one or the built one, searching it again', async () => {
     renderQueryAt('/title/movie/693134/releases')
     await screen.findByText('3 of 3 releases')
     // The built query with spaces after it is the built query.
@@ -166,7 +211,9 @@ describe('ReleasesScreen, the search query (#582)', () => {
     await userEvent.type(field(), '{Enter}')
     expect(address()).toBe('')
     expect(field()).toHaveValue('Dune Part Two 2024')
-    expect(searchReleases).toHaveBeenCalledTimes(1)
+    // Each Enter searched the built query again, never another one.
+    await waitFor(() => expect(searchReleases).toHaveBeenCalledTimes(4))
+    expect(new Set(searchReleases.mock.calls.map(([query]) => query))).toEqual(new Set(['Dune Part Two 2024']))
   })
 
   it('submits without the browser sending the form', async () => {
