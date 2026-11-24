@@ -198,7 +198,25 @@ trusted.
 ## 4. Report
 
 Findings first, most severe first: blocking (B, D, E with a drift, I missing, K, A without a
-reason), then should-fix (C, F, G, H), then nits. Each defect is one finding under one check:
+reason), then should-fix (C, F, G, H), then nits. A finding of H, F or K is a nit when nothing
+would go wrong had nobody found it, since a finding that holds the merge costs a round of fixes:
+- **H**, unless it names who would read the text and the wrong step they'd take (a setup or
+  release step run as written, a variable set, a review rule applied, code written against a
+  comment on code in use); wording, a comment's place, a changelog's precision, a stale note the
+  reader still gets right, the description's or the Tests table's phrasing are nits.
+- **F**, for duplication and structure (a literal, a fixture or a block written twice, cases
+  that could be one `it.each`, a comment's wording or place, a setting that does nothing). An
+  assertion weaker than its claim stays should-fix: a count of calls or elements where the
+  outcome can be named, text found by text where nothing else pins its role or description, a real-time
+  wait, a title or comment that says a state is checked when it isn't.
+- **K**, when only the PR's account is wrong and you checked the claim yourself (the test does
+  go red with the code broken, the survivor is equivalent): the author fixes the line in
+  `Fixes for round <n>`. A survivor or a claim with no break that leaves behavior untested stays
+  blocking.
+
+The retro of 2026-11-24 sampled twenty findings of each (`docs/QUALITY.md` → its row): among
+those that held the merge, H had 4 of 11 with no consequence, F 6 of 13 and K 6 of 16, all of
+these kinds. Each defect is one finding under one check:
 a new sheet or state without a baseline is G, not also A. One line per finding: `file:line`, the defect,
 the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`, or
 `[<check> · gap: <reason>]` with what the missing rule would say: the
