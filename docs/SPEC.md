@@ -8,7 +8,7 @@ Find a movie or a series, pick a release and download it without leaving Kinopee
 
 ## Who it's for
 
-The owner of a home server running umbrelOS with the qBittorrent and Prowlarr apps; Docker, where Kinopeer's compose file brings both; or one of the other supported installs (CLAUDE.md → Product), such as Docker next to a qBittorrent and a Prowlarr they already run, on that machine or elsewhere. The main device is a phone, then a computer. The interface is in Russian and English.
+The owner of a home server running umbrelOS with the qBittorrent and Prowlarr apps; Docker, where Kinopeer's compose file brings both; or another of the supported installs (CLAUDE.md → Product). The main device is a phone, then a computer. The interface is in Russian and English.
 
 ## What Kinopeer doesn't do
 

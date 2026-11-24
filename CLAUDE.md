@@ -1,6 +1,6 @@
 # Kinopeer
 
-A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA with a desktop layout. Installs on umbrelOS.
+A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA with a desktop layout. Installs on umbrelOS and the other ways listed under Product.
 
 ## Product
 
