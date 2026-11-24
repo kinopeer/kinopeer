@@ -695,11 +695,15 @@ own way, so one check runs every way to fail through every place (#600):
   service's client throws for each way its call fails and the link that failed then: Kinopeer's
   server not answering, a sign-in proxy redirecting, something answering in its place, the service
   failing, no key or a refused one, and in the WebUI build qBittorrent not answering when its store
-  is read. A new way to fail is a row there, and every place's check runs it; a new kind of link
+  is read, with something in front of Kinopeer answering a status the service gives too (404,
+  409), which a place mustn't read as the service's refusal. A new way to fail is a row there, and
+  every place's check runs it; a new kind of link
   is a member of `Link`, which every place then has to say.
 - **A place's check.** The place's own test file calls `namesTheFailedLink` once, beside its other
   tests, with its own mocks: `show` renders the place with its call failing with the given error
-  and returns the element that shows the failure (or the accessible name, for the poll's ring), and
+  and returns the smallest element that shows the failure, its alert or banner, or the screen or
+  the sheet where a failed state takes the content's place (or the accessible name, for the poll's
+  ring), and
   `says` gives a phrase per link. Every way checks that the element says its link's phrase and no
   other link's, so two links can't quietly share a text; a place that says the same for two links
   gives both the same phrase, which the declaration then shows (the add sheet's fetch names
@@ -719,6 +723,10 @@ What it doesn't see, so review does:
   so the registry can't tell it shows one.
 - A second place in a module already listed: the registry knows modules, not each spot in them.
 - Why a service didn't answer (`failureText`'s causes) as against who: the check reads who.
+- A call the app gives up itself (an abort, the poll's time limit): no client throws it as a link
+  failing, so it isn't a way.
+- Where the failure shows: a place's check reads its text, so a failure that should show under
+  what was loaded rather than in its place keeps its own test (Search's next page).
 - The forms that save a connection through the settings client (`QbittorrentLoginForm`,
   `ProwlarrKeyForm`, the TMDB key's), whose failures are the server's own check of the address
   (`SettingsError`'s codes), and Telegram's and push's, which don't reach these services.

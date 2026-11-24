@@ -917,8 +917,7 @@ namesTheFailedLink('Downloads’ offline banner, when the poll stops answering',
     await screen.findAllByRole('listitem')
     getMainData.mockRejectedValue(error)
     window.dispatchEvent(new Event('online'))
-    await screen.findByRole('status', { name: saying(/actions paused/) })
-    return screen.getByRole('main')
+    return screen.findByRole('status', { name: saying(/actions paused/) })
   },
   says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })

@@ -29,11 +29,15 @@ const kinopeer: Way[] = [
   { name: 'nothing answered for Kinopeer’s server', link: 'kinopeer', error: () => new TypeError('Failed to fetch') },
   { name: 'a sign-in proxy in front of Kinopeer redirected', link: 'kinopeer', error: () => new ProxySignInError() },
   { name: 'something in front of Kinopeer’s server answered for it', link: 'kinopeer', error: () => new KinopeerUnreachableError(502) },
+  // With a status a place reads as the service's own refusal: a proxy answers whatever it answers.
+  { name: 'something in front of Kinopeer’s server answered 404', link: 'kinopeer', error: () => new KinopeerUnreachableError(404) },
+  { name: 'something in front of Kinopeer’s server answered 409', link: 'kinopeer', error: () => new KinopeerUnreachableError(409) },
 ]
 
 /**
  * Every way each service's call fails, by build: what its client throws (src/api/*), and the link
- * that failed. A new way to fail is a row here, and every place's check runs it; a new kind of link
+ * that failed. Not a call the app gives up itself (an abort, the poll's time limit), which isn't a
+ * link failing. A new way to fail is a row here, and every place's check runs it; a new kind of link
  * is a member of `Link`, which every place then has to say.
  */
 export const WAYS: Record<Build, Record<Service, Way[]>> = {
@@ -80,9 +84,10 @@ export interface FailedLinkPlace {
   builds?: Build[]
   /**
    * Renders the place with its call to the service failing with `error`, through the place's own
-   * wiring (its client mocked to throw it), and gives the element that shows the failure, without
-   * the rest of the screen, or what a person hears for it where that's a name, not a text (the
-   * poll's ring). A component given the poll's reading (`unreachable`) is given `unreachable(error)`,
+   * wiring (its client mocked to throw it), and gives the smallest element that shows the failure:
+   * its alert or banner, or the screen (`main`) or the sheet where a failed state takes the
+   * content's place; or what a person hears for it where that's a name, not a text (the poll's
+   * ring). A component given the poll's reading (`unreachable`) is given `unreachable(error)`,
    * as the poll reads it.
    */
   show: (error: unknown) => Promise<HTMLElement | string>

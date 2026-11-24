@@ -915,8 +915,7 @@ namesTheFailedLink('The add sheet, when the torrent can’t be fetched', {
   show: async (error) => {
     fetchRelease.mockRejectedValue(error)
     renderSheet()
-    await screen.findByRole('alert')
-    return screen.getByRole('dialog', { name: 'Add to downloads' })
+    return within(screen.getByRole('dialog', { name: 'Add to downloads' })).findByRole('alert')
   },
   // A key refused between the search and the fetch names Prowlarr, as its failure does.
   says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t get the torrent from Prowlarr', key: 'Couldn’t get the torrent from Prowlarr', store: 'Couldn’t reach qBittorrent' },
@@ -928,8 +927,7 @@ namesTheFailedLink('The add sheet, when the add fails', {
     addRelease.mockRejectedValue(error)
     renderSheet()
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-    await screen.findByRole('alert')
-    return screen.getByRole('dialog', { name: 'Add to downloads' })
+    return within(screen.getByRole('dialog', { name: 'Add to downloads' })).findByRole('alert')
   },
   says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

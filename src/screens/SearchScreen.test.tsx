@@ -325,6 +325,16 @@ describe('SearchScreen', () => {
     expect(searchTitles).toHaveBeenLastCalledWith('dune', expect.objectContaining({ page: 1 }))
   })
 
+  // Below the page loaded, not in its place: the failed-link check reads only what it says.
+  it('keeps TMDB’s own failure of a next page under the results in the WebUI build', async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+    searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
+    renderScreen('/search?q=dune')
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t load more') })).toBeInTheDocument()
+  })
+
   it('says when a search fails, and tries again', async () => {
     let answer = () => {}
     searchTitles.mockRejectedValueOnce(new TypeError('Failed to fetch'))
