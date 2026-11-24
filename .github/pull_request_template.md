@@ -42,6 +42,9 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it`
 - Meanwhile:
 - The next poll:
 - The edges:
+- A heuristic's scope: <!-- a guess from indirect signs (CLAUDE.md → Conventions): the cases it
+     recognizes, each with its `it`, and that it says nothing in any other, a doubtful one
+     included; or "no heuristic". -->
 
 Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor —
      test added | an accepted reason | equivalent: the inputs or sequences of events tried and what
@@ -54,6 +57,9 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
      alternative in a selector, which value a guard reads, a prop passed down, each text key the
      diff adds or moves (Stryker leaves strings alone) — and the `it` that failed. Or "none in the
      diff". -->
+
+Code review: <!-- /code-review on the branch at the commit you mark ready (docs/TESTING.md →
+     Reviewing a PR's tests): the count, then each finding you declined and why. Or "no findings". -->
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect
@@ -71,7 +77,9 @@ Baselines: <!-- each changed or new PNG — what changed and why, intended or a 
      -- ':!package-lock.json'`, `git grep -ni kinoseed`, not only `kinoseed-tmdb`). Read their paragraphs
      about what the diff changes: a claim by meaning ("as in Downloads, on both layouts") has no
      name to grep. Check each claim against what it describes: the code, the service's own docs
-     (opened, not remembered), the UI's words, the doc it points at; a checklist step's pointer
+     (opened, not remembered), the UI's words, the doc it points at, and list in this section each
+     statement the diff makes about another system (Docker, a platform, qBittorrent, a catalog)
+     with where it was checked: the run, or the page opened; a checklist step's pointer
      resolves and its check can pass as written. A list the change adds to gains the new item:
      SPEC's decision log (newest first), the blind spots. The changelog's entry names every change a user sees (each text, label and screen the
      diff changes) and claims no more than the code does. A doc about how things are now says

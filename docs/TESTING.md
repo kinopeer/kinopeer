@@ -77,7 +77,11 @@ optimizer, run twice on the `app` project alone while other sessions ran tests, 
 14.2–14.3 s).
 
 A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
-nothing of the app's data. A PR names a test's layer by its number and its name in this table
+nothing of the app's data. Elsewhere a test's layer is what it runs, not the folder it sits in: a
+function that imports no React, DOM or Node API is layer 1 wherever its module is, a helper of
+`server/` (#515) or one a hook's module exports (#571, `src/session/`), and a module's wiring
+with what it calls mocked, as `src/sw.test.ts` runs `src/sw.ts` with workbox mocked, is layer 3
+(#570). A PR names a test's layer by its number and its name in this table
 ("layer 3, screens, stores and clients"); *unit*, *component* and *integration* aren't layer names
 here, and a layer named wrong keeps the review from checking that it's the lowest one.
 
@@ -328,8 +332,9 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
 '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and is posted only
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
-for CI). The reviewer runs `npm run test:mutants` locally only when no report can
-come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
+for CI). When no report comes for that commit (the job failed, or it's still missing after that
+wait), no round is posted over it: that section says what is posted instead (#504 and #522 left the
+two ways apart for this retro). A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
@@ -445,10 +450,17 @@ of these:
   with a bogus credential that the service refuses only after the tool has resolved its target
   (#258's `wrangler secret put` with a bogus token named the worker each matrix entry reaches), so
   a missing credential isn't a reason on its own. A run that can only come later (at the next
-  tag, on a day with steps of its own) is named in the PR as the check of that change, with what
+  tag, on a day with steps of its own, a platform's behavior only a deploy shows, as Workers Cache
+  keeping one answer per origin for #565, or a build's wiring that no stand runs until the issue
+  adding one lands, as #567's entry module before #563's journeys) is named in the PR as the check
+  of that change, with what
   stays in place until it's green: the old token and the old deploy key stay until the first run
   through the `deploy` environment passed, since "can't run here" holds for the PR and not for the
   day it hands the run to (#291). "CI and config" is what decides nothing.
+
+- **The tests' own code:** a stand, a fake or a fixture a test runs on is checked by the tests
+  that run on it; a branch of it that none of them takes is run once by hand, and the PR says how
+  (#576's WebUI stand). A fake's agreement with the real service is check E's, not this reason's.
 
 A behavior removed on purpose isn't uncovered: the PR's What and SPEC's decision log name it, and
 the review finds it there rather than in a test that still asserts it (#231's rail tooltip).
@@ -774,7 +786,10 @@ Three steps, each by whoever can do it best:
    since a claim by meaning has no name to grep (#257's Search paragraph still said "as in
    Downloads, on both layouts"). Each claim is checked against what it describes:
    the code and the tree; the service's own documentation page, opened rather than remembered
-   (#299's social preview rule, #300's name of a GitHub option); the words the UI shows (#287's
+   (#299's social preview rule, #300's name of a GitHub option), with each statement the diff
+   makes about another system listed in the PR's Docs section beside where it was checked, the run
+   or the page (#513's, #524's and #577's install docs drew about 65 findings in the 2026-11-24
+   batch, many of them claims about Docker, Unraid, its app catalog or qBittorrent); the words the UI shows (#287's
    alt text named the filters otherwise); the doc it points at (README against SPEC); and a step
    in a checklist, whose pointer resolves and whose check can pass as written (#300 pointed at
    "steps 3 to 6" of a five-step description). The changelog's entry names every change a user sees
@@ -787,7 +802,13 @@ Three steps, each by whoever can do it best:
    #379 a size measured over a stale `node_modules`). A dated record (SPEC's decision log, a retro's row, a trial's report) keeps its numbers as
    of its date. Each list the change adds to gets the new item (SPEC's decision log,
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
-   meant to write.
+   meant to write. Then `/code-review` on the branch at the commit to be marked ready, whose
+   reviewers start with fresh contexts, each finding fixed, with a test where it's a bug, or
+   declined in the PR's `Code review` line with why: in the batch the retro of 2026-11-24 read, the
+   deputy's rounds found 63 blocking bugs in PRs' own changes (`A·clear`: an edge, a case named in
+   Neighbours that no test ran, a request that outlives its screen), many of them through its
+   `/code-review`, and each cost a round of CI, mutants and review that a run before the first
+   round can save.
 2. **The deputy reviews**: a cloud routine that acts as the owner's GitHub account, the one
    reviewer and approver of every PR, woken when the PR is marked ready for review. How it reviews,
    posts its rounds, judges the checks guard's marks, and what it leaves to the coordinator and the
