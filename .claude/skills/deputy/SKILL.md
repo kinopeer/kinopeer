@@ -85,11 +85,16 @@ report and another after it would split the round in two.
   author's turn, and a full round over a red head would be repeated.
 - **Still missing after its wait:** the same, naming the checks you didn't see finish. The
   author marks the PR ready again once they have.
+- **A `Mutants report` that can't come** for a reason no fix of the branch answers (the job timed
+  out on a big diff, Actions can't run it): the author runs `npm run test:mutants` at the head and
+  quotes its output in `Fixes for round <n>`, and the round judges K's survivors from that in the
+  report's place, saying so.
 
 ## 3. The round
 
 **Round 1** is `/test-review <n>` and `/code-review` on the PR, then a read of its risky parts
-yourself: what the diff changes in the server, the bridges, the workflows and the checks.
+yourself; a `/code-review` finding the PR's `Code review` line already declined is judged on that
+reason, as an author's declined finding is, not raised anew: what the diff changes in the server, the bridges, the workflows and the checks.
 
 **Round 2 and later** start from the author's `Fixes for round <n>` comment. Your last round
 (see Ground rules) gives the round's number and the commit it saw. Review what changed since that

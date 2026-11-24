@@ -49,10 +49,12 @@ Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): 
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for the tests its `include` there names: the server's, the integration tests included,
 the TMDB proxy's, the scripts' and those at the root. Tests sit next to the code as
-`*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
+`*.test.ts(x)` and query by role and accessible name. Three kinds of test don't follow the table's
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
-the worker's `tsconfig.sw.json` rather than the app's. And a check that reads a source file as
+the worker's `tsconfig.sw.json` rather than the app's, layer 3 as a module's wiring with what it
+calls mocked (#570). A test of a function that imports no React, DOM or Node API is layer 1
+wherever its module is: a helper in `server/` (#515) or one a hook's module exports (#571). And a check that reads a source file as
 text (the tokens and the raw px values, colors, shadows and motion in the stylesheets, and the custom properties they use, `src/styles/tokens.test.ts`; the poll ring's
 keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
 `node:fs`: it asserts what the file says, and how that looks is layer 6's (#241). So is a lint
@@ -77,11 +79,7 @@ optimizer, run twice on the `app` project alone while other sessions ran tests, 
 14.2–14.3 s).
 
 A test in `src/screens/` is layer 3, a sheet or a dialog included: layer 2 is only what knows
-nothing of the app's data. Elsewhere a test's layer is what it runs, not the folder it sits in: a
-function that imports no React, DOM or Node API is layer 1 wherever its module is, a helper of
-`server/` (#515) or one a hook's module exports (#571, `src/session/`), and a module's wiring
-with what it calls mocked, as `src/sw.test.ts` runs `src/sw.ts` with workbox mocked, is layer 3
-(#570). A PR names a test's layer by its number and its name in this table
+nothing of the app's data. A PR names a test's layer by its number and its name in this table
 ("layer 3, screens, stores and clients"); *unit*, *component* and *integration* aren't layer names
 here, and a layer named wrong keeps the review from checking that it's the lowest one.
 
@@ -332,8 +330,9 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
 '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and is posted only
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
-for CI). When no report comes for that commit (the job failed, or it's still missing after that
-wait), no round is posted over it: that section says what is posted instead. A branch
+for CI). When a report the round waits for doesn't come (the job failed, timed out, or is still
+missing after that wait), that section says what is posted and what the round reads instead; a
+branch with no PR runs `npm run test:mutants` locally. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
@@ -802,10 +801,10 @@ Three steps, each by whoever can do it best:
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
    meant to write. So `/code-review` runs on the branch at the commit to be marked ready in a
    fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
-   the context that calls it), each finding fixed, with a test where it's a bug, or
-   declined in the PR's `Code review` line with why: in the batch the retro of 2026-11-24 read, the
-   deputy's rounds found 63 blocking bugs in PRs' own changes (`A·clear`: an edge, a case named in
-   Neighbours that no test ran, a request that outlives its screen), many of them through its
+   the context that calls it), each bug it finds in the PR's own change fixed, red test first
+   (below), and any other finding fixed or declined in the PR's `Code review` line with why: in the batch the retro of 2026-11-24 read, the
+   deputy's rounds found 63 blocking `A·clear` findings, mostly bugs in PRs' own changes (an edge, a
+   case named in Neighbours that no test ran, a request that outlives its screen), many of them through its
    `/code-review`, and each cost a round of CI, mutants and review that a run before the first
    round can save.
 2. **The deputy reviews**: a cloud routine that acts as the owner's GitHub account, the one
