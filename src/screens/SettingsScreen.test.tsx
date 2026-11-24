@@ -1631,7 +1631,8 @@ describe('SettingsScreen in the WebUI build', () => {
     vi.stubGlobal('__WEBUI__', true)
     renderScreen()
     const about = screen.getByRole('region', { name: 'About' })
-    await userEvent.click(within(about).getByRole('button', { name: /Switch to qBittorrent’s interface/ }))
+    // Its name holds the hint too, which says it's qBittorrent's setting, for every device.
+    await userEvent.click(within(about).getByRole('button', { name: /^Switch to qBittorrent’s interface\s*Turns Kinopeer off in qBittorrent, on every device$/ }))
     const dialog = screen.getByRole('alertdialog', { name: 'Switch to qBittorrent’s interface?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()

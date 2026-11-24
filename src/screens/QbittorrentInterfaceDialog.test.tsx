@@ -5,6 +5,7 @@ import { UnauthorizedError } from '../api/qbittorrent/errors'
 import * as webui from '../api/qbittorrent/webui'
 import { ToastProvider } from '../components/Toast'
 import { namesTheFailedLink } from '../test/failedLinks'
+import { saying } from '../test/render'
 import { QbittorrentInterfaceDialog } from './QbittorrentInterfaceDialog'
 
 vi.mock('../api/qbittorrent/webui', () => ({ turnOffAlternativeWebui: vi.fn() }))
@@ -62,7 +63,7 @@ describe('QbittorrentInterfaceDialog', () => {
     turnOff.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     const { dialog, location } = renderDialog()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await within(dialog).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(location.replace).not.toHaveBeenCalled()
 
     await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
@@ -84,7 +85,7 @@ describe('QbittorrentInterfaceDialog', () => {
     turnOff.mockRejectedValue(new UnauthorizedError())
     const { dialog } = renderDialog()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
+    expect(await within(dialog).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
   })
 })
 
