@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnauthorizedError } from '../api/qbittorrent/errors'
@@ -47,7 +47,8 @@ describe('QbittorrentInterfaceDialog', () => {
     // can't be called back once sent.
     expect(within(dialog).getByRole('button', { name: 'Switch' })).toBeDisabled()
     expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled()
-    await userEvent.keyboard('{Escape}')
+    // A tap on the backdrop, which is the dialog itself (jsdom sends no cancel for Escape).
+    fireEvent.click(dialog)
     expect(onClose).not.toHaveBeenCalled()
 
     answer()
