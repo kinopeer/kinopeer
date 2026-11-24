@@ -197,8 +197,8 @@ trusted.
 
 ## 4. Report
 
-Findings first, most severe first: blocking (B, D, E with a drift, I missing, K but for the
-account alone, A without a reason), then should-fix (C, F, G, H, and K for the account alone when
+Findings first, most severe first: blocking (B, D, E with a drift, I missing, K but for an
+account alone that you checked yourself, A without a reason), then should-fix (C, F, G, H, and K for the account alone when
 you checked the claim yourself), then nits. A finding of H or F holds the merge only when something
 would go wrong had nobody found it, since each one that holds it costs a round of fixes, and one
 where nothing would is a nit; the other checks keep the severity above:
