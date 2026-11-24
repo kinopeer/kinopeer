@@ -223,7 +223,7 @@ Only an outside contributor's PR and a release's PR (section 1) wait for the own
 before you approve.
 
 A change to the rules sessions work by (`CLAUDE.md`, `docs/TESTING.md`, `docs/QUALITY.md`,
-anything in `.claude/skills/` and `.claude/rules/`, this file included, the PR template) and a weakening of the guard
+`docs/COORDINATOR.md`, anything in `.claude/skills/` and `.claude/rules/`, this file included, the PR template) and a weakening of the guard
 itself (`scripts/guard/`, `.github/workflows/guard.yml`) are yours to judge, as any other change.
 Approve one when its task explains it and the checks still catch what they caught before, or, for
 a change meant to weaken them (a weakening of the guard, the retro narrowing what the guard's

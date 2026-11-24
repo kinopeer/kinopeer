@@ -43,7 +43,10 @@ const alternatives = (glob: string): string[] => {
     .flatMap((choice) => alternatives(glob.slice(0, braces.index) + choice + glob.slice(braces.index + braces[0].length)))
 }
 
-/** Code no area describes: the tests' shared helpers, and the styles, which .claude/rules/design.md covers. */
+/**
+ * Code no area describes: the tests' shared helpers, and the styles, which .claude/rules/design.md covers
+ * (base.css's rule for the page behind a modal also loads screens.md, with its Overlays).
+ */
 const OUTSIDE_AREAS = ['src/test/**', 'src/test-setup.ts', 'src/styles/**']
 
 describe('the rules', () => {
