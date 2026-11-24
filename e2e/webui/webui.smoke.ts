@@ -113,8 +113,9 @@ test("Settings switch to qBittorrent's own interface", async ({ page }) => {
     const dialog = page.getByRole('alertdialog', { name: 'Перейти в интерфейс qBittorrent?' })
     await dialog.getByRole('button', { name: 'Перейти' }).click()
 
-    // qBittorrent's own page for a signed-in session (src/webui/www/private/index.html), at its root.
-    await expect(page).toHaveTitle('qBittorrent WebUI')
+    // qBittorrent's own page for a signed-in session (src/webui/www/private/index.html), at its root:
+    // its login page has no application-name, and Kinopeer's says Kinopeer. Not its title, which
+    // its script rewrites with the version once the first maindata answers.
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'qBittorrent')
     expect(new URL(page.url()).pathname).toBe('/')
     // Off, and the folder left as qBittorrent.conf set it, so turning it on again brings Kinopeer back.

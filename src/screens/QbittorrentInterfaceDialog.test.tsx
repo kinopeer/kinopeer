@@ -1,6 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { UnauthorizedError } from '../api/qbittorrent/errors'
 import * as webui from '../api/qbittorrent/webui'
 import { ToastProvider } from '../components/Toast'
 import { namesTheFailedLink } from '../test/failedLinks'
@@ -16,10 +17,10 @@ beforeEach(() => {
   turnOff.mockResolvedValue()
 })
 
-function renderDialog() {
+function renderDialog({ onSessionEnded }: { onSessionEnded?: () => void } = {}) {
   const location = { replace: vi.fn<(url: string) => void>() }
   const onClose = vi.fn()
-  render(<QbittorrentInterfaceDialog onClose={onClose} location={location} />, { wrapper: ToastProvider })
+  render(<QbittorrentInterfaceDialog onClose={onClose} onSessionEnded={onSessionEnded} location={location} />, { wrapper: ToastProvider })
   return { dialog: screen.getByRole('alertdialog', { name: 'Switch to qBittorrent’s interface?' }), location, onClose }
 }
 
@@ -38,12 +39,16 @@ describe('QbittorrentInterfaceDialog', () => {
   it("turns Kinopeer off in qBittorrent, then replaces the page with qBittorrent's root", async () => {
     let answer = () => {}
     turnOff.mockReturnValue(new Promise<void>((resolve) => (answer = resolve)))
-    const { dialog, location } = renderDialog()
+    const { dialog, location, onClose } = renderDialog()
     await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
     // Not before qBittorrent took it: the page would still be Kinopeer's.
     expect(location.replace).not.toHaveBeenCalled()
-    // Busy while it's on its way, so a second tap sends nothing.
+    // Busy while it's on its way, so a second tap sends nothing, and it can't be closed: the switch
+    // can't be called back once sent.
     expect(within(dialog).getByRole('button', { name: 'Switch' })).toBeDisabled()
+    expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    await userEvent.keyboard('{Escape}')
+    expect(onClose).not.toHaveBeenCalled()
 
     answer()
     await vi.waitFor(() => expect(location.replace).toHaveBeenCalledExactlyOnceWith('/'))
@@ -62,6 +67,23 @@ describe('QbittorrentInterfaceDialog', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
     await vi.waitFor(() => expect(location.replace).toHaveBeenCalledExactlyOnceWith('/'))
     expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it("has the session checked again when qBittorrent's session ended, where the caller can, rather than say qBittorrent didn't answer", async () => {
+    turnOff.mockRejectedValue(new UnauthorizedError())
+    const onSessionEnded = vi.fn()
+    const { dialog, location } = renderDialog({ onSessionEnded })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
+    await vi.waitFor(() => expect(onSessionEnded).toHaveBeenCalledOnce())
+    expect(within(dialog).queryByRole('alert')).not.toBeInTheDocument()
+    expect(location.replace).not.toHaveBeenCalled()
+  })
+
+  it('says qBittorrent refused where no caller checks the session, as Settings, whose poll does', async () => {
+    turnOff.mockRejectedValue(new UnauthorizedError())
+    const { dialog } = renderDialog()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Switch' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Couldn’t reach qBittorrent. Try again.')
   })
 })
 

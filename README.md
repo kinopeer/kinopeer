@@ -268,7 +268,13 @@ qBittorrent can serve another web interface in place of its own, and Kinopeer co
 - **Kinopeer refuses Prowlarr's `http://` address.** A page opened over HTTPS can't call a plain HTTP address, so with qBittorrent over HTTPS, Prowlarr needs an HTTPS address too (its own HTTPS or a reverse proxy), with a certificate this browser trusts: open that address in the browser once to check. Only an address on this device (`localhost`) is let through over plain HTTP, and it serves only a qBittorrent on this device outside a container (step 3), so Prowlarr's network address needs HTTPS too. Or open qBittorrent over plain HTTP on your home network.
 - **Behind a reverse proxy,** serve qBittorrent at the root of a name of its own (`https://qbittorrent.example.com/`), not under a path: Kinopeer's page loads its files from `/`.
 
-**The way back to qBittorrent's own interface.** While Kinopeer is on, qBittorrent's address shows Kinopeer. To switch, open **Settings → About → Switch to qBittorrent's interface** in Kinopeer (or the same button on the screen saying qBittorrent is too old) and confirm: Kinopeer turns off **Use alternative WebUI**, and qBittorrent's own interface opens at the same address, on every device. qBittorrent's desktop app has the same setting under Tools → Options → Web UI. To bring Kinopeer back, turn **Use alternative WebUI** on again in qBittorrent's **Tools → Options… → WebUI** and **Save**: the folder stays set. Moving or deleting the `kinopeer-webui` folder doesn't reliably bring qBittorrent's interface back.
+**The way back to qBittorrent's own interface.** While Kinopeer is on, qBittorrent's address shows Kinopeer. To switch, open **Settings → About → Switch to qBittorrent's interface** in Kinopeer (or the same button on the screen saying qBittorrent is too old) and confirm: Kinopeer turns off **Use alternative WebUI**, and qBittorrent's own interface opens at the same address, on every device. qBittorrent's desktop app has the same setting under Tools → Options → Web UI. To bring Kinopeer back, turn **Use alternative WebUI** on again in qBittorrent's **Tools → Options… → WebUI** and **Save**: the folder stays set. If Kinopeer's page doesn't work at all, open the browser's developer tools on qBittorrent's address in a browser that signed in to qBittorrent through Kinopeer before (its session lasts the session timeout), and in their **Console** run
+
+```js
+fetch('api/v2/app/setPreferences', { method: 'POST', body: new URLSearchParams({ json: '{"alternative_webui_enabled":false}' }) })
+```
+
+and reload. Moving or deleting the `kinopeer-webui` folder doesn't reliably bring qBittorrent's interface back.
 
 **Updating:** download the new `kinopeer-webui.zip` and unpack it over the old folder (`unzip -o kinopeer-webui.zip`); open pages reload into the new version by themselves. New versions are on the [releases page](https://github.com/kinopeer/kinopeer/releases), what changed in [CHANGELOG.md](CHANGELOG.md).
 

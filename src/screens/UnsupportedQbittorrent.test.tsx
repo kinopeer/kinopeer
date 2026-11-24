@@ -1,7 +1,11 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { UnauthorizedError } from '../api/qbittorrent/errors'
+import * as webui from '../api/qbittorrent/webui'
 import { UnsupportedQbittorrent } from './UnsupportedQbittorrent'
+
+vi.mock('../api/qbittorrent/webui', () => ({ turnOffAlternativeWebui: vi.fn() }))
 
 describe('UnsupportedQbittorrent', () => {
   it('names the version, the oldest one Kinopeer works with and what to do', async () => {
@@ -33,5 +37,15 @@ describe('UnsupportedQbittorrent', () => {
     const dialog = screen.getByRole('alertdialog', { name: 'Switch to qBittorrent’s interface?' })
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
+  it("checks the session again when it ended before the switch, so qBittorrent's login shows", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    vi.mocked(webui.turnOffAlternativeWebui).mockRejectedValue(new UnauthorizedError())
+    const onRetry = vi.fn()
+    render(<UnsupportedQbittorrent version="5.1.4" onRetry={onRetry} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Switch to qBittorrent’s interface' }))
+    await userEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Switch' }))
+    await vi.waitFor(() => expect(onRetry).toHaveBeenCalledOnce())
   })
 })

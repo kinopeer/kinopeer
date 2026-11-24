@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { UnauthorizedError } from '../api/qbittorrent/errors'
 import { turnOffAlternativeWebui } from '../api/qbittorrent/webui'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
@@ -11,6 +12,12 @@ export const QBITTORRENT_ROOT = '/'
 
 export interface QbittorrentInterfaceDialogProps {
   onClose: () => void
+  /**
+   * qBittorrent's session ended before the switch: checks it again, so qBittorrent's login shows,
+   * where no poll would (the too-old screen). Without it the dialog says qBittorrent refused, and
+   * the poll's own 403 brings the login back (Settings).
+   */
+  onSessionEnded?: () => void
   /** Where the page goes once Kinopeer is off; the window's own but in a test. */
   location?: Pick<Location, 'replace'>
 }
@@ -21,7 +28,7 @@ export interface QbittorrentInterfaceDialogProps {
  * and loads its root, where qBittorrent now answers with its own interface (the service worker steps
  * aside: webui.md → Shipping it). The address is replaced, so Back doesn't return to it.
  */
-export function QbittorrentInterfaceDialog({ onClose, location = window.location }: QbittorrentInterfaceDialogProps) {
+export function QbittorrentInterfaceDialog({ onClose, onSessionEnded, location = window.location }: QbittorrentInterfaceDialogProps) {
   const { t } = useTranslation()
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<{ error: unknown }>()
@@ -33,6 +40,7 @@ export function QbittorrentInterfaceDialog({ onClose, location = window.location
     try {
       await turnOffAlternativeWebui()
     } catch (error) {
+      if (error instanceof UnauthorizedError && onSessionEnded) return onSessionEnded()
       setFailure({ error })
       setBusy(false)
       return
@@ -41,15 +49,20 @@ export function QbittorrentInterfaceDialog({ onClose, location = window.location
     location.replace(QBITTORRENT_ROOT)
   }
 
+  // Not closed while the switch is on its way: once sent it can't be called back, and the page leaves when it's taken.
+  const close = () => {
+    if (!busy) onClose()
+  }
+
   return (
     <Dialog
       open
-      onClose={onClose}
+      onClose={close}
       title={t('webui.switchInterfaceTitle')}
       icon="server"
       actions={
         <>
-          <Button variant="secondary" block onClick={onClose}>
+          <Button variant="secondary" block disabled={busy} onClick={close}>
             {t('common.cancel')}
           </Button>
           <Button variant="primary" block loading={busy} disabled={busy} onClick={() => void confirm()}>

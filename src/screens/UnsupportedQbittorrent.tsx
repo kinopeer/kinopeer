@@ -33,7 +33,7 @@ export function UnsupportedQbittorrent({ version, onRetry }: UnsupportedQbittorr
         {t('unsupported.body', { min: requiredQbittorrentVersion() })}
       </EmptyState>
       {/* The build reads first, so the server's leaves the dialog out. */}
-      {__WEBUI__ && switching && <QbittorrentInterfaceDialog onClose={() => setSwitching(false)} />}
+      {__WEBUI__ && switching && <QbittorrentInterfaceDialog onClose={() => setSwitching(false)} onSessionEnded={onRetry} />}
     </>
   )
 }
