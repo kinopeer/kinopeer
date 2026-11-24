@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises'
-import type { AddressInfo } from 'node:net'
+import { createServer as createNetServer, type AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -35,11 +35,17 @@ afterEach(async () => {
 })
 
 const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
-const listening = { port: 0, host: '127.0.0.1', strictPort: true } as const
+/**
+ * Where a server listens: from a random port below every system's ephemeral range (Linux's starts at 32768,
+ * macOS's at 49152), moving to the next while one is taken. Not port 0: there Vite takes an ephemeral port by
+ * opening and closing a socket of its own, then listens on it, and a socket another test file's worker opens on
+ * port 0 in between can be handed that port, which fails the start (#516, seen on CI's Linux).
+ */
+const listening = () => ({ port: 20_000 + Math.floor(Math.random() * 10_000), host: '127.0.0.1', strictPort: false })
 
 /** `npm run dev` from this config; resolves to its port. `allowedHosts: true` turns Vite's own host check off. */
 async function startDev(base?: string, allowedHosts?: true): Promise<number> {
-  const server = await createServer({ ...options, base, server: { ...listening, watch: null, allowedHosts }, optimizeDeps: { noDiscovery: true } })
+  const server = await createServer({ ...options, base, server: { ...listening(), watch: null, allowedHosts }, optimizeDeps: { noDiscovery: true } })
   closers.push(() => server.close())
   await server.listen()
   return (server.httpServer!.address() as AddressInfo).port
@@ -53,7 +59,7 @@ async function startPreview(allowedHosts?: true): Promise<number> {
   const outDir = join(dir, 'dist')
   await mkdir(outDir)
   await writeFile(join(outDir, 'index.html'), '<!doctype html>')
-  const server = await preview({ ...options, build: { outDir }, preview: { ...listening, allowedHosts } })
+  const server = await preview({ ...options, build: { outDir }, preview: { ...listening(), allowedHosts } })
   closers.push(() => server.close())
   return (server.httpServer.address() as AddressInfo).port
 }
@@ -96,12 +102,24 @@ describe('vite.config.ts', () => {
   // The test stand runs under the Content-Security-Policy; the dev server's pages run Vite's
   // inline scripts, which it would block.
   it('sends the Content-Security-Policy from the preview server and not the dev server', async () => {
-    // One after the other: with port 0 Vite probes for a free port with a socket of its own, closes it, then
-    // listens, so two servers started at once can both be handed the port just freed (seen on CI's Linux).
     const fromDev = await fetch(`http://127.0.0.1:${await startDev()}/`)
     const fromPreview = await fetch(`http://127.0.0.1:${await startPreview()}/`)
     expect(fromPreview.headers.get('content-security-policy')).toBe(CONTENT_SECURITY_POLICY)
     expect(fromDev.headers.has('content-security-policy')).toBe(false)
+  })
+
+  // What keeps a port taken by another test file's worker from failing a start (#516).
+  it('starts the dev server on the next port when the one it starts from is taken', async () => {
+    const taken = createNetServer()
+    await new Promise<void>((resolve) => taken.listen(0, '127.0.0.1', resolve))
+    closers.push(() => new Promise<void>((resolve) => taken.close(() => resolve())))
+    const port = (taken.address() as AddressInfo).port
+    const server = await createServer({ ...options, server: { ...listening(), port, watch: null }, optimizeDeps: { noDiscovery: true } })
+    closers.push(() => server.close())
+    await server.listen()
+    const moved = (server.httpServer!.address() as AddressInfo).port
+    expect(moved).not.toBe(port)
+    expect((await fetch(`http://127.0.0.1:${moved}/`)).status).toBe(200)
   })
 
   // The data directory (./data by default) sits under the root the dev server serves files from, and
@@ -115,7 +133,7 @@ describe('vite.config.ts', () => {
     await symlink(real, root)
     const data = join(root, 'data')
     vi.stubEnv('KINOPEER_DATA_DIR', data)
-    const server = await createServer({ ...options, root, server: { ...listening, watch: null }, optimizeDeps: { noDiscovery: true } })
+    const server = await createServer({ ...options, root, server: { ...listening(), watch: null }, optimizeDeps: { noDiscovery: true } })
     closers.push(() => server.close())
     await server.listen()
     // Made after the server starts, as ./data often is: the first save makes it.
