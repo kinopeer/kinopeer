@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { alternativeWebuiEnabled, clientData, enableAlternativeWebui, LOGIN, SEEDED_HASH, SEEDED_NAME } from './qbittorrent.ts'
+import { alternativeWebui, clientData, enableAlternativeWebui, LOGIN, SEEDED_HASH, SEEDED_NAME } from './qbittorrent.ts'
 import { expect, SHOGUN, test } from './test.ts'
 
 /** The key the first device saves; the fake TMDB takes any. */
@@ -96,7 +96,8 @@ test('the login, then Downloads', async ({ page, tmdbCalls }) => {
 /**
  * The way back to qBittorrent's own interface: Settings' row and its confirmation turn off
  * qBittorrent's Alternative WebUI, and the page then loaded at qBittorrent's root is qBittorrent's
- * own interface, signed in with the session Kinopeer's login gave, without anything else to do.
+ * own interface, signed in with the session Kinopeer's login gave, without anything else to do, and
+ * the folder qBittorrent serves Kinopeer from stays set.
  */
 test("Settings switch to qBittorrent's own interface", async ({ page }) => {
   try {
@@ -116,7 +117,8 @@ test("Settings switch to qBittorrent's own interface", async ({ page }) => {
     await expect(page).toHaveTitle('qBittorrent WebUI')
     await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'qBittorrent')
     expect(new URL(page.url()).pathname).toBe('/')
-    expect(await alternativeWebuiEnabled()).toBe(false)
+    // Off, and the folder left as qBittorrent.conf set it, so turning it on again brings Kinopeer back.
+    expect(await alternativeWebui()).toEqual({ enabled: false, path: '/webui' })
   } finally {
     await enableAlternativeWebui()
   }
