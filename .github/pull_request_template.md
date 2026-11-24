@@ -47,7 +47,8 @@ Neighbours: <!-- docs/TESTING.md → Choosing a layer, and for a heuristic's sco
      recognizes, each with its `it`, and that it says nothing in any other, a doubtful one
      included; or "no heuristic". -->
 
-Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor —
+Mutants: <!-- npm run test:mutants at the commit you mark ready: the count, then each survivor (where
+     the deputy named the report as one that can't come, the run's output with the commit it ran at) —
      test added | an accepted reason | equivalent: the inputs or sequences of events tried and what
      each gave, its result and every effect, on the original and on the mutant, another path (a
      status code, a list asked again, an entry evicted) counting as a difference.

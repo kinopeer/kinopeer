@@ -332,7 +332,8 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
 for CI). When a report the round waits for doesn't come (the job failed, timed out, or is still
 missing after that wait), that section says what is posted and what the round reads instead,
-the author's own run quoted in the `Mutants` line with its commit where the report can't come; a
+the author's own run quoted in the `Mutants` line with its commit once a `CI at` review named the
+report as one that can't come; a
 branch with no PR runs `npm run test:mutants` locally. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
@@ -800,8 +801,8 @@ Three steps, each by whoever can do it best:
    #379 a size measured over a stale `node_modules`). A dated record (SPEC's decision log, a retro's row, a trial's report) keeps its numbers as
    of its date. Each list the change adds to gets the new item (SPEC's decision log,
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
-   meant to write. So `/code-review` runs on the branch before it's marked ready, in a
-   fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
+   meant to write. So once the work is done, before the PR is marked ready, `/code-review`
+   runs on the branch in a fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
    the context that calls it), each bug it finds in the PR's own change fixed, red test first
    (below), and any other finding fixed or declined in the PR's `Code review` line, which names the commit
    it ran at, with why: in the batch the retro of 2026-11-24 read, the

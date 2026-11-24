@@ -86,12 +86,14 @@ report and another after it would split the round in two.
 - **Still missing after its wait:** the same, naming the checks you didn't see finish. The
   author marks the PR ready again once they have.
 - **A `Mutants report` that can't come** for a reason no fix of the branch answers (the job timed
-  out on a big diff, Actions can't run it): the `CI at` review above says so and asks for the
-  author's own run. The author runs `npm run test:mutants` at the head and quotes its output in the
-  PR's `Mutants` line, with the commit it ran at, before round 1 as after a later one. Once that
-  quote names the head, this bullet takes the place of the two above for the `Mutants report`: the
-  round doesn't wait for the report, checks the quote's commit against the head, and judges K's
-  survivors from the quote, saying so. A quote of another commit is still missing.
+  out on a big diff, Actions can't run it): the `CI at` review above names the report as one that
+  can't come, and why, and asks for the author's own run. The author runs `npm run test:mutants` at
+  the head and quotes its output in the PR's `Mutants` line, with the commit it ran at. Only after
+  such a `CI at` review of this PR, at this head or an earlier one, does this bullet take the place of the two
+  above for the `Mutants report`, once the quote names the head: the round doesn't wait for the
+  report, checks the quote's commit against the head, and judges K's survivors from the quote,
+  saying so. A quote of another commit is still missing, and a `Mutants report` that is there at
+  the head as the round is posted wins over the quote.
 
 ## 3. The round
 

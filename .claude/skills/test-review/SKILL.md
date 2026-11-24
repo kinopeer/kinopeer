@@ -185,7 +185,7 @@ trusted.
   survivors once it's there, since the round is posted only with it (the `deputy` skill → 2. Wait
   for CI). When a report the round waits for doesn't come, that section says what
   is posted and what the round reads instead (the author's run quoted in the `Mutants` line with
-  the commit it ran at, where the report can't come); on a branch with no PR, run `npm run test:mutants`
+  the commit it ran at, once a `CI at` review named the report as one that can't come); on a branch with no PR, run `npm run test:mutants`
   locally. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
