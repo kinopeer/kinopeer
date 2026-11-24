@@ -950,8 +950,8 @@ work; the rest is decided by the deputy or the coordinator, with its reason reco
 list reads it.
 
 **What the retro changes.** The rules live in [TESTING.md](TESTING.md), the `test-review` and
-`deputy` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md) and this
-file. A rule that is clear and isn't followed moves closer to where the author works, preferring,
+`deputy` skills (`.claude/skills/`), the PR template, [CLAUDE.md](../CLAUDE.md), the rules in `.claude/rules/`,
+[COORDINATOR.md](COORDINATOR.md) and this file. A rule that is clear and isn't followed moves closer to where the author works, preferring,
 in this order, a lint rule or a CI check, a default in a script or config (as the UTC time zone in
 `vite.config.ts` is), a column or prompt in the PR template, a line in the author's checks in
 [TESTING.md](TESTING.md) → Reviewing a PR's tests. Another sentence in the docs is the last resort.
