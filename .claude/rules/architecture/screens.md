@@ -1,11 +1,13 @@
 ---
 paths:
-  - "src/App.tsx"
+  - "src/App.*"
   - "src/screens/**"
   - "src/components/**"
   - "src/lib/**"
   - "src/search/**"
   - "src/logic/{sharedRequests,saves,sortOrder}*"
+  - "src/api/settings/client.ts"
+  - "server/static.ts"
 ---
 
 # Routing, the desktop Downloads, toasts and how a screen loads and saves

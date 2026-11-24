@@ -273,7 +273,7 @@ export default defineConfig(({ mode }) => {
         },
         {
           extends: true,
-          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'scripts/test-order/**/*.test.ts', 'scripts/webui/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
+          test: { name: 'server', include: ['server/**/*.test.ts', 'tmdb-proxy/**/*.test.ts', 'scripts/guard/**/*.test.ts', 'scripts/size/**/*.test.ts', 'scripts/requests/**/*.test.ts', 'scripts/layout-shift/**/*.test.ts', 'scripts/accessibility/**/*.test.ts', 'scripts/actuals/**/*.test.ts', 'scripts/edge/**/*.test.ts', 'scripts/test-order/**/*.test.ts', 'scripts/webui/**/*.test.ts', 'vite.config.test.ts', 'checks.test.ts', 'architecture.test.ts', 'docker-compose.test.ts', 'unraid/**/*.test.ts'], environment: 'node' },
         },
       ],
       // `npm run test:coverage`: a table in the terminal and coverage/index.html; CI runs the same.

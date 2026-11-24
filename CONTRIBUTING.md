@@ -22,7 +22,7 @@ Setup is in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Before pushing, run `npm
 - UI text is never hardcoded (`npm run lint` refuses text written between the app's JSX tags or as an attribute's quoted value, such as `aria-label="Close"`; text in braces in an attribute, inside an expression or outside JSX is for the review to catch): add keys to both `src/i18n/locales/en.json` and `ru.json`. If you don't know Russian, put the English text in both, and the maintainer will translate it.
 - Before adding a text, look in `en.json` for one that already says the same thing, even in other words, and use its key; a text that includes another as a whole sentence nests it with `$t(key)`. A new wording of the same thing is fine when the existing one doesn't fit (too long for its place, say): say why in the PR.
 - Everything in the repository is in English: code, comments, docs, commit messages.
-- The architecture is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), the conventions in [CLAUDE.md](CLAUDE.md), the tests in [docs/TESTING.md](docs/TESTING.md).
+- The architecture is mapped in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), an area a file in [.claude/rules/architecture/](.claude/rules/architecture/), the conventions in [CLAUDE.md](CLAUDE.md), the tests in [docs/TESTING.md](docs/TESTING.md).
 
 ## How Kinopeer is developed
 

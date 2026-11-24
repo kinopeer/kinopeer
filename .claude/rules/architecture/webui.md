@@ -14,6 +14,11 @@ paths:
   - "src/lib/appRouter*"
   - "src/logic/privateOrigin*"
   - ".github/workflows/release.yml"
+  - "src/api/{qbittorrent,prowlarr}/{client,errors}.ts"
+  - "server/securityHeaders.ts"
+  - "vite.config.ts"
+  - "src/torrents/{serverMatches,useMainData}.ts"
+  - "src/logic/titleMatches.ts"
 ---
 
 # The WebUI build: Kinopeer as qBittorrent's Alternative WebUI, with no server of its own

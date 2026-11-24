@@ -1,7 +1,7 @@
 ---
 paths:
   - "src/main.tsx"
-  - "src/sw.ts"
+  - "src/sw*.ts"
   - "src/pwa/**"
   - "src/settings/**"
   - "src/i18n/**"
@@ -11,6 +11,8 @@ paths:
   - "public/**"
   - "index.html"
   - "src/{webui,version}.d.ts"
+  - "tsconfig.sw.json"
+  - "scripts/render-icons.mjs"
 ---
 
 # The two builds, preferences and the PWA

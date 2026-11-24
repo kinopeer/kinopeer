@@ -8,6 +8,7 @@ paths:
   - "src/session/**"
   - "src/screens/{ConnectScreen,SignInScreen,SettingsScreen,TmdbKeyScreen,TmdbKeyForm,ProwlarrSetupScreen,ProwlarrKeyForm,QbittorrentLoginForm,ContainerHints,FindAddress,ChangePasswordForm,Preferences}*"
   - "vite.config*.ts"
+  - "server/{qbittorrent,prowlarr}.ts"
 ---
 
 # The server's settings, Kinopeer's own login, and finding and pointing at the services

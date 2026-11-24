@@ -6,6 +6,9 @@ paths:
   - "src/pwa/{push,swPush}*"
   - "src/sw.ts"
   - "src/screens/{usePushDevice,TelegramForm,useNotifyToggle,useNotificationsAvailable,SettingsScreen,AddReleaseSheet}*"
+  - "src/api/qbittorrent/client.ts"
+  - "server/main.ts"
+  - "src/api/settings/**"
 ---
 
 # Notifications when a download finishes: Telegram and Web Push

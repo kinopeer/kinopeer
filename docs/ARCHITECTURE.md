@@ -10,7 +10,7 @@ This file is the map. Each area is described in a file of its own in [`.claude/r
 
 A reference elsewhere to "ARCHITECTURE → *a section*" names a section of one of these files.
 
-| File | Sections | Loaded for |
+| File | Sections | Loaded for, in short (its `paths` decide) |
 | --- | --- | --- |
 | [`server.md`](../.claude/rules/architecture/server.md) | The qBittorrent bridge, TMDB and its proxy, Why a service didn't answer, Prowlarr, The production server, The host check, Versions, release images and edge builds | `server/`, `tmdb-proxy/`, `src/api/`, the `Dockerfile`, the Vite config, the workflows |
 | [`setup.md`](../.claude/rules/architecture/setup.md) | Hints for Kinopeer in a container, Find, Server-side settings, Kinopeer's own login | the server's settings, login and find, the settings and auth clients, the session, the connect, sign-in and Settings screens and their forms |

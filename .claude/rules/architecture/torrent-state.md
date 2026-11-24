@@ -7,6 +7,7 @@ paths:
   - "src/App.tsx"
   - "src/screens/{PollRing,OfflineBanner,UnreachableState,Download,InDownloadsMark,inDownloadsText,TitleDownloads,TitleRelated,SearchScreen,ChangeTitleSheet,useTitleChoice,TorrentDetails,TorrentScreen}*"
   - "src/components/Sidebar/**"
+  - "src/screens/ErrorBoundary.tsx"
 ---
 
 # Torrent state from the poll, and the titles matched to torrents
