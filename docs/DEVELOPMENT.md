@@ -26,7 +26,18 @@ npm run test:visual  # screenshot tests in Docker (docs/TESTING.md)
 
 The screenshot tests keep the container's `node_modules` in a Docker volume per checkout, so worktrees can run them at once; a volume goes away by itself once its checkout's folder does ([TESTING.md](TESTING.md) → Screenshot tests).
 
-The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. Run lint, typecheck, test, build and size before pushing, and `npm run test:requests` when a screen's data or what it loads changes; CI runs the same on every PR (the tests with coverage, whose totals land in the job summary), builds the Alternative WebUI too, checks the build's size, each screen's requests on opening and each move's between screens against their budgets and each screen's layout shift on a phone and on desktop in its `performance` job (`npm run size` and `npm run test:requests`, [QUALITY.md](QUALITY.md) → The size budget and The requests budget, [TESTING.md](TESTING.md) → The layout shift test), runs the screenshot tests, the smoke journeys and the WebUI's smoke journeys through a real qBittorrent ([TESTING.md](TESTING.md) → The WebUI's smoke journeys), and builds and smoke-tests the Docker image. `npm run test:mutants` runs locally before a PR is marked ready, and in CI on every push to a ready PR's head, cancelling a run for an older one ([TESTING.md](TESTING.md) → A test that can fail). The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+The dev server has the same routes as production: `/qbt`, `/prowlarr`, `/tmdb`, `/tmdb-img`, `/api/settings`. CI runs every check of [Before pushing](#before-pushing) on every PR whatever the change (the tests with coverage, whose totals land in the job summary), and also builds the Alternative WebUI; the budgets (the build's size, each screen's requests on opening and each move's between screens, each screen's layout shift on a phone and on desktop) run in its `performance` job (`npm run size` and `npm run test:requests`, [QUALITY.md](QUALITY.md) → The size budget and The requests budget, [TESTING.md](TESTING.md) → The layout shift test), runs the screenshot tests, the smoke journeys and the WebUI's smoke journeys through a real qBittorrent ([TESTING.md](TESTING.md) → The WebUI's smoke journeys), and builds and smoke-tests the Docker image. `npm run test:mutants` runs locally before a PR is marked ready, and in CI on every push to a ready PR's head, cancelling a run for an older one ([TESTING.md](TESTING.md) → A test that can fail). The service worker is off in `npm run dev`: try it with `npm run build && npm run preview`.
+
+### Before pushing
+
+This is the list of what to run before pushing, which [CLAUDE.md](../CLAUDE.md) and [CONTRIBUTING.md](../CONTRIBUTING.md) point to. Always: `npm run lint`, `npm run typecheck`, `npm run test:coverage` (the tests with the coverage threshold), `npm run build` and `npm run size` (the build against its size budgets). Then, when the change touches it:
+
+- `npm run test:requests` (each screen's requests on opening and each move's between screens against their budgets, and each screen's layout shift on a phone and on desktop, after the build) when a screen's data or what it loads changes;
+- `npm run test:smoke` (the smoke journeys in Chromium) when a flow changes;
+- `npm run test:smoke:webui` (the WebUI's smoke journeys through a real qBittorrent, in Docker) when the WebUI build's login, its calls to qBittorrent or what it keeps in qBittorrent change;
+- `npm run test:visual` (in Docker) when the UI changes.
+
+`npm run guard` shows what the checks guard will mark in the PR ([QUALITY.md](QUALITY.md) → What it marks).
 
 ## Tests
 

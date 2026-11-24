@@ -8,7 +8,7 @@ Find a movie or a series, pick a release and download it without leaving Kinopee
 
 ## Who it's for
 
-The owner of a home server running umbrelOS with the qBittorrent and Prowlarr apps; Docker, where Kinopeer's compose file brings both; or Docker next to a qBittorrent and a Prowlarr they already run, on that machine or elsewhere (TrueNAS, CasaOS and Unraid among them). The main device is a phone, then a computer. The interface is in Russian and English.
+The owner of a home server running umbrelOS with the qBittorrent and Prowlarr apps; Docker, where Kinopeer's compose file brings both; or another of the supported installs (CLAUDE.md → Product). The main device is a phone, then a computer. The interface is in Russian and English.
 
 ## What Kinopeer doesn't do
 
@@ -18,7 +18,7 @@ The owner of a home server running umbrelOS with the qBittorrent and Prowlarr ap
 - Manage a media library: no scanning, metadata or artwork, no moving into a library's folders. Naming a movie's or a series' files for a media server, in place, is the one exception (Torrent and Adding, below; decision log, 2026-11-23).
 - Store tracker logins or get around site protection: trackers are set up in Prowlarr. Jackett is not supported.
 - Collect analytics.
-- Install other than on Umbrel, with Docker Compose, as its image next to a qBittorrent and a Prowlarr of the user's own (Unraid's template among them), or as qBittorrent's Alternative WebUI (decision log, 2026-11-22), for now: no catalog entry for TrueNAS or CasaOS, no native installer, no Helm chart (decision log, 2026-11-21).
+- Install other than the supported ones (CLAUDE.md → Product; decision log, 2026-11-22 for the Alternative WebUI), for now: no catalog entry for TrueNAS or CasaOS, no native installer, no Helm chart (decision log, 2026-11-21).
 - Group a series' torrents into one card in Downloads: the title page lists a title's torrents instead (decision log, 2026-10-24). Revisit only if that turns out not to be enough.
 - Set up HTTPS itself (decision log, 2026-10-25).
 - Notify about anything but a finished download. A finished download is told in Telegram, through a bot of the user's own, and as a push notification on the devices that turned them on (Notifications, below).

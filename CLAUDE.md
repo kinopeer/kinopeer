@@ -1,6 +1,6 @@
 # Kinopeer
 
-A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA with a desktop layout. Installs on umbrelOS.
+A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pick a release via Prowlarr, send it to qBittorrent, and manage downloads. No playback. Mobile-first PWA with a desktop layout. Installs on umbrelOS and the other ways listed under Product.
 
 ## Product
 
@@ -12,7 +12,7 @@ A qBittorrent web UI built around movies and TV series. Find a title in TMDB, pi
 
 | File | What's in it |
 | --- | --- |
-| `README.md` | For users: features and installing on Umbrel, with Docker Compose, next to your own qBittorrent and Prowlarr, or as qBittorrent's Alternative WebUI, and how the installs differ |
+| `README.md` | For users: features, how to install each supported install (Product, above) and how the installs differ |
 | `CONTRIBUTING.md` | For outside contributors: where ideas, bugs and PRs go, the checks, how the project is developed, the licensing of contributions |
 | `SECURITY.md` | Supported versions and reporting a vulnerability privately |
 | `docs/SPEC.md` | What the product does and doesn't, decision log |
@@ -56,7 +56,7 @@ npm run test:smoke          # smoke journeys in Chromium through the production 
 npm run test:smoke:webui    # the WebUI's smoke journeys through a real qBittorrent 5.2.0, in Docker
 ```
 
-Run lint, typecheck, test, build and size before pushing, the requests test when a screen's data or what it loads changes, the WebUI's smoke journeys (Docker) when the WebUI build's login, its calls to qBittorrent or what it keeps in qBittorrent change, and the screenshot tests when the UI changes; `npm run guard` shows what the checks guard will mark in the PR. CI must be green before merge.
+What to run before pushing, and when each check applies, is in `docs/DEVELOPMENT.md` → Before pushing; `npm run guard` shows what the checks guard will mark in the PR. CI must be green before merge.
 
 ## Architecture
 
