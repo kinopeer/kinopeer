@@ -3,3 +3,6 @@
 # line both sides rewrote stays twice: after a merge of main the author checks for that and keeps
 # one (docs/TESTING.md → Reviewing a PR's tests).
 CHANGELOG.md merge=union
+# Claude Code reads the architecture's front matter (`paths`), and architecture.test.ts with it: kept
+# with LF line endings on every checkout, Windows' core.autocrlf included.
+.claude/rules/** text eol=lf
