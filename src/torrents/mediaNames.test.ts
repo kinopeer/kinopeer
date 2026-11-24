@@ -110,6 +110,16 @@ describe('movieNames', () => {
     ])
   })
 
+  it('names nothing when its files are split between the movie’s folder, with or without the TMDB id, and another, as a rename that stopped partway leaves them', () => {
+    const split = { named: false, reason: 'split' }
+    expect(movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune.2021/Dune.2021.srt')], 'Dune', 2021)).toEqual(split)
+    expect(movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune.2021.srt')], 'Dune', 2021)).toEqual(split)
+    expect(movieNames([file('Dune (2021) {tmdb-438631}/Dune (2021) {tmdb-438631}.mkv', 8 * GB), file('Dune (2021)/Dune (2021).srt')], 'Dune', 2021, 438631)).toEqual(split)
+    // All in the movie’s folder, with the id or without it, is named as before: nothing to rename.
+    const whole = movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune (2021)/Dune (2021).srt')], 'Dune', 2021)
+    expect(whole.named && whole.renames).toEqual([])
+  })
+
   it('renames nothing when the files are named already', () => {
     expect(movieNames([file('Arrival (2016)/Arrival (2016).mkv', 8 * GB), file('Arrival (2016)/Arrival (2016).en.srt')], 'Arrival', 2016)).toEqual({
       named: true,
