@@ -9,6 +9,7 @@ import * as settingsApi from '../api/settings'
 import type { ServerSettings } from '../api/settings'
 import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { DUNE_TORRENT, details, mainData, searchPage, torrent } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
@@ -757,4 +758,15 @@ describe('TorrentScreen title matching', () => {
     await userEvent.click(more())
     expect(within(screen.getByRole('dialog', { name: 'Some.Home.Video' })).getByRole('button', { name: 'Match title' })).toBeEnabled()
   })
+})
+
+namesTheFailedLink('The torrent’s page, when the poll fails before its first answer', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getMainData.mockRejectedValue(error)
+    renderScreen()
+    await screen.findByRole('heading', { level: 2 })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })

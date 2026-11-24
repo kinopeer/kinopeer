@@ -2,6 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as tmdb from '../api/tmdb'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { searchPage, title } from '../test/fixtures'
 import { ChangeTitleSheet, type ChangeTitleSheetProps } from './ChangeTitleSheet'
 import { renderWithRouter, saying } from '../test/render'
@@ -93,21 +94,6 @@ describe('ChangeTitleSheet', () => {
     expect(searchTitles).toHaveBeenLastCalledWith('Nonexistent', expect.anything())
   })
 
-  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
-    searchTitles.mockRejectedValue(new TypeError('Failed to fetch'))
-    renderSheet()
-    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
-    expect(screen.getByText('Check that this device is online and Kinopeer is running on your server.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
-  })
-
-  it('says TMDB isn’t set up when it has no key, with Enter key', async () => {
-    searchTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
-    renderSheet()
-    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Enter key' })).toBeInTheDocument()
-  })
-
   it('offers a retry when TMDB doesn’t answer', async () => {
     searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
     renderSheet()
@@ -145,4 +131,17 @@ describe('ChangeTitleSheet in the WebUI build', () => {
     renderSheet(null, { failed: true })
     expect(screen.getByRole('alert', { name: saying('Couldn’t save the choice. Try again.') })).toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Fix match, when its search fails', {
+  service: 'tmdb',
+  show: async (error) => {
+    // The WebUI build's state for an unread key starts the poll, which this file doesn't answer.
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(() => new Promise(() => {})))
+    searchTitles.mockRejectedValue(error)
+    renderSheet()
+    await screen.findByRole('button', { name: /Try again|Enter key/ })
+    return screen.getByRole('dialog', { name: 'Title match' })
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'Couldn’t load from TMDB', key: 'TMDB isn’t set up', store: 'qBittorrent isn’t answering' },
 })

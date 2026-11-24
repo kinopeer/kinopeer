@@ -8,6 +8,7 @@ import type { Torrent } from '../api/qbittorrent'
 import * as tmdb from '../api/tmdb'
 import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { mainData, torrent } from '../test/fixtures'
 import { renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
@@ -205,12 +206,6 @@ describe('TitleScreen', () => {
     expect(getMovie).not.toHaveBeenCalled()
   })
 
-  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
-    getMovie.mockRejectedValue(new TypeError('Failed to fetch'))
-    renderAt('/title/movie/693134')
-    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
-  })
-
   it('retries after a network error', async () => {
     getMovie.mockRejectedValueOnce(new TypeError('Failed to fetch'))
     renderAt('/title/movie/693134')
@@ -363,4 +358,15 @@ describe('TitleScreen', () => {
       expect(screen.queryByRole('region', { name: /In downloads/ })).not.toBeInTheDocument()
     })
   })
+})
+
+namesTheFailedLink('The title page, when its details fail', {
+  service: 'tmdb',
+  show: async (error) => {
+    getMovie.mockRejectedValue(error)
+    renderAt('/title/movie/693134')
+    await screen.findByRole('heading', { level: 2 })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'Couldn’t load from TMDB', key: 'TMDB isn’t set up', store: 'qBittorrent isn’t answering' },
 })

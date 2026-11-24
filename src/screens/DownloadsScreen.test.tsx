@@ -9,6 +9,7 @@ import * as tmdb from '../api/tmdb'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { TAB_RETURN, forgetTabPlaces, saveTabPlace } from '../lib/tabPlaces'
 import { getSettings, resetSettings, updateSettings } from '../settings/settings'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { mainData, searchPage, title, torrent as fixtureTorrent } from '../test/fixtures'
 import { controlledByServiceWorker, findToastOnPage, qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import { resetServerMatches } from '../torrents/serverMatches'
@@ -896,4 +897,27 @@ describe('DownloadsScreen selection', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(screen.getByRole('button', { name: 'Select' })).toBeDisabled()
   })
+})
+
+namesTheFailedLink('Downloads, when the poll fails before its first answer', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getMainData.mockRejectedValue(error)
+    renderScreen()
+    await screen.findByRole('heading', { level: 2 })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
+})
+
+namesTheFailedLink('Downloads’ offline banner, when the poll stops answering', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    renderScreen()
+    await screen.findAllByRole('listitem')
+    getMainData.mockRejectedValue(error)
+    window.dispatchEvent(new Event('online'))
+    return screen.findByRole('status', { name: saying(/actions paused/) })
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })

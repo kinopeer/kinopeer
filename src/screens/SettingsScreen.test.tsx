@@ -15,6 +15,7 @@ import { sharedRequests } from '../logic/sharedRequests'
 import { held } from '../test/held'
 import * as push from '../pwa/push'
 import { getSettings, resetSettings } from '../settings/settings'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { TELEGRAM_TOKEN } from '../test/fixtures'
 import { russianUnreachable } from '../test/languages'
 import { findToastOnPage, renderWithRouter, saying } from '../test/render'
@@ -227,25 +228,6 @@ describe('SettingsScreen', () => {
     renderScreen()
     expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Connected · no indexers') })).toBeInTheDocument()
     expect(aboutRow('Prowlarr indexers')).toHaveTextContent(/0$/)
-  })
-
-  it('says when Prowlarr or TMDB doesn’t answer its check', async () => {
-    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
-    vi.mocked(tmdb.checkTmdb).mockRejectedValue(new tmdb.TmdbError('TMDB responded 502', 502))
-    renderScreen()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Prowlarr isn’t answering') })).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('TMDB isn’t answering') })).toBeInTheDocument()
-  })
-
-  it.each([
-    ['nothing answered for it', () => new TypeError('Failed to fetch')],
-    ['something in front of it answered', () => new qbt.KinopeerUnreachableError(502)],
-  ])('says it’s Kinopeer that doesn’t answer the Prowlarr and TMDB checks when %s (#566)', async (_name, error) => {
-    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(error())
-    vi.mocked(tmdb.checkTmdb).mockRejectedValue(error())
-    renderScreen()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('says why qBittorrent or Prowlarr didn’t answer its check, where the server could tell (#508)', async () => {
@@ -731,12 +713,6 @@ describe('SettingsScreen', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'First and last pieces first' }))
     expect(getSettings()).toMatchObject({ movieCategory: 'Anime', startPaused: true, sequential: false, firstLastPieces: true })
     expect(screen.getByText(/the same on every device/)).toBeInTheDocument()
-  })
-
-  it('says it’s Kinopeer that doesn’t answer the qBittorrent check when so', async () => {
-    vi.mocked(qbt.getAppVersion).mockRejectedValue(new TypeError('Failed to fetch'))
-    renderScreen()
-    expect(await within(connection('qBittorrent')).findByRole('status', { name: saying('Kinopeer isn’t answering') })).toBeInTheDocument()
   })
 
   it('loads the categories when Test finds qBittorrent back', async () => {
@@ -1675,26 +1651,6 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(within(screen.getByRole('region', { name: 'Download defaults' })).queryByRole('switch', { name: 'Notify when finished' })).not.toBeInTheDocument()
   })
 
-  it.each([
-    ["qBittorrent didn't give the TMDB key", () => new tmdb.TmdbKeyReadError(new TypeError('Failed to fetch')), 'qBittorrent isn’t answering'],
-    ['TMDB itself failed', () => new tmdb.TmdbError('TMDB responded 502', 502), 'TMDB isn’t answering'],
-  ])("names on TMDB's row who didn't answer when %s", async (_case, failure, text) => {
-    vi.stubGlobal('__WEBUI__', true)
-    vi.mocked(tmdb.checkTmdb).mockRejectedValue(failure())
-    renderScreen()
-    expect(await within(connection('TMDB')).findByRole('status', { name: saying(text) })).toBeInTheDocument()
-  })
-
-  it.each([
-    ["qBittorrent didn't give Prowlarr's address and key", () => new prowlarr.ProwlarrKeyReadError(new TypeError('Failed to fetch')), 'qBittorrent isn’t answering'],
-    ['Prowlarr itself failed', () => new TypeError('Failed to fetch'), 'Prowlarr isn’t answering'],
-  ])("names on Prowlarr's row who didn't answer when %s", async (_case, failure, text) => {
-    vi.stubGlobal('__WEBUI__', true)
-    vi.mocked(prowlarr.getProwlarrStatus).mockRejectedValue(failure())
-    renderScreen()
-    expect(await within(connection('Prowlarr')).findByRole('status', { name: saying(text) })).toBeInTheDocument()
-  })
-
   it("changes Prowlarr's address with its key, which qBittorrent keeps", async () => {
     vi.stubGlobal('__WEBUI__', true)
     vi.mocked(serverSettings.getServerSettings).mockResolvedValue({
@@ -1746,4 +1702,31 @@ describe('SettingsScreen in the WebUI build', () => {
     expect(await findToastOnPage(DEFAULTS_STORE_FULL)).toBeInTheDocument()
     expect(getSettings().movieCategory).toBe('Anime')
   })
+})
+
+/** Settings with `check` failing with `error`: the connection row it shows on, once the check has settled. */
+async function failedRow(name: string, check: () => Promise<unknown>, error: unknown) {
+  vi.mocked(check).mockRejectedValue(error)
+  renderScreen()
+  // Test is off while the row's check is on its way.
+  await waitFor(() => expect(within(connection(name)).getByRole('button', { name: 'Test' })).toBeEnabled())
+  return connection(name)
+}
+
+namesTheFailedLink('Settings’ qBittorrent row', {
+  service: 'qbittorrent',
+  show: (error) => failedRow('qBittorrent', qbt.getAppVersion, error),
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
+})
+
+namesTheFailedLink('Settings’ Prowlarr row', {
+  service: 'prowlarr',
+  show: (error) => failedRow('Prowlarr', prowlarr.getProwlarrStatus, error),
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'Prowlarr isn’t answering', key: 'Not set up, or the API key was rejected', store: 'qBittorrent isn’t answering' },
+})
+
+namesTheFailedLink('Settings’ TMDB row', {
+  service: 'tmdb',
+  show: (error) => failedRow('TMDB', tmdb.checkTmdb, error),
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'TMDB isn’t answering', key: 'The API key is missing or invalid', store: 'qBittorrent isn’t answering' },
 })

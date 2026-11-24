@@ -2,6 +2,8 @@ import { cleanup, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import { forgetTabPlaces, saveTabPlace } from '../../lib/tabPlaces'
+import { unreachable } from '../../api/qbittorrent'
+import { namesTheFailedLink } from '../../test/failedLinks'
 import { renderWithRouter } from '../../test/render'
 import type { TabBarItem } from '../TabBar'
 import { Sidebar } from './Sidebar'
@@ -107,11 +109,6 @@ describe('SidebarStatus', () => {
     }
   })
 
-  it('says when Kinopeer itself doesn’t answer', () => {
-    render(<SidebarStatus version="5.0.1" offline unreachable="kinopeer" onToggleAltSpeed={() => {}} />)
-    expect(screen.getAllByText('Kinopeer isn’t answering')).toHaveLength(2)
-  })
-
   it('shows the indicator in the card and in the rail, the rail’s with the connection for its tooltip', () => {
     render(
       <SidebarStatus
@@ -161,4 +158,13 @@ describe('SidebarStatus', () => {
       expect(button).toHaveAttribute('aria-pressed', 'false')
     }
   })
+})
+
+namesTheFailedLink('The sidebar’s qBittorrent card, when the poll fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    render(<SidebarStatus version="5.0.1" offline unreachable={unreachable(error)} onToggleAltSpeed={() => {}} />)
+    return screen.getByRole('region', { name: 'qBittorrent' })
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })
