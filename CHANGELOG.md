@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- Naming a movie for a media server no longer nests a subtitle in the movie's folder when an earlier naming stopped partway and left the torrent's files split between the movie's folder and another: it says nothing, as for a series. ([#597](https://github.com/kinopeer/kinopeer/issues/597))
+
 ## 1.3.0 - 2026-11-24
 
 Kinopeer installs as qBittorrent's Alternative WebUI, with no Docker and no server of its own: qBittorrent serves it at its own address. It names a movie's or a series' files for a media server such as Jellyfin, frees up space from the add sheet when a download doesn't fit, and its releases can be searched by an edited query, by a title's English name too, with each filter showing how many releases it would leave.
