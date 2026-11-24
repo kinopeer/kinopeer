@@ -146,6 +146,20 @@ describe('useChangeCategory', () => {
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 
+  it('takes the toast back on the next try, so one for another link doesn’t pile up beside it', async () => {
+    const answers = held()
+    const { open, pick } = renderCategory()
+    const sheet = await open()
+    await pick(sheet, 'TV Shows')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+    answers[0].reject(qbittorrentDown())
+    expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+
+    await pick(await open(), 'TV Shows')
+    expect(setCategory).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
+  })
+
   it('says in a toast when a change fails after its torrent went away', async () => {
     const answers = held()
     const { open, pick, rerender } = renderCategory()

@@ -30,7 +30,7 @@ import { categoryType } from '../torrents/titleLookup'
 import { readTorrentFile, type TorrentMeta } from '../torrents/torrentFile'
 import { estimatedFreeSpace, withFreed, type FreedSpace } from '../torrents/freeUpSpace'
 import { useFreeSpace } from '../torrents/useMainData'
-import { unreachableText } from '../lib/unreachable'
+import { qbtFailedText, unreachableText } from '../lib/unreachable'
 import { FilePicker } from './FilePicker'
 import { FreeUpSpace } from './FreeUpSpace'
 import { IndexerLink } from './IndexerLink'
@@ -222,7 +222,7 @@ export function AddReleaseSheet({ release, info, title, onClose, onAdded }: AddR
       }
       if (!(error instanceof TorrentRefusedError)) {
         setAdding(false)
-        setAddError(t('common.qbtFailed', { context: unreachableText(unreachable(error)) }))
+        setAddError(qbtFailedText(t, error))
         return
       }
       // qBittorrent refuses a torrent it already has, among other reasons: ask it which.

@@ -425,7 +425,7 @@
     "disc": "These are a disc’s folders, which players read as they are.",
     "originalUnread": "Couldn’t read the original names from qBittorrent, so they can’t be restored.",
     "failed": "qBittorrent didn’t rename every file. The list shows the names it has now.",
-    "failed_kinopeer": "Kinopeer stopped answering, so some files may not be renamed. The list shows the names they have now.",
+    "failed_kinopeer": "Kinopeer stopped answering, so some files may not be renamed.",
     "failedClosed": "Couldn’t rename the files of “{{title}}”",
     "renamed": "Files of “{{title}}” named for a media server",
     "restored": "Original names of “{{title}}” restored",
