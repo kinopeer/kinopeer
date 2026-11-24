@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import i18n from '../i18n'
 import { torrent } from '../test/fixtures'
-import { renderWithRouter, saying } from '../test/render'
+import { qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import { SpeedLimitsSheet, type SpeedLimitsChange, type SpeedLimitsSheetProps } from './SpeedLimitsSheet'
 
 describe('SpeedLimitsSheet', () => {
@@ -62,7 +62,7 @@ describe('SpeedLimitsSheet', () => {
 
   it('sends again the limits a failed save sent, so one that did go through can be put back', async () => {
     // The download limit was 1 MB/s; a save sent 2 and 3 MB/s and failed, maybe after taking one.
-    const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { download: 2_000_000, upload: 3_000_000 } })
+    const handlers = renderSheet({ dl_limit: 1_000_000 }, { failure: { sent: { download: 2_000_000, upload: 3_000_000 }, error: qbittorrentDown() } })
     expect(screen.getByRole('textbox', { name: 'Download limit, MB/s' })).toHaveValue('1')
     await userEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(handlers.onSave).toHaveBeenCalledWith({ download: 1_000_000, upload: 0 })
@@ -121,7 +121,7 @@ describe('SpeedLimitsSheet', () => {
   })
 
   it('says a failed save failed, and lets it be tried again', () => {
-    renderSheet({}, { failure: { download: 2_000_000 } })
+    renderSheet({}, { failure: { sent: { download: 2_000_000 }, error: qbittorrentDown() } })
     expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits, or saved only some/) })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
@@ -171,10 +171,10 @@ describe('SpeedLimitsSheet', () => {
       const onSave = vi.fn()
       // A screen whose every save fails, handing the sheet what it sent as the failure.
       function Failing() {
-        const [failure, setFailure] = useState<SpeedLimitsChange>()
+        const [failure, setFailure] = useState<{ sent: SpeedLimitsChange; error: unknown }>()
         const save = (limits: SpeedLimitsChange) => {
           onSave(limits)
-          setFailure(limits)
+          setFailure({ sent: limits, error: qbittorrentDown() })
         }
         return (
           <SpeedLimitsSheet torrent={torrent('h1', { dl_limit: 2_500_000 })} title="Inception" offline={false} failure={failure} onSave={save} onClose={vi.fn()} />
@@ -187,7 +187,7 @@ describe('SpeedLimitsSheet', () => {
     })
 
     it('is offered again after a failed save, beside what the failure says', () => {
-      renderSheet({ dl_limit: 2_000_000 }, { failure: { download: 0, upload: 0 } })
+      renderSheet({ dl_limit: 2_000_000 }, { failure: { sent: { download: 0, upload: 0 }, error: qbittorrentDown() } })
       expect(screen.getByRole('alert', { name: saying(/Couldn’t save the limits/) })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Remove limits' })).toBeEnabled()
     })

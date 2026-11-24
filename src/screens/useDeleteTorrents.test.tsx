@@ -6,7 +6,8 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { findToastOnPage, saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { findToastOnPage, qbittorrentDown, saying } from '../test/render'
 import * as serverMatches from '../torrents/serverMatches'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
@@ -158,7 +159,7 @@ describe('useDeleteTorrents', () => {
   })
 
   it('keeps a failure in the confirmation that shows the torrents, not in a toast as well, until it’s tried again', async () => {
-    deleteTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
+    deleteTorrents.mockRejectedValueOnce(qbittorrentDown()).mockReturnValueOnce(new Promise(() => {}))
     const { open } = renderScreens()
     const dialog = await open('Selection')
     await confirmIn(dialog)
@@ -173,6 +174,17 @@ describe('useDeleteTorrents', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete' })).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('opens again without the failure it showed when closed', async () => {
+    deleteTorrents.mockRejectedValue(qbittorrentDown())
+    const { open } = renderScreens()
+    const dialog = await open('Selection')
+    await confirmIn(dialog)
+    expect(await within(dialog).findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(within(await open('Selection')).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('says a failure in a toast once its confirmation closed, which the next try takes back', async () => {
     let fail = (_error: unknown) => {}
     deleteTorrents
@@ -182,11 +194,38 @@ describe('useDeleteTorrents', () => {
     const dialog = await open('Downloads')
     await confirmIn(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    fail(new TypeError('Failed to fetch'))
+    fail(qbittorrentDown())
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
     expect(onDeleted).not.toHaveBeenCalled()
 
     await confirmIn(await open('Selection'))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('The delete confirmation, when the delete fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    deleteTorrents.mockRejectedValue(error)
+    const { open } = renderScreens()
+    const dialog = await open('Selection')
+    await confirmIn(dialog)
+    return within(dialog).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('The delete’s toast, when the delete fails after its confirmation closed', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    let fail = (_error: unknown) => {}
+    deleteTorrents.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    const { open } = renderScreens()
+    const dialog = await open('Downloads')
+    await confirmIn(dialog)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    fail(error)
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

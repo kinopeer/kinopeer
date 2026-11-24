@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { DUNE_TORRENT, duneFiles, duneTorrent, torrent } from '../test/fixtures'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { saying } from '../test/render'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { readTorrentFile } from '../torrents/torrentFile'
@@ -238,6 +239,25 @@ describe('useMediaNames', () => {
     expect(await within(sheet).findByRole('region', { name: 'Folder' })).toHaveTextContent(`${RELEASE}becomes ${NAMED}`)
     expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying(/Couldn’t rename/) })).not.toBeInTheDocument()
+  })
+
+  it('points at no list when Kinopeer stopped answering, since the files can’t be read again either', async () => {
+    let refuse = () => {}
+    renameFiles.mockReturnValue(new Promise((_, reject) => (refuse = () => reject(new api.KinopeerUnreachableError(502)))))
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    getTorrentFiles.mockRejectedValue(new api.KinopeerUnreachableError(502))
+    vi.useFakeTimers()
+    onTestFinished(() => {
+      vi.useRealTimers()
+    })
+    await act(async () => refuse())
+    await act(async () => vi.advanceTimersByTime(RENAMES_SETTLE_MS))
+    expect(getTorrentFiles).toHaveBeenCalledTimes(2)
+    expect(within(sheet).getByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
+    expect(within(sheet).queryByRole('region', { name: 'Files' })).not.toBeInTheDocument()
+    expect(within(sheet).getByRole('alert', { name: saying('Kinopeer stopped answering, so some files may not be renamed.') })).toBeInTheDocument()
   })
 
   it('reads the files once as it opens, without renames that failed', async () => {
@@ -591,4 +611,26 @@ describe('useMediaNames', () => {
     await userEvent.click(screen.getByRole('button', { name: `Open ${DUNE.hash}` }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Name for a media server, when the files can’t be loaded', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getTorrentFiles.mockRejectedValue(error)
+    const { open } = renderNames()
+    return within(await open()).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('Name for a media server, when the renames fail', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    renameFiles.mockRejectedValue(error)
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Kinopeer stopped answering', service: 'qBittorrent didn’t rename every file' },
 })

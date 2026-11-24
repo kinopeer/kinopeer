@@ -234,7 +234,7 @@ export function SearchScreen() {
                 (search.moreError !== undefined ? (
                   <Banner
                     tone="error"
-                    title={t('search.moreErrorTitle')}
+                    title={t(moreKinopeer ? 'search.moreErrorTitle' : 'search.errorTitle')}
                     actionLabel={t('common.retry')}
                     onAction={search.showMore}
                     secondaryActionLabel={moreOpenAgain ? t('common.openAgain') : undefined}

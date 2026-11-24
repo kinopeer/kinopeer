@@ -1,10 +1,11 @@
 import { useEffect, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { exportTorrent, getTorrentFiles, type Torrent, type TorrentFile } from '../api/qbittorrent'
+import { exportTorrent, getTorrentFiles, unreachable, type Torrent, type TorrentFile } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
+import { qbtFailedText, unreachableText } from '../lib/unreachable'
 import { useRequest } from '../lib/useRequest'
 import { originalNames, type FileRename, type MediaNames, type NamingTitle } from '../torrents/mediaNames'
 import { filesTakenBy, namedPaths, placed, titleNames } from '../torrents/seriesNames'
@@ -39,8 +40,8 @@ export interface MediaNamesSheetProps {
   offline: boolean
   /** What's being sent for this torrent, from this sheet or one closed before it opened. */
   pending?: NamesChange
-  /** The last renames sent weren't all taken. */
-  failed: boolean
+  /** The last renames sent weren't all taken, and why. */
+  failure?: { error: unknown }
   onSend: (change: NamesChange) => void
   onClose: () => void
 }
@@ -95,7 +96,7 @@ function planNames(data: Loaded, torrent: Torrent, title: NamingTitle, takenFold
  * "Name for a media server": what naming a movie's or a series' files would rename, old name over new, or why
  * they aren't named, and, for files whose names aren't the torrent's own, the way back to them.
  */
-export function MediaNamesSheet({ torrent, type, title, year, tmdbId, taken: takenFolder, neighbours, offline, pending, failed, onSend, onClose }: MediaNamesSheetProps) {
+export function MediaNamesSheet({ torrent, type, title, year, tmdbId, taken: takenFolder, neighbours, offline, pending, failure, onSend, onClose }: MediaNamesSheetProps) {
   const { t } = useTranslation()
   // A neighbour's files are placed under its save path as they load: one moved loads them again.
   const around = neighbours.map((other) => `${other.hash}@${other.save_path}`).join('|')
@@ -106,6 +107,7 @@ export function MediaNamesSheet({ torrent, type, title, year, tmdbId, taken: tak
   // Renames that failed may have renamed some files first: the list shows the names qBittorrent has
   // now, read once it has applied them, which it does a moment after answering (`renameFiles`).
   const { retry } = loaded
+  const failed = failure !== undefined
   useEffect(() => {
     if (!failed) return
     const timer = setTimeout(retry, RENAMES_SETTLE_MS)
@@ -156,14 +158,14 @@ export function MediaNamesSheet({ torrent, type, title, year, tmdbId, taken: tak
         )}
         {loaded.error !== undefined && (
           <Banner tone="error" actionLabel={t('common.retry')} onAction={loaded.retry}>
-            {t('common.qbtFailed')}
+            {qbtFailedText(t, loaded.error)}
           </Banner>
         )}
         {/* While renames are on their way, the sheet shows them, not names qBittorrent may have half applied. */}
         {data && (pending || mode === 'restore') && <RenamesList renames={renames} />}
         {data && !pending && mode === 'name' && names && <NamesPreview type={type} names={names} taken={taken} />}
         {data && mode === 'name' && data.original === undefined && <p className="t-cap c3">{t('names.originalUnread')}</p>}
-        {failed && <Banner tone="error">{t('names.failed')}</Banner>}
+        {failure && <Banner tone="error">{t('names.failed', { context: unreachableText(unreachable(failure.error)) })}</Banner>}
       </div>
     </Sheet>
   )

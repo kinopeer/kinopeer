@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { notifies, withNotify } from '../torrents/notify'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import type { Settled } from '../torrents/torrentRequests'
+import { qbtFailedText } from '../lib/unreachable'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction } from './useTorrentAction'
 
@@ -36,7 +37,7 @@ export function useNotifyToggle(): NotifyToggle {
       const settled = await send(torrent, on, (hashes) => (on ? addTags : removeTags)(hashes, [NOTIFY_TAG]), {
         expect: (item) => withNotify(item, on),
       })
-      if (settled && !settled.ok) toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.notify })
+      if (settled && !settled.ok) toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.notify })
       return settled
     },
     [send, toast, t],

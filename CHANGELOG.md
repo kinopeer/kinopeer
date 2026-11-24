@@ -6,6 +6,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Fixed
 
+- When Kinopeer's own server doesn't answer, the torrent actions say so rather than that qBittorrent didn't: pausing and resuming, deleting, force recheck, reannouncing, changing the category, sequential download and first and last pieces first, Notify when finished, saving speed limits, and naming for a media server, its files' load and its renames. Search's banner for a next page TMDB didn't answer says "Couldn't load from TMDB" rather than "Couldn't load more". ([#611](https://github.com/kinopeer/kinopeer/issues/611))
 - When Kinopeer's own server doesn't answer, Move files and Settings → qBittorrent folders say so, as the rest of the app does, rather than that qBittorrent didn't answer. ([#610](https://github.com/kinopeer/kinopeer/issues/610))
 - Naming a movie for a media server no longer nests a subtitle in the movie's folder when an earlier naming stopped partway and left the torrent's files split between the movie's folder and another: it says nothing, as for a series. ([#597](https://github.com/kinopeer/kinopeer/issues/597))
 

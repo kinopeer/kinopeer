@@ -6,6 +6,7 @@ import type { Torrent } from '../api/qbittorrent'
 import { torrent } from '../test/fixtures'
 import { ToastProvider } from '../components/Toast'
 import { useSpeedLimits } from './useSpeedLimits'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -279,4 +280,16 @@ describe('useSpeedLimits toasts', () => {
     act(() => vi.advanceTimersByTime(2500))
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Speed limits, when the save fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    setSpeedLimits.mockRejectedValue(error)
+    const { open, save } = renderLimits()
+    const sheet = await open()
+    await save(sheet, '2')
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Check that Kinopeer is running', service: 'Check the connection to qBittorrent' },
 })

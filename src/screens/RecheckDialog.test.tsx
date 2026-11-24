@@ -2,11 +2,11 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { RecheckDialog, type RecheckDialogProps } from './RecheckDialog'
-import { saying } from '../test/render'
+import { qbittorrentDown, saying } from '../test/render'
 
 function renderDialog(props: Partial<RecheckDialogProps> = {}) {
   const handlers = { onClose: vi.fn(), onConfirm: vi.fn() }
-  render(<RecheckDialog title="Dune: Part Two" busy={false} failed={false} {...handlers} {...props} />)
+  render(<RecheckDialog title="Dune: Part Two" busy={false} {...handlers} {...props} />)
   return handlers
 }
 
@@ -29,7 +29,7 @@ describe('RecheckDialog', () => {
   })
 
   it('says a failure and can be confirmed again', () => {
-    renderDialog({ failed: true })
+    renderDialog({ failure: { error: qbittorrentDown() } })
     expect(screen.getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Force recheck' })).toBeEnabled()
   })

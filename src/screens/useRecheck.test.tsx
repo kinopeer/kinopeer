@@ -6,7 +6,8 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { findToastOnPage, saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { findToastOnPage, qbittorrentDown, saying } from '../test/render'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useTorrentRequests } from '../torrents/useTorrentRequests'
 import { useRecheck } from './useRecheck'
@@ -107,7 +108,7 @@ describe('useRecheck', () => {
   })
 
   it('keeps a failure in the confirmation that shows the torrent, not in a toast as well', async () => {
-    recheckTorrents.mockRejectedValue(new TypeError('Failed to fetch'))
+    recheckTorrents.mockRejectedValue(qbittorrentDown())
     const { open } = renderScreens()
     const dialog = await open('Downloads')
     await confirmIn(dialog)
@@ -126,10 +127,37 @@ describe('useRecheck', () => {
     const dialog = await open('Downloads')
     await confirmIn(dialog)
     await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
-    fail(new TypeError('Failed to fetch'))
+    fail(qbittorrentDown())
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
 
     await confirmIn(await open('Drawer'))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Force recheck’s confirmation, when the recheck fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    recheckTorrents.mockRejectedValue(error)
+    const { open } = renderScreens()
+    const dialog = await open('Downloads')
+    await confirmIn(dialog)
+    return within(dialog).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('Force recheck’s toast, when the recheck fails after its confirmation closed', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    let fail = (_error: unknown) => {}
+    recheckTorrents.mockReturnValue(new Promise<void>((_resolve, reject) => (fail = reject)))
+    const { open } = renderScreens()
+    const dialog = await open('Downloads')
+    await confirmIn(dialog)
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    fail(error)
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

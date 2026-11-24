@@ -5,7 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { SaveLocations, Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { qbittorrentDown, saying } from '../test/render'
 import { CategorySheet } from './CategorySheet'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -28,10 +28,10 @@ const LOCATIONS: SaveLocations = {
 }
 const AUTO = torrent('dune', { name: 'Dune.Part.Two', category: 'Movies', save_path: '/downloads/movies', auto_tmm: true })
 
-function renderSheet(fields: Partial<Torrent> = {}, props: { offline?: boolean; pending?: string; failed?: boolean } = {}) {
+function renderSheet(fields: Partial<Torrent> = {}, props: { offline?: boolean; pending?: string; failure?: { error: unknown } } = {}) {
   const onSave = vi.fn()
   render(
-    <CategorySheet torrent={{ ...AUTO, ...fields }} offline={false} failed={false} onSave={onSave} onClose={vi.fn()} {...props} />,
+    <CategorySheet torrent={{ ...AUTO, ...fields }} offline={false} onSave={onSave} onClose={vi.fn()} {...props} />,
     { wrapper: ToastProvider },
   )
   return { sheet: screen.getByRole('dialog', { name: 'Category' }), onSave }
@@ -134,7 +134,7 @@ describe('CategorySheet', () => {
   })
 
   it('says the last change failed', async () => {
-    const { sheet } = renderSheet({}, { failed: true })
+    const { sheet } = renderSheet({}, { failure: { error: qbittorrentDown() } })
     expect(within(sheet).getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
   })
 })

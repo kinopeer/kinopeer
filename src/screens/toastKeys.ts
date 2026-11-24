@@ -14,6 +14,8 @@ export const TOAST_KEYS = {
   delete: 'delete-failed',
   /** Saving a torrent's title: the title search, opened from any screen. */
   title: 'title-failed',
+  /** A torrent's category: the category sheet, opened from any screen. */
+  category: 'category-failed',
   /** A file's priority: the file list in the torrent's details. */
   filePriority: 'file-priority-failed',
   /** Sequential download: the switch on the torrent's page and drawer. */

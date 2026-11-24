@@ -259,7 +259,7 @@ describe('SearchScreen', () => {
     expect(more).toBeDisabled()
 
     await act(async () => fail(new tmdb.TmdbError('TMDB responded 502', 502)))
-    const failure = screen.getByRole('alert', { name: saying('Couldn’t load more') })
+    const failure = screen.getByRole('alert', { name: saying('Couldn’t load from TMDB') })
     expect(within(failure).getByText('Check the connection and try again.')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Dune: Part Two' })).toBeInTheDocument()
 
@@ -332,7 +332,7 @@ describe('SearchScreen', () => {
     searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
     renderScreen('/search?q=dune')
     await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t load more') })).toBeInTheDocument()
+    expect(await screen.findByRole('alert', { name: saying('Couldn’t load from TMDB') })).toBeInTheDocument()
   })
 
   it('says when a search fails, and tries again', async () => {
@@ -684,6 +684,5 @@ namesTheFailedLink('Search, when the next page fails', {
     await screen.findByRole('button', { name: /Try again|Enter key/ })
     return main
   },
-  // Under the page loaded, the banner's title is Couldn’t load more for Kinopeer's server and TMDB alike: its body tells them apart.
-  says: { ...TMDB_FAILED_STATE, kinopeer: 'Kinopeer is running on your server', service: 'Check the connection and try again' },
+  says: { ...TMDB_FAILED_STATE, kinopeer: 'Kinopeer is running on your server', service: 'Couldn’t load from TMDB' },
 })

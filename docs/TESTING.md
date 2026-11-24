@@ -718,15 +718,16 @@ own way, so one check runs every way to fail through every place (#600):
 
 What it doesn't see, so review does:
 
-- A place with one fixed text for every failure that imports none of `READERS`, such as most
-  torrent actions' "Couldn't reach qBittorrent" (`common.qbtFailed`, #611): it reads no failure,
-  so the registry can't tell it shows one.
+- A place with one fixed text for every failure that imports none of `READERS`: it reads no
+  failure, so the registry can't tell it shows one. A text that names qBittorrent for an action's
+  failure goes through `qbtFailedText` (`src/lib/unreachable.ts`), which is one of them, so the
+  torrent actions are places (#611); the toasts for a sheet closed before its save failed, which
+  name no service ("Open them again to check"), aren't.
 - A second place in a module already listed: the registry knows modules, not each spot in them.
 - That a place's test file runs that place's check: the registry checks only that the file imports
   `namesTheFailedLink`, so a module mapped to a file that checks another place passes it.
 - A phrase that names no link: a place's check pins the phrase it has, so one that names no
-  service passes as it is (Search's next page for TMDB, "Couldn't load more. Check the connection
-  and try again.", #611).
+  service passes as it is; review reads the phrases a check declares.
 - Why a service didn't answer (`failureText`'s causes) as against who: the check reads who.
 - A call the app gives up itself (an abort, the poll's time limit): no client throws it as a link
   failing, so it isn't a way.

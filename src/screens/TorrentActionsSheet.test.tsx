@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { renderWithRouter, saying } from '../test/render'
 import type { TitleMatch } from '../torrents/titleLookup'
 import * as titleMatches from '../torrents/useTitleMatches'
@@ -271,6 +272,19 @@ describe('TorrentActionsSheet on desktop', () => {
     expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
 
+  it.each([
+    { item: 'Resume', torrent: TORRENT, call: api.startTorrents },
+    { item: 'Reannounce', torrent: { ...TORRENT, state: 'uploading' } as const, call: api.reannounceTorrents },
+  ])('drops the failure it shows when $item is sent again', async ({ item, torrent, call }) => {
+    vi.mocked(call).mockRejectedValueOnce(new Error('500')).mockReturnValueOnce(new Promise(() => {}))
+    renderActions({ torrent })
+    await userEvent.click(screen.getByRole('menuitem', { name: item }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('menuitem', { name: item }))
+    expect(call).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('turns Resume off while one sent from elsewhere is in flight, then says how it went', async () => {
     let refuse = () => {}
     vi.mocked(api.startTorrents).mockReturnValue(new Promise((_resolve, reject) => (refuse = () => reject(new Error('500')))))
@@ -446,4 +460,15 @@ describe('TorrentActionsSheet on a phone', () => {
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('The More menu, when an action it shows fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    vi.mocked(api.startTorrents).mockRejectedValue(error)
+    renderActions()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
+    return screen.findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

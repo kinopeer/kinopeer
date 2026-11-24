@@ -6,6 +6,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
+import { qbtFailedText } from '../lib/unreachable'
 import { useRequest } from '../lib/useRequest'
 import { categoryChange, type CategoryChange } from '../torrents/categoryChange'
 import './CategorySheet.css'
@@ -17,8 +18,8 @@ export interface CategorySheetProps {
   /** The category being sent for this torrent, from this sheet or one closed before it opened, which
    *  this one then starts from. */
   pending?: string
-  /** The last category sent wasn't taken. */
-  failed: boolean
+  /** The last category sent wasn't taken, and why. */
+  failure?: { error: unknown }
   onSave: (category: string, change: CategoryChange) => void
   onClose: () => void
 }
@@ -34,7 +35,7 @@ function options(torrent: Torrent, locations: SaveLocations | undefined): string
  * automatic management each category shows the folder they'd move to, and the note under the list
  * says what happens for the one picked.
  */
-export function CategorySheet({ torrent, offline, pending, failed, onSave, onClose }: CategorySheetProps) {
+export function CategorySheet({ torrent, offline, pending, failure, onSave, onClose }: CategorySheetProps) {
   const { t } = useTranslation()
   const name = useId()
   const where = useRequest('qbt|save-locations', (signal) => getSaveLocations(signal))
@@ -99,7 +100,7 @@ export function CategorySheet({ torrent, offline, pending, failed, onSave, onClo
           })}
         </fieldset>
         {change && !unchanged && <p className="t-cap c2">{noteOf(change, t)}</p>}
-        {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
+        {failure && <Banner tone="error">{qbtFailedText(t, failure.error)}</Banner>}
       </div>
     </Sheet>
   )

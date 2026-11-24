@@ -2,14 +2,14 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { DeleteTorrentDialog, type DeleteTorrentDialogProps } from './DeleteTorrentDialog'
-import { saying } from '../test/render'
+import { qbittorrentDown, saying } from '../test/render'
 
 const DUNE = { hash: 'dune', size: 20e9, progress: 0.42 }
 const ALIEN = { hash: 'alien', size: 1e9, progress: 0.1 }
 
 function renderDialog(props: Partial<DeleteTorrentDialogProps> = {}) {
   const handlers = { onClose: vi.fn(), onConfirm: vi.fn() }
-  render(<DeleteTorrentDialog torrents={[DUNE]} title="Dune: Part Two" busy={false} failed={false} {...handlers} {...props} />)
+  render(<DeleteTorrentDialog torrents={[DUNE]} title="Dune: Part Two" busy={false} {...handlers} {...props} />)
   const dialog = screen.getByRole('alertdialog')
   return { ...handlers, dialog, confirm: () => userEvent.click(within(dialog).getByRole('button', { name: 'Delete' })) }
 }
@@ -20,7 +20,7 @@ describe('DeleteTorrentDialog', () => {
     expect(dialog).toHaveAccessibleName('Delete torrent?')
     expect(dialog).toHaveTextContent('“Dune: Part Two” will be removed from qBittorrent.')
 
-    render(<DeleteTorrentDialog torrents={[DUNE, ALIEN]} busy={false} failed={false} onConfirm={vi.fn()} onClose={vi.fn()} />)
+    render(<DeleteTorrentDialog torrents={[DUNE, ALIEN]} busy={false} onConfirm={vi.fn()} onClose={vi.fn()} />)
     const many = screen.getByRole('alertdialog', { name: 'Delete torrents?' })
     expect(many).toHaveTextContent('2 torrents will be removed from qBittorrent.')
   })
@@ -68,7 +68,7 @@ describe('DeleteTorrentDialog', () => {
   })
 
   it('says a failure and can be confirmed again', () => {
-    const { dialog } = renderDialog({ failed: true })
+    const { dialog } = renderDialog({ failure: { error: qbittorrentDown() } })
     expect(within(dialog).getByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(within(dialog).getByRole('button', { name: 'Delete' })).toBeEnabled()
   })

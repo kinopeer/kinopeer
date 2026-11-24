@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { saying } from '../test/render'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -87,4 +88,15 @@ describe('useNotifyToggle', () => {
     await act(() => result.current.set(DUNE, true))
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Notify when finished’s toast, when the switch fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    addTags.mockRejectedValue(error)
+    const { result } = renderHook(() => useNotifyToggle(), { wrapper: Providers })
+    await act(() => result.current.set(DUNE, true))
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

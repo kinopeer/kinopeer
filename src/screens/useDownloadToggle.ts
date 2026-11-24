@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { readRefreshInterval, stateLag } from '../torrents/stateLag'
 import type { Settled } from '../torrents/torrentRequests'
+import { qbtFailedText } from '../lib/unreachable'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction } from './useTorrentAction'
 
@@ -63,7 +64,7 @@ export function useDownloadToggle(field: DownloadToggleField): DownloadToggle {
         },
         { expect: (item) => ({ ...item, [field]: on }), hold: stateLag },
       )
-      if (settled && !settled.ok) toast.show(t('common.qbtFailed'), { icon: 'alert', key: toastKey })
+      if (settled && !settled.ok) toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: toastKey })
       return settled
     },
     [send, toast, t, field, request, toastKey],

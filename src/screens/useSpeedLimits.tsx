@@ -50,7 +50,7 @@ export function useSpeedLimits({ torrents, offline, refresh, titleOf }: {
       title={titleOf(torrent)}
       offline={offline}
       pending={pending(torrent.hash)}
-      failure={failure?.sent}
+      failure={failure}
       onSave={(limits) => void save(torrent, limits)}
       onClose={close}
     />

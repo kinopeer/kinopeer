@@ -4,6 +4,7 @@ import { recheckTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { withChecking } from '../torrents/status'
+import { qbtFailedText } from '../lib/unreachable'
 import { RecheckDialog } from './RecheckDialog'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentSheet } from './useTorrentSheet'
@@ -37,7 +38,7 @@ export function useRecheck({ torrents, titleOf }: {
     if (!settled) return
     // A confirmation that shows the torrent closed on its own, or kept the failure to say it.
     if (settled.ok) toast.show(t('torrent.rechecking'))
-    else if (!settled.showing) toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.recheck })
+    else if (!settled.showing) toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.recheck })
   }
 
   const element = torrent && (
@@ -45,7 +46,7 @@ export function useRecheck({ torrents, titleOf }: {
       key={torrent.hash}
       title={titleOf(torrent)}
       busy={pending(torrent.hash) !== undefined}
-      failed={failure !== undefined}
+      failure={failure}
       onConfirm={() => void recheck(torrent)}
       onClose={close}
     />

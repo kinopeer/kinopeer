@@ -4,6 +4,7 @@ import { deleteTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { forgetMatches } from '../torrents/serverMatches'
+import { qbtFailedText } from '../lib/unreachable'
 import { DeleteTorrentDialog } from './DeleteTorrentDialog'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction } from './useTorrentAction'
@@ -40,7 +41,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
   const { t } = useTranslation()
   const toast = useToast()
   const [confirming, setConfirming] = useState<TorrentRef[] | null>(null)
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<{ error: unknown }>()
   // Without those that went away or were replaced since; none left, the confirmation is forgotten, so
   // it doesn't open again if the same torrent is back. Not before the screen's first answer.
   const shown = (confirming ?? []).flatMap((ref) => findTorrent(torrents, ref) ?? [])
@@ -54,7 +55,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
       ? {
           torrents: shown,
           settled: (outcome, targets) => {
-            if (!outcome.ok) return setFailed(true)
+            if (!outcome.ok) return setFailure({ error: outcome.error })
             setConfirming((refs) => {
               const left = refs?.filter((ref) => !targets.some((item) => item.hash === ref.hash)) ?? []
               return left.length > 0 ? left : null
@@ -76,7 +77,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
 
   const remove = async (targets: readonly Torrent[], withFiles: boolean) => {
     toast.dismiss(TOAST_KEYS.delete)
-    setFailed(false)
+    setFailure(undefined)
     let sent: string[] = []
     const settled = await send(
       targets,
@@ -89,7 +90,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
     )
     if (!settled) return
     if (!settled.ok) {
-      if (!settled.showing) toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.delete })
+      if (!settled.showing) toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.delete })
       return
     }
     void forgetMatches(sent)
@@ -103,7 +104,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
 
   const open = (targets: readonly Torrent[]) => {
     setConfirming(targets.map(refTo))
-    setFailed(false)
+    setFailure(undefined)
   }
 
   const element = shown.length > 0 && (
@@ -111,7 +112,7 @@ export function useDeleteTorrents({ torrents, titleOf, onDeleted, withFiles: fil
       torrents={shown}
       title={titleOf(shown[0])}
       busy={shown.some((item) => busy(item.hash))}
-      failed={failed}
+      failure={failure}
       withFiles={filesAlways}
       onConfirm={(withFiles) => void remove(shown, withFiles)}
       onClose={() => setConfirming(null)}

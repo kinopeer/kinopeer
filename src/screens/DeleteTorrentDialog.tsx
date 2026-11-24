@@ -5,6 +5,7 @@ import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Checkbox } from '../components/Checkbox'
 import { Dialog } from '../components/Dialog'
+import { qbtFailedText } from '../lib/unreachable'
 import { useFormatters } from '../lib/format'
 import './DeleteTorrentDialog.css'
 
@@ -14,8 +15,8 @@ export interface DeleteTorrentDialogProps {
   title?: string
   /** A delete for one of the torrents is on its way, sent from here or elsewhere. */
   busy: boolean
-  /** The last delete failed while this showed the torrents. */
-  failed: boolean
+  /** The last delete failed while this showed the torrents, and why. */
+  failure?: { error: unknown }
   /** The files are deleted too, without asking: the dialog says so in place of the checkbox. */
   withFiles?: boolean
   onConfirm: (withFiles: boolean) => void
@@ -31,7 +32,7 @@ export function DeleteTorrentDialog({
   torrents,
   title,
   busy,
-  failed,
+  failure,
   withFiles: filesAlways = false,
   onConfirm,
   onClose,
@@ -93,7 +94,7 @@ export function DeleteTorrentDialog({
           </div>
         </div>
       )}
-      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
+      {failure && <Banner tone="error">{qbtFailedText(t, failure.error)}</Banner>}
     </Dialog>
   )
 }

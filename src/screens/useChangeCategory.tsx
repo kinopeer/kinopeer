@@ -4,7 +4,9 @@ import { setCategory, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { withCategory, type CategoryChange } from '../torrents/categoryChange'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
+import { qbtFailedText } from '../lib/unreachable'
 import { CategorySheet } from './CategorySheet'
+import { TOAST_KEYS } from './toastKeys'
 import { useTorrentSheet } from './useTorrentSheet'
 
 export interface ChangeCategory {
@@ -20,7 +22,8 @@ export interface ChangeCategory {
  * The Category sheet for a screen: the sheet for one of its torrents, and the change itself, which
  * outlives it (`useTorrentSheet`). Once qBittorrent took it the torrent shows the new category (and
  * the folder its files move to) until a poll has it, and a toast says so, naming the folder when the
- * files move. A failure stays in the sheet that shows the torrent, else it's a toast.
+ * files move. A failure stays in the sheet that shows the torrent, else it's a toast, which the next
+ * try takes back.
  */
 export function useChangeCategory({ torrents, offline }: {
   /** The screen's torrents: the sheet is for one of them, and closes when it's gone. */
@@ -32,6 +35,7 @@ export function useChangeCategory({ torrents, offline }: {
   const toast = useToast()
 
   const save = async (target: Torrent, category: string, change: CategoryChange) => {
+    toast.dismiss(TOAST_KEYS.category)
     const settled = await send(target, category, () => setCategory([target.hash], category), {
       expect: (item) => withCategory(item, category, change),
     })
@@ -41,7 +45,7 @@ export function useChangeCategory({ torrents, offline }: {
       if (change.kind === 'move' && change.folder) toast.show(t('move.moved', { location: change.folder }), { icon: 'folder' })
       else toast.show(t('category.changed'))
     } else if (!settled.showing) {
-      toast.show(t('common.qbtFailed'), { icon: 'alert' })
+      toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.category })
     }
   }
 
@@ -51,7 +55,7 @@ export function useChangeCategory({ torrents, offline }: {
       torrent={torrent}
       offline={offline}
       pending={pending(torrent.hash)}
-      failed={failure !== undefined}
+      failure={failure}
       onSave={(category, change) => void save(torrent, category, change)}
       onClose={close}
     />
