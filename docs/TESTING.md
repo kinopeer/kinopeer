@@ -1089,7 +1089,10 @@ its `clientdata` store and how it serves the files, while the layers above fake 
   build at `/` (Kinopeer's page, not its own interface); a wrong password from the page's form is
   refused as one; onboarding asks for TMDB again, since the reset removed the first journey's key;
   Downloads lists the torrent, so the poll's calls on the page's own origin carry qBittorrent's
-  session; and without a key the page asks TMDB nothing. Through the `test` of `e2e/smoke/test.ts`
+  session; and without a key the page asks TMDB nothing. Last, Settings' Switch to qBittorrent's
+  interface, confirmed, turns qBittorrent's Alternative WebUI off and the page at `/` is
+  qBittorrent's own interface, signed in, which the journey turns back on from Node when it ends,
+  pass or fail. Through the `test` of `e2e/smoke/test.ts`
   they also fail on anything the build's `<meta>` Content-Security-Policy blocks, in the journey's
   first browser.
 - **What they don't.** Prowlarr (no Prowlarr runs there), the service worker (the page is on

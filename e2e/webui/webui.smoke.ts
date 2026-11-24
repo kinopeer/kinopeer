@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { clientData, LOGIN, SEEDED_HASH, SEEDED_NAME } from './qbittorrent.ts'
+import { alternativeWebuiEnabled, clientData, enableAlternativeWebui, LOGIN, SEEDED_HASH, SEEDED_NAME } from './qbittorrent.ts'
 import { expect, SHOGUN, test } from './test.ts'
 
 /** The key the first device saves; the fake TMDB takes any. */
@@ -18,7 +18,8 @@ async function skipProwlarr(page: Page): Promise<void> {
 }
 
 // The journeys run in this order (one worker): the second starts from the first's key and match,
-// which its reset removes from qBittorrent with nulls (e2e/webui/test.ts).
+// which its reset removes from qBittorrent with nulls (e2e/webui/test.ts). The last turns Kinopeer
+// off in qBittorrent and back on from Node when it ends.
 
 /**
  * Settings and matches saved to qBittorrent's `clientdata` and read back on another device: the
@@ -90,4 +91,33 @@ test('the login, then Downloads', async ({ page, tmdbCalls }) => {
   await matchesLoaded
   await page.waitForTimeout(2_000)
   expect(tmdbCalls).toEqual([])
+})
+
+/**
+ * The way back to qBittorrent's own interface: Settings' row and its confirmation turn off
+ * qBittorrent's Alternative WebUI, and the page then loaded at qBittorrent's root is qBittorrent's
+ * own interface, signed in with the session Kinopeer's login gave, without anything else to do.
+ */
+test("Settings switch to qBittorrent's own interface", async ({ page }) => {
+  try {
+    await page.goto('/')
+    await signIn(page)
+    await expect(page.getByRole('heading', { level: 1, name: 'Подключите TMDB' })).toBeVisible()
+    await page.getByRole('button', { name: 'Пропустить' }).click()
+    await skipProwlarr(page)
+    await expect(page.getByRole('heading', { level: 1, name: 'Загрузки' })).toBeVisible()
+
+    await page.getByRole('link', { name: 'Настройки' }).click()
+    await page.getByRole('button', { name: /Перейти в интерфейс qBittorrent/ }).click()
+    const dialog = page.getByRole('alertdialog', { name: 'Перейти в интерфейс qBittorrent?' })
+    await dialog.getByRole('button', { name: 'Перейти' }).click()
+
+    // qBittorrent's own page for a signed-in session (src/webui/www/private/index.html), at its root.
+    await expect(page).toHaveTitle('qBittorrent WebUI')
+    await expect(page.locator('meta[name="application-name"]')).toHaveAttribute('content', 'qBittorrent')
+    expect(new URL(page.url()).pathname).toBe('/')
+    expect(await alternativeWebuiEnabled()).toBe(false)
+  } finally {
+    await enableAlternativeWebui()
+  }
 })

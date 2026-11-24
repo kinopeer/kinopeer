@@ -1,6 +1,15 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
 import { QbittorrentError, UnauthorizedError } from './errors'
-import { CLIENT_DATA_TIMEOUT_MS, LOGIN_TIMEOUT_MS, isStoreFull, loadClientData, logIn, storeClientData } from './webui'
+import {
+  CLIENT_DATA_TIMEOUT_MS,
+  LOGIN_TIMEOUT_MS,
+  PREFERENCES_TIMEOUT_MS,
+  isStoreFull,
+  loadClientData,
+  logIn,
+  storeClientData,
+  turnOffAlternativeWebui,
+} from './webui'
 
 let fetchMock: Mock<typeof fetch>
 
@@ -149,6 +158,37 @@ describe('clientdata', () => {
       let settled = false
       const request = call().catch((caught: unknown) => caught).finally(() => (settled = true))
       await vi.advanceTimersByTimeAsync(CLIENT_DATA_TIMEOUT_MS - 1)
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await request).toMatchObject({ name: 'AbortError' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+})
+
+describe('turnOffAlternativeWebui', () => {
+  it("turns off qBittorrent's alternative WebUI alone, in a form's json", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    await turnOffAlternativeWebui()
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(String(url)).toBe('api/v2/app/setPreferences')
+    expect(init).toMatchObject({ method: 'POST', credentials: 'same-origin' })
+    expect(JSON.parse(new URLSearchParams(String(init!.body)).get('json')!)).toEqual({ alternative_webui_enabled: false })
+  })
+
+  it("throws qBittorrent's refusal", async () => {
+    fetchMock.mockResolvedValueOnce(new Response('Forbidden', { status: 403 }))
+    await expect(turnOffAlternativeWebui()).rejects.toBeInstanceOf(UnauthorizedError)
+  })
+
+  it("gives up when qBittorrent doesn't answer in its time limit", async () => {
+    vi.useFakeTimers()
+    try {
+      fetchMock.mockImplementation((_url, init) => new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason))))
+      let settled = false
+      const request = turnOffAlternativeWebui().catch((caught: unknown) => caught).finally(() => (settled = true))
+      await vi.advanceTimersByTimeAsync(PREFERENCES_TIMEOUT_MS - 1)
       expect(settled).toBe(false)
       await vi.advanceTimersByTimeAsync(1)
       expect(await request).toMatchObject({ name: 'AbortError' })

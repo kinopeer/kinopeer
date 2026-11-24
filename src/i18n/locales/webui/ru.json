@@ -18,6 +18,12 @@
     "linkFiles": "Prowlarr дал ссылку, которую qBittorrent скачает сам, поэтому скачаются все файлы; лишние можно отключить потом на странице торрента. Если торрент не появится в загрузках, qBittorrent не смог скачать ссылку: попробуйте другую раздачу.",
     "prowlarrKeySeenTitle": "Браузер видит ключ",
     "prowlarrKeySeen": "Без сервера Kinopeer браузер сам обращается к Prowlarr с этим ключом, поэтому его может увидеть любой, у кого есть вход в qBittorrent, расширение браузера или ссылка на раздачу. Держите Prowlarr в домашней сети и, где можно, на HTTPS.",
-    "prowlarrMixedContent": "qBittorrent открыт по HTTPS, поэтому браузер не станет обращаться к Prowlarr по HTTP. Введите адрес Prowlarr с HTTPS."
+    "prowlarrMixedContent": "qBittorrent открыт по HTTPS, поэтому браузер не станет обращаться к Prowlarr по HTTP. Введите адрес Prowlarr с HTTPS.",
+    "switchInterface": "Перейти в интерфейс qBittorrent",
+    "switchInterfaceHint": "Выключает Kinopeer в qBittorrent на всех устройствах",
+    "switchInterfaceTitle": "Перейти в интерфейс qBittorrent?",
+    "switchInterfaceBody": "Kinopeer выключит в qBittorrent настройку «Использовать альтернативный веб-интерфейс», и по адресу qBittorrent на всех устройствах и в любом браузере откроется его собственный интерфейс.",
+    "switchInterfaceBack": "Чтобы вернуть Kinopeer, в интерфейсе qBittorrent откройте «Сервис → Настройки… → Веб-интерфейс», включите «Использовать альтернативный веб-интерфейс» и сохраните: папка останется указанной.",
+    "switchInterfaceConfirm": "Перейти"
   }
 }

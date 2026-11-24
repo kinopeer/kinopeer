@@ -695,6 +695,8 @@ describe('SettingsScreen', () => {
     renderScreen()
     await userEvent.click(screen.getByRole('button', { name: /Clear cache/ }))
     expect(await screen.findByRole('status', { name: saying('Cache cleared') })).toBeInTheDocument()
+    // Beside it only in the WebUI build: Kinopeer's server has no qBittorrent interface to switch to.
+    expect(screen.queryByRole('button', { name: /Switch to qBittorrent’s interface/ })).not.toBeInTheDocument()
   })
 
   it('opens the TMDB key sheet when sent from a screen that needs the key', async () => {
@@ -1625,6 +1627,16 @@ describe('SettingsScreen: push notifications', () => {
 })
 
 describe('SettingsScreen in the WebUI build', () => {
+  it("offers qBittorrent's own interface in About, after a confirmation", async () => {
+    vi.stubGlobal('__WEBUI__', true)
+    renderScreen()
+    const about = screen.getByRole('region', { name: 'About' })
+    await userEvent.click(within(about).getByRole('button', { name: /Switch to qBittorrent’s interface/ }))
+    const dialog = screen.getByRole('alertdialog', { name: 'Switch to qBittorrent’s interface?' })
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+  })
+
   it('shows nothing that needs Kinopeer’s server: its login, an address it keeps, its notifications', async () => {
     vi.stubGlobal('__WEBUI__', true)
     // All of them on, as a server would say: the build, not the answer, leaves them out.

@@ -83,3 +83,16 @@ export async function resetClientData(): Promise<void> {
   const left = kinopeerKeys(await load())
   if (left.length > 0) throw new Error(`qBittorrent kept ${left.join(', ')} after a null`)
 }
+
+/** Whether qBittorrent serves its Alternative WebUI, Kinopeer, as its preferences say. */
+export async function alternativeWebuiEnabled(): Promise<boolean> {
+  const cookie = await signIn()
+  const preferences = (await (await call(cookie, '/app/preferences')).json()) as { alternative_webui_enabled?: boolean }
+  return preferences.alternative_webui_enabled === true
+}
+
+/** Turns qBittorrent's Alternative WebUI back on, as qBittorrent.conf has it, for the journeys after one that turned it off. */
+export async function enableAlternativeWebui(): Promise<void> {
+  const cookie = await signIn()
+  await call(cookie, '/app/setPreferences', { method: 'POST', body: new URLSearchParams({ json: JSON.stringify({ alternative_webui_enabled: true }) }) })
+}

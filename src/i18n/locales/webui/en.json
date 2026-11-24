@@ -18,6 +18,12 @@
     "linkFiles": "Prowlarr gave a link qBittorrent fetches itself, so all files are downloaded; you can skip files on the torrent’s page later. If the torrent doesn’t show up in downloads, qBittorrent couldn’t fetch the link: try another release.",
     "prowlarrKeySeenTitle": "This browser sees the key",
     "prowlarrKeySeen": "Without a Kinopeer server, the browser calls Prowlarr with its key, so anyone with qBittorrent’s login, a browser extension or a release’s link can see it. Keep Prowlarr on your home network, on HTTPS where you can.",
-    "prowlarrMixedContent": "qBittorrent is open over HTTPS, so the browser won’t call Prowlarr over HTTP. Enter Prowlarr’s HTTPS address."
+    "prowlarrMixedContent": "qBittorrent is open over HTTPS, so the browser won’t call Prowlarr over HTTP. Enter Prowlarr’s HTTPS address.",
+    "switchInterface": "Switch to qBittorrent’s interface",
+    "switchInterfaceHint": "Turns Kinopeer off in qBittorrent, on every device",
+    "switchInterfaceTitle": "Switch to qBittorrent’s interface?",
+    "switchInterfaceBody": "Kinopeer turns off qBittorrent’s Use alternative WebUI setting, so qBittorrent’s address opens its own interface on every device and in every browser.",
+    "switchInterfaceBack": "To bring Kinopeer back, in qBittorrent’s interface open Tools → Options… → WebUI, turn on Use alternative WebUI and save: the folder stays set.",
+    "switchInterfaceConfirm": "Switch"
   }
 }

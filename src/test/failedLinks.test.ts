@@ -56,6 +56,7 @@ const PLACES: Record<string, string> = {
   // Downloads and the torrent's page show it; Downloads' check runs it through the poll.
   'src/screens/OfflineBanner.tsx': 'src/screens/DownloadsScreen.test.tsx',
   'src/screens/PollRing.tsx': 'src/screens/PollRing.test.tsx',
+  'src/screens/QbittorrentInterfaceDialog.tsx': 'src/screens/QbittorrentInterfaceDialog.test.tsx',
   // With what `useReleases` reads from the search, on the phone's releases and the desktop title page alike.
   'src/screens/ReleasesBlock.tsx': 'src/screens/ReleasesScreen.test.tsx',
   'src/screens/ReleasesScreen.tsx': 'src/screens/ReleasesScreen.test.tsx',
