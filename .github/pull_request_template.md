@@ -58,8 +58,8 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
      diff adds or moves (Stryker leaves strings alone) — and the `it` that failed. Or "none in the
      diff". -->
 
-Code review: <!-- /code-review on the branch at the commit you mark ready (docs/TESTING.md →
-     Reviewing a PR's tests): the count, then each finding you declined and why. Or "no findings". -->
+Code review: <!-- /code-review on the branch at the commit you mark ready, in a subagent that
+     hasn't seen the work (docs/TESTING.md → Reviewing a PR's tests): the count, then each finding you declined and why. Or "no findings". -->
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect

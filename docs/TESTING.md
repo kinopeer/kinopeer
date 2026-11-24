@@ -333,8 +333,7 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and is posted only
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
 for CI). When no report comes for that commit (the job failed, or it's still missing after that
-wait), no round is posted over it: that section says what is posted instead (#504 and #522 left the
-two ways apart for this retro). A branch
+wait), no round is posted over it: that section says what is posted instead. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
@@ -457,7 +456,6 @@ of these:
   stays in place until it's green: the old token and the old deploy key stay until the first run
   through the `deploy` environment passed, since "can't run here" holds for the PR and not for the
   day it hands the run to (#291). "CI and config" is what decides nothing.
-
 - **The tests' own code:** a stand, a fake or a fixture a test runs on is checked by the tests
   that run on it; a branch of it that none of them takes is run once by hand, and the PR says how
   (#576's WebUI stand). A fake's agreement with the real service is check E's, not this reason's.
@@ -802,8 +800,9 @@ Three steps, each by whoever can do it best:
    #379 a size measured over a stale `node_modules`). A dated record (SPEC's decision log, a retro's row, a trial's report) keeps its numbers as
    of its date. Each list the change adds to gets the new item (SPEC's decision log,
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
-   meant to write. Then `/code-review` on the branch at the commit to be marked ready, whose
-   reviewers start with fresh contexts, each finding fixed, with a test where it's a bug, or
+   meant to write. So `/code-review` runs on the branch at the commit to be marked ready in a
+   fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
+   the context that calls it), each finding fixed, with a test where it's a bug, or
    declined in the PR's `Code review` line with why: in the batch the retro of 2026-11-24 read, the
    deputy's rounds found 63 blocking bugs in PRs' own changes (`A·clear`: an edge, a case named in
    Neighbours that no test ran, a request that outlives its screen), many of them through its

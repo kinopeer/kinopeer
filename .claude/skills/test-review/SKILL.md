@@ -184,7 +184,7 @@ trusted.
   author's `Fixes for round <n>`): while the run is going, check the rest first and judge the
   survivors once it's there, since the round is posted only with it (the `deputy` skill → 2. Wait
   for CI). When no report comes for that commit (the job failed, or it's still
-  missing after that wait), no round is posted over it: that section says what is instead. An `equivalent` that only a test's own reset keeps alive isn't one. The
+  missing after that wait), no round is posted over it: that section says what is posted instead. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
   alternatives, which value a guard reads, a prop passed down, a text's key, which Stryker never
