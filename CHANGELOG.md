@@ -2,6 +2,12 @@
 
 Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor versions could change behavior and settings.
 
+## Unreleased
+
+### Fixed
+
+- When Kinopeer's own server doesn't answer, Move files and Settings → qBittorrent folders say so, as the rest of the app does, rather than that qBittorrent didn't answer. ([#610](https://github.com/kinopeer/kinopeer/issues/610))
+
 ## 1.3.0 - 2026-11-24
 
 Kinopeer installs as qBittorrent's Alternative WebUI, with no Docker and no server of its own: qBittorrent serves it at its own address. It names a movie's or a series' files for a media server such as Jellyfin, frees up space from the add sheet when a download doesn't fit, and its releases can be searched by an edited query, by a title's English name too, with each filter showing how many releases it would leave.

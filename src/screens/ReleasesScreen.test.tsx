@@ -9,6 +9,7 @@ import type { MovieDetails, TvDetails } from '../api/tmdb'
 import i18n from '../i18n'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { counted, labelOf } from '../test/filterChips'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { DUNE_RELEASES, duneTorrent, release, torrent } from '../test/fixtures'
 import { Opened, opened, renderWithRouter, saying } from '../test/render'
 import { resetOneOffTorrents } from '../torrents/oneOffTorrents'
@@ -509,19 +510,6 @@ describe('ReleasesScreen', () => {
     expect(searchReleases).not.toHaveBeenCalled()
   })
 
-  // The state's texts and its Enter key button are `TmdbFailedState.test.tsx`'s; this checks the screen shows it for a title that fails with no key.
-  it('shows the missing TMDB key’s state instead of the releases', async () => {
-    getMovie.mockRejectedValue(new tmdb.TmdbKeyError(401))
-    renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-  })
-
-  it('explains a missing Prowlarr setup', async () => {
-    searchReleases.mockRejectedValue(new prowlarr.ProwlarrSetupError(503, 'not-configured'))
-    renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t set up' })).toBeInTheDocument()
-  })
-
   it('lists the releases without waiting to hear which indexers failed, then names them', async () => {
     // The search starts at 1000 ms and answers at 4000 ms.
     let now = 1000
@@ -559,12 +547,6 @@ describe('ReleasesScreen', () => {
     expect(screen.getAllByRole('article')).toHaveLength(DUNE_RELEASES.length)
     expect(screen.getByText('3 of 3 releases')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /didn’t answer/ })).not.toBeInTheDocument()
-  })
-
-  it('says when Prowlarr fails', async () => {
-    searchReleases.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'unreachable'))
-    renderAt('/title/movie/693134/releases')
-    expect(await screen.findByRole('heading', { name: 'Prowlarr isn’t answering' })).toBeInTheDocument()
   })
 
   it('adds a release to qBittorrent tagged with the title and goes to downloads', async () => {
@@ -688,4 +670,26 @@ describe('ReleasesScreen', () => {
       expect(screen.getByRole('button', { name: 'Sort: Size, Ascending' })).toBeInTheDocument()
     })
   })
+})
+
+namesTheFailedLink('The phone’s releases, when the title’s details fail', {
+  service: 'tmdb',
+  show: async (error) => {
+    getMovie.mockRejectedValue(error)
+    renderAt('/title/movie/693134/releases')
+    await screen.findByRole('heading', { level: 2 })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'Couldn’t load from TMDB', key: 'TMDB isn’t set up', store: 'qBittorrent isn’t answering' },
+})
+
+namesTheFailedLink('The releases, when the search fails', {
+  service: 'prowlarr',
+  show: async (error) => {
+    searchReleases.mockRejectedValue(error)
+    renderAt('/title/movie/693134/releases')
+    await screen.findByRole('heading', { level: 2 })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'Prowlarr isn’t answering', key: /Prowlarr isn’t set up|Prowlarr didn’t accept the API key/, store: 'qBittorrent isn’t answering' },
 })

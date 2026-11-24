@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { unreachable } from '../api/qbittorrent'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { fakePoll } from '../test/render'
 import { POLL_INTERVAL_MS } from '../torrents/pollIntervals'
 import type { PollState } from '../torrents/useMainData'
@@ -115,6 +117,16 @@ describe('PollRing', () => {
     render(<PollRing poll={poll} />)
     expect(ringState(screen.getByRole('img', { name: 'qBittorrent isn’t answering' }))).toBe('offline')
   })
+})
+
+namesTheFailedLink('The poll’s ring, when the poll fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    const { poll } = fakePoll({ inFlight: false, offline: true, unreachable: unreachable(error), updatedAt: null })
+    render(<PollRing poll={poll} />)
+    return screen.getByRole('img').getAttribute('aria-label')!
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })
 
 describe('PollRing.css', () => {

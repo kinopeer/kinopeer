@@ -7,6 +7,7 @@ import * as tmdb from '../api/tmdb'
 import i18n from '../i18n'
 import { TAB_RETURN, forgetTabPlaces, tabPlace } from '../lib/tabPlaces'
 import { forgetKeptResults } from '../search/searchResults'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { searchPage as page, title } from '../test/fixtures'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { controlledByServiceWorker, renderWithRouter, saying } from '../test/render'
@@ -295,14 +296,6 @@ describe('SearchScreen', () => {
     expect(within(failure).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
   })
 
-  it('explains a missing TMDB key when the next page finds it', async () => {
-    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
-    searchTitles.mockRejectedValueOnce(new tmdb.TmdbKeyError(401))
-    renderScreen('/search?q=dune')
-    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-  })
-
   // In the WebUI build each TMDB call reads the key from qBittorrent, which a next page may find gone.
   it('says qBittorrent didn’t answer, not TMDB, when the next page can’t read the key in the WebUI build, and tries that page again', async () => {
     vi.stubGlobal('__WEBUI__', true)
@@ -330,15 +323,6 @@ describe('SearchScreen', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Try again' }))
     expect(await screen.findByText('About 2 results')).toBeInTheDocument()
     expect(searchTitles).toHaveBeenLastCalledWith('dune', expect.objectContaining({ page: 1 }))
-  })
-
-  it('keeps TMDB’s own failure of a next page under the results in the WebUI build', async () => {
-    vi.stubGlobal('__WEBUI__', true)
-    searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
-    searchTitles.mockRejectedValueOnce(new tmdb.TmdbError('TMDB responded 502', 502))
-    renderScreen('/search?q=dune')
-    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t load more') })).toBeInTheDocument()
   })
 
   it('says when a search fails, and tries again', async () => {
@@ -471,12 +455,6 @@ describe('SearchScreen', () => {
     expect(screen.getByRole('textbox', { name: 'Release year' })).toHaveValue('')
   })
 
-  it('explains a missing TMDB key', async () => {
-    discoverTitles.mockRejectedValue(new tmdb.TmdbKeyError(401))
-    renderScreen()
-    expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-  })
-
   it('explains a missing TMDB key even when another row loads', async () => {
     const answer = discoverTitles.getMockImplementation()!
     discoverTitles.mockImplementation(async (type, params, options) => {
@@ -485,12 +463,6 @@ describe('SearchScreen', () => {
     })
     renderScreen()
     expect(await screen.findByRole('heading', { name: 'TMDB isn’t set up' })).toBeInTheDocument()
-  })
-
-  it('says Kinopeer isn’t answering when the request to its server failed, not TMDB', async () => {
-    discoverTitles.mockRejectedValue(new TypeError('Failed to fetch'))
-    renderScreen()
-    expect(await screen.findByRole('heading', { name: 'Kinopeer isn’t answering' })).toBeInTheDocument()
   })
 
   it('retries after a network error', async () => {
@@ -658,4 +630,50 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('heading', { name: 'Новинки в цифре' })).toBeInTheDocument()
     expect(discoverTitles).toHaveBeenCalledWith('movie', expect.anything(), expect.objectContaining({ language: 'ru-RU' }))
   })
+})
+
+const TMDB_FAILED_STATE = { kinopeer: 'Kinopeer isn’t answering', service: 'Couldn’t load from TMDB', key: 'TMDB isn’t set up', store: 'qBittorrent isn’t answering' }
+
+/** Search showing what it says once `failed` has failed: the state in place of its body, or the next page's banner under the results. */
+async function failedSearch(path: string, failed: () => void) {
+  // The WebUI build's state for an unread key starts the poll, which this file doesn't answer.
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(() => new Promise(() => {})))
+  failed()
+  renderScreen(path)
+  return screen.getByRole('main')
+}
+
+namesTheFailedLink('Search, when its rows fail', {
+  service: 'tmdb',
+  show: async (error) => {
+    const main = await failedSearch('/search', () => discoverTitles.mockRejectedValue(error))
+    await screen.findByRole('button', { name: /Try again|Enter key/ })
+    return main
+  },
+  says: TMDB_FAILED_STATE,
+})
+
+namesTheFailedLink('Search, when the search fails', {
+  service: 'tmdb',
+  show: async (error) => {
+    const main = await failedSearch('/search?q=dune', () => searchTitles.mockRejectedValue(error))
+    await screen.findByRole('button', { name: /Try again|Enter key/ })
+    return main
+  },
+  says: TMDB_FAILED_STATE,
+})
+
+namesTheFailedLink('Search, when the next page fails', {
+  service: 'tmdb',
+  show: async (error) => {
+    const main = await failedSearch('/search?q=dune', () => {
+      searchTitles.mockResolvedValueOnce(page([DUNE], { totalPages: 2 }))
+      searchTitles.mockRejectedValueOnce(error)
+    })
+    await userEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+    await screen.findByRole('button', { name: /Try again|Enter key/ })
+    return main
+  },
+  // Under the page loaded, the banner's title is Couldn’t load more for Kinopeer's server and TMDB alike: its body tells them apart.
+  says: { ...TMDB_FAILED_STATE, kinopeer: 'Kinopeer is running on your server', service: 'Check the connection and try again' },
 })

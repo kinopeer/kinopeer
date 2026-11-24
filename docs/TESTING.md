@@ -1,7 +1,8 @@
 # Testing
 
 How Kinopeer's tests are organized: six layers, each with one job, and how to choose one; what to
-do with a bug; what no layer sees; the shared test data and the fake services; coverage and its
+do with a bug; what no layer sees; the shared test data and the fake services; the check that
+every place showing a service's failure names the link that failed; coverage and its
 threshold; how a PR's tests are reviewed and how its findings are tagged for the retro; the
 screenshot tests and the smoke journeys. Running and releasing are in
 [DEVELOPMENT.md](DEVELOPMENT.md); the checks guard, which marks a PR that weakens the checks, in
@@ -679,7 +680,52 @@ it uses next to itself.
   decrypted. A service that never answers is `silentService()`; a test that needs
   one to misbehave in another specific way (an answer that isn't a `.torrent`, a body that comes
   in parts) writes that handler inline with `listen`.
+- **`src/test/failedLinks.ts`:** every way a call to qBittorrent, Prowlarr or TMDB fails and
+  `namesTheFailedLink`, the check each place that shows one runs: Places that name a failed link, below.
 - **`server/test/integration.ts`:** the stand for layer 5, below.
+
+## Places that name a failed link
+
+What a person does about a failure depends on which link failed: Kinopeer's server, the service
+behind it, the service's key, or in the WebUI build qBittorrent not giving what it keeps for the
+page, so the message names that link. Each place that shows such a failure reads who failed its
+own way, so one check runs every way to fail through every place (#600):
+
+- **The ways.** `WAYS` in `src/test/failedLinks.ts` lists, per build and service, what the
+  service's client throws for each way its call fails and the link that failed then: Kinopeer's
+  server not answering, a sign-in proxy redirecting, something answering in its place, the service
+  failing, no key or a refused one, and in the WebUI build qBittorrent not answering when its store
+  is read. A new way to fail is a row there, and every place's check runs it; a new kind of link
+  is a member of `Link`, which every place then has to say.
+- **A place's check.** The place's own test file calls `namesTheFailedLink` once, beside its other
+  tests, with its own mocks: `show` renders the place with its call failing with the given error
+  and returns the element that shows the failure (or the accessible name, for the poll's ring), and
+  `says` gives a phrase per link. Every way checks that the element says its link's phrase and no
+  other link's, so two links can't quietly share a text; a place that says the same for two links
+  gives both the same phrase, which the declaration then shows (the add sheet's fetch names
+  Prowlarr for its key and for Prowlarr alike). A component handed the poll's or the session's
+  reading (`unreachable`) is handed `unreachable(error)`, as the poll and the session read it.
+- **The registry.** `src/test/failedLinks.test.ts` reads every module of `src/` with Vite's parser
+  and takes as a place each that imports, as a value, what reading who failed takes (`READERS`:
+  `unreachable`, `unreachableText`, the clients' failures a place tells apart, the shared failed
+  states). Each must be in `PLACES`, with the test file that runs its check (which must import
+  `namesTheFailedLink`), or in `NOT_PLACES`, with why it shows nothing itself (a client, a hook
+  that reads for a place, a state the places show). A new place fails it until it's listed.
+
+What it doesn't see, so review does:
+
+- A place with one fixed text for every failure that imports none of `READERS`, such as most
+  torrent actions' "Couldn't reach qBittorrent" (`common.qbtFailed`): it reads no failure, so the
+  registry can't tell it shows one.
+- A second place in a module already listed: the registry knows modules, not each spot in them.
+- Why a service didn't answer (`failureText`'s causes) as against who: the check reads who.
+- The forms that save a connection through the settings client (`QbittorrentLoginForm`,
+  `ProwlarrKeyForm`, the TMDB key's), whose failures are the server's own check of the address
+  (`SettingsError`'s codes), and Telegram's and push's, which don't reach these services.
+- Russian: the checks read the English texts; a Russian text that loses its context is the
+  locales' tests' and review's.
+- A namespace import (`import * as api`), whose names the registry doesn't read; the app has none
+  of the readers imported that way.
 
 ## Integration tests
 

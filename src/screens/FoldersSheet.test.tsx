@@ -6,6 +6,7 @@ import * as api from '../api/qbittorrent'
 import type { Folders } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { FoldersSheet } from './FoldersSheet'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { held } from '../test/held'
 import { findToastOnPage, saying } from '../test/render'
 
@@ -549,4 +550,38 @@ describe('FoldersSheet', () => {
     expect(within(sheet).getByText(new RegExp(`^qBittorrent will ${says}`))).toBeInTheDocument()
     expect(within(sheet).getByText('If the folder isn’t there, qBittorrent creates it.')).toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('qBittorrent folders, when they can’t be loaded', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getFolders.mockRejectedValue(error)
+    const sheet = await openSheet()
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'qBittorrent didn’t send its folders' },
+})
+
+namesTheFailedLink('qBittorrent folders, when the default folder’s save fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    setDefaultSavePath.mockRejectedValue(error)
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Default folder/), '/media/downloads')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('qBittorrent folders, when a category’s save fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    setCategoryFolder.mockRejectedValue(error)
+    const sheet = await openSheet()
+    await type(await edit(sheet, /^Movies/), '/media/films')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Save' }))
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

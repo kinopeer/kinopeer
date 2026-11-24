@@ -1,13 +1,14 @@
-import { QbittorrentError } from '../api/qbittorrent'
+import { QbittorrentError, unreachable } from '../api/qbittorrent'
+import { unreachableText } from '../lib/unreachable'
 
 /** Why qBittorrent didn't take a folder, as a translation key. */
-export type FolderFailure = 'move.cantCreate' | 'folders.categoryGone' | 'common.qbtFailed'
+export type FolderFailure = 'move.cantCreate' | 'folders.categoryGone' | 'common.qbtFailed' | 'common.qbtFailed_kinopeer'
 
 /** Why qBittorrent didn't take a folder: what Move files and Settings' folders say about a failure. */
 export function folderFailure(error: unknown): FolderFailure {
   if (error instanceof QbittorrentError && error.status === 409) return 'move.cantCreate'
   // A lost session included: the screen's poll notices it and asks for the login.
-  return 'common.qbtFailed'
+  return unreachableText(unreachable(error)) === 'kinopeer' ? 'common.qbtFailed_kinopeer' : 'common.qbtFailed'
 }
 
 /**

@@ -6,6 +6,7 @@ import type { Release } from '../api/prowlarr'
 import * as qbt from '../api/qbittorrent'
 import { parseRelease } from '../releases/parseRelease'
 import { getSettings, resetSettings } from '../settings/settings'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { mainData, torrent } from '../test/fixtures'
 import { qbittorrentDown, renderWithRouter, saying } from '../test/render'
 import { MainDataProvider } from '../torrents/MainDataProvider'
@@ -328,4 +329,17 @@ describe('Free up space', () => {
     expect(within(sheet).getByText('No downloads yet')).toBeInTheDocument()
     expect(within(sheet).queryByRole('list')).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Free up space, when the poll stops answering', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    renderSheet()
+    await openStep()
+    getMainData.mockRejectedValue(error)
+    await pollNow()
+    await within(step()).findByRole('alert')
+    return step()
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

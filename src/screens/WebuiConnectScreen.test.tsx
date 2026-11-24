@@ -2,8 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as webui from '../api/qbittorrent/webui'
-import { QbittorrentError } from '../api/qbittorrent'
+import { QbittorrentError, unreachable } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { saying } from '../test/render'
 import { WebuiConnectScreen } from './WebuiConnectScreen'
 
@@ -151,4 +152,15 @@ describe('WebuiConnectScreen', () => {
     expect(screen.getByRole('heading', { name: 'qBittorrent 5.1.4 is too old' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('The WebUI build’s connect screen, when the session check fails', {
+  service: 'qbittorrent',
+  builds: ['webui'],
+  // As the session reads the check's failure (useQbitSession).
+  show: async (error) => {
+    render(<WebuiConnectScreen unreachable={unreachable(error)} onRetry={() => {}} />, { wrapper: ToastProvider })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })

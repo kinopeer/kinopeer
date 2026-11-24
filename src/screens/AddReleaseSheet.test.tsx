@@ -14,6 +14,7 @@ import { resetSettings, updateSettings } from '../settings/settings'
 import * as torrentFile from '../torrents/torrentFile'
 import { MainDataContext, createMainDataStore, type MainDataStore } from '../torrents/useMainData'
 import { AddReleaseSheet, type AddReleaseSheetProps } from './AddReleaseSheet'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { torrent } from '../test/fixtures'
 import { ROUTER_OPTIONS } from '../lib/routerOptions'
 import { Opened, opened, qbittorrentDown, saying } from '../test/render'
@@ -462,34 +463,6 @@ describe('AddReleaseSheet', () => {
     expect(within(screen.getByRole('dialog', { name: 'Add to downloads' })).getByRole('button', { name: /^Download/ })).toBeDisabled()
   })
 
-  it.each([
-    ['nothing answered for it', () => new TypeError('Failed to fetch')],
-    ['something in front of it answered', () => new qbt.KinopeerUnreachableError(502)],
-  ])('says it’s Kinopeer that didn’t answer for the torrent when %s, not Prowlarr (#566)', async (_name, error) => {
-    fetchRelease.mockRejectedValue(error())
-    renderSheet()
-    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
-  })
-
-  it('says qBittorrent didn’t answer, not Prowlarr, when it didn’t give Prowlarr’s address and key in the WebUI build', async () => {
-    vi.stubGlobal('__WEBUI__', true)
-    fetchRelease.mockRejectedValue(new prowlarr.ProwlarrKeyReadError(new TypeError('Failed to fetch')))
-    renderSheet()
-    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
-    expect(within(sheet).getByRole('button', { name: 'Try again' })).toBeInTheDocument()
-  })
-
-  it('says it’s Prowlarr whose torrent failed in the WebUI build when qBittorrent gave its address and key', async () => {
-    vi.stubGlobal('__WEBUI__', true)
-    fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
-    renderSheet()
-    const sheet = screen.getByRole('dialog', { name: 'Add to downloads' })
-    expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t get the torrent from Prowlarr.') })).toBeInTheDocument()
-  })
-
   it('offers no form, the free space warning included, when the torrent can’t be fetched', async () => {
     fetchRelease.mockRejectedValue(new prowlarr.ProwlarrError('down', 502, 'upstream'))
     renderSheet(RELEASE, await runningPoll())
@@ -648,15 +621,6 @@ describe('AddReleaseSheet', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
     expect(await screen.findByRole('alert', { name: saying('qBittorrent didn’t add the torrent. It may already be in your downloads.') })).toBeInTheDocument()
     expect(getTorrents).not.toHaveBeenCalled()
-  })
-
-  it('says whether qBittorrent or Kinopeer itself didn’t answer the add', async () => {
-    addRelease.mockRejectedValueOnce(qbittorrentDown()).mockRejectedValueOnce(new TypeError('Failed to fetch'))
-    renderSheet()
-    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /^Download/ }))
-    expect(await screen.findByRole('alert', { name: saying('Couldn’t reach Kinopeer. Try again.') })).toBeInTheDocument()
   })
 
   describe('naming a movie for a media server', () => {
@@ -944,4 +908,28 @@ describe('AddReleaseSheet', () => {
       expect(getTorrents.mock.lastCall?.[1]?.aborted).toBe(true)
     })
   })
+})
+
+namesTheFailedLink('The add sheet, when the torrent can’t be fetched', {
+  service: 'prowlarr',
+  show: async (error) => {
+    fetchRelease.mockRejectedValue(error)
+    renderSheet()
+    await screen.findByRole('alert')
+    return screen.getByRole('dialog', { name: 'Add to downloads' })
+  },
+  // A key refused between the search and the fetch names Prowlarr, as its failure does.
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t get the torrent from Prowlarr', key: 'Couldn’t get the torrent from Prowlarr', store: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('The add sheet, when the add fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    addRelease.mockRejectedValue(error)
+    renderSheet()
+    await userEvent.click(await screen.findByRole('button', { name: /^Download/ }))
+    await screen.findByRole('alert')
+    return screen.getByRole('dialog', { name: 'Add to downloads' })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

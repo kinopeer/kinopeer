@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getFolders, prepareFolder, setCategoryFolder, setDefaultSavePath, type Category, type Folders } from '../api/qbittorrent'
+import { getFolders, prepareFolder, setCategoryFolder, setDefaultSavePath, unreachable, type Category, type Folders } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Icon } from '../components/Icon'
 import { IconButton } from '../components/IconButton'
 import { Sheet } from '../components/Sheet'
 import { useToast } from '../components/Toast'
+import { unreachableText } from '../lib/unreachable'
 import { useRequest } from '../lib/useRequest'
 import { useSaves } from '../lib/useSaves'
 import { categoryFolder, isAbsolute, knownFolders, sameFolder } from '../torrents/folders'
@@ -144,7 +145,7 @@ export function FoldersSheet({ open, onClose }: FoldersSheetProps) {
         <div className="folders-body">
           {folders.error !== undefined && (
             <Banner tone="error" actionLabel={t('common.retry')} onAction={folders.retry}>
-              {t('folders.loadFailed')}
+              {t(unreachableText(unreachable(folders.error)) === 'kinopeer' ? 'common.qbtFailed_kinopeer' : 'folders.loadFailed')}
             </Banner>
           )}
           {folders.loading && <span className="ks-spin folders-loading" role="status" aria-label={t('folders.loading')} />}

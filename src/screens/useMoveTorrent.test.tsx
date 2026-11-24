@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { useMoveTorrent } from './useMoveTorrent'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { findToastOnPage, saying } from '../test/render'
 
 vi.mock('../api/qbittorrent', async (importOriginal) => ({
@@ -145,7 +146,7 @@ describe('useMoveTorrent', () => {
     setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('conflict', 409))
     await moveTo(sheet, '/media/nope')
     expect(await within(sheet).findByRole('alert', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
-    setTorrentLocation.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    setTorrentLocation.mockRejectedValueOnce(new api.QbittorrentError('qBittorrent responded 502', 502))
     await moveTo(sheet, '/media/later')
     expect(await within(sheet).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     expect(within(sheet).queryByText('qBittorrent couldn’t create that folder.')).not.toBeInTheDocument()
@@ -287,7 +288,7 @@ describe('useMoveTorrent', () => {
     await moveTo(first, '/media/movies')
     await userEvent.click(within(first).getByRole('button', { name: 'Close' }))
     const again = await open()
-    fail(new TypeError('Failed to fetch'))
+    fail(new api.QbittorrentError('qBittorrent responded 502', 502))
     expect(await within(again).findByRole('alert', { name: saying('Couldn’t reach qBittorrent. Try again.') })).toBeInTheDocument()
     await userEvent.click(within(again).getByRole('button', { name: 'Move' }))
     // Not the torrent's own folder, which the sheet would have started from.
@@ -319,4 +320,16 @@ describe('useMoveTorrent once its screen is gone', () => {
     fail(new api.QbittorrentError('conflict', 409))
     expect(await screen.findByRole('status', { name: saying('qBittorrent couldn’t create that folder.') })).toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Move files, when the move fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    setTorrentLocation.mockRejectedValue(error)
+    const { open, moveTo } = renderMove()
+    const sheet = await open()
+    await moveTo(sheet, '/media/later')
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

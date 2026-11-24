@@ -6,6 +6,8 @@ import { SettingsError, type ServerSettings } from '../api/settings'
 import * as proxySignIn from '../pwa/proxySignIn'
 import { ToastProvider } from '../components/Toast'
 import en from '../i18n/locales/en.json'
+import { unreachable } from '../api/qbittorrent'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { russianUnreachable } from '../test/languages'
 import { ConnectScreen, type ConnectScreenProps } from './ConnectScreen'
 import { controlledByServiceWorker, saying } from '../test/render'
@@ -548,4 +550,16 @@ describe('ConnectScreen', () => {
     await userEvent.click(language.getByRole('button', { name: 'English' }))
     expect(localStorage.getItem('kinopeer.language')).toBeNull()
   })
+})
+
+namesTheFailedLink('The connect screen, when the session check fails', {
+  service: 'qbittorrent',
+  // The WebUI build shows its own (WebuiConnectScreen).
+  builds: ['server'],
+  // As the session reads the check's failure (useQbitSession).
+  show: async (error) => {
+    setup(undefined, { unreachable: unreachable(error) })
+    return screen.getByRole('main')
+  },
+  says: { kinopeer: 'Kinopeer isn’t answering', service: 'qBittorrent isn’t answering' },
 })
