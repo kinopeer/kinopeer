@@ -1,9 +1,18 @@
+import type { TFunction } from 'i18next'
 import { useSyncExternalStore } from 'react'
-import type { Unreachable } from '../api/qbittorrent'
+import { unreachable, type Unreachable } from '../api/qbittorrent'
 
 /** The i18next context of a text that says who didn't answer: `kinopeer` either way it was Kinopeer's server. */
 export function unreachableText(who: Unreachable | undefined): 'kinopeer' | undefined {
   return who === 'unreached' || who === 'kinopeer' ? 'kinopeer' : undefined
+}
+
+/**
+ * What an action on qBittorrent says when its call failed: that Kinopeer's server didn't answer,
+ * whatever something in front of it answered with, else that qBittorrent didn't.
+ */
+export function qbtFailedText(t: TFunction, error: unknown): string {
+  return t('common.qbtFailed', { context: unreachableText(unreachable(error)) })
 }
 
 /** The device going online or offline, and a service worker taking the page (`clientsClaim` after the first install). */

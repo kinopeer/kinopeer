@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { qbittorrentDown, saying } from '../test/render'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
 import { useReannounce } from './useReannounce'
 import type { ActionWatcher } from './useTorrentAction'
@@ -61,7 +62,7 @@ describe('useReannounce', () => {
   })
 
   it('says a failure nothing showed in a toast, which the next try takes back', async () => {
-    reannounceTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
+    reannounceTorrents.mockRejectedValueOnce(qbittorrentDown()).mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => useReannounce(), { wrapper: Providers })
     await act(() => result.current.reannounce(DUNE))
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
@@ -71,14 +72,14 @@ describe('useReannounce', () => {
   })
 
   it('leaves a failure to the place that shows the torrent, wherever it was sent from', async () => {
-    reannounceTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce()
+    reannounceTorrents.mockRejectedValueOnce(qbittorrentDown()).mockResolvedValueOnce()
     const settled = vi.fn<ActionWatcher['settled']>()
     const { result } = renderHook(
       () => ({ downloads: useReannounce(), menu: useReannounce({ torrents: [DUNE], settled }) }),
       { wrapper: Providers },
     )
     expect(await act(() => result.current.downloads.reannounce(DUNE))).toMatchObject({ ok: false, showing: true })
-    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(TypeError) }, [DUNE])
+    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(api.QbittorrentError) }, [DUNE])
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
 
     await act(() => result.current.downloads.reannounce(DUNE))
@@ -87,4 +88,15 @@ describe('useReannounce', () => {
     await act(() => result.current.downloads.reannounce({ ...DUNE, added_on: 9 }))
     expect(settled).toHaveBeenCalledTimes(2)
   })
+})
+
+namesTheFailedLink('Reannounce’s toast, when the reannounce fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    reannounceTorrents.mockRejectedValue(error)
+    const { result } = renderHook(() => useReannounce(), { wrapper: Providers })
+    await act(() => result.current.reannounce(DUNE))
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

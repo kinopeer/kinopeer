@@ -9,6 +9,7 @@ import { Menu, MenuDivider, MenuItem, MenuLink } from '../components/Menu'
 import { Poster } from '../components/Poster'
 import { Sheet } from '../components/Sheet'
 import { StatusChip } from '../components/StatusChip'
+import { qbtFailedText } from '../lib/unreachable'
 import { cx } from '../lib/cx'
 import { useFormatters } from '../lib/format'
 import { useIsDesktop } from '../lib/useIsDesktop'
@@ -63,12 +64,12 @@ export function TorrentActionsSheet({
   onMediaNames,
 }: TorrentActionsSheetProps) {
   const { t } = useTranslation()
-  const [failed, setFailed] = useState(false)
+  const [failure, setFailure] = useState<{ error: unknown }>()
   // The menu shows the torrent, so it says how its pause, resume or reannounce went, wherever it was
   // sent from: it closes, or shows the failure.
   const watcher: ActionWatcher = {
     torrents: [torrent],
-    settled: (outcome) => (outcome.ok ? onClose() : setFailed(true)),
+    settled: (outcome) => (outcome.ok ? onClose() : setFailure({ error: outcome.error })),
   }
   const pauseResume = usePauseResume(watcher)
   const reannounce = useReannounce(watcher)
@@ -105,12 +106,12 @@ export function TorrentActionsSheet({
   const namesHint = noMetadata ? t('torrent.recheckNoMetadata') : undefined
 
   const toggle = () => {
-    setFailed(false)
+    setFailure(undefined)
     void pauseResume.toggle(torrent)
   }
 
   const announce = () => {
-    setFailed(false)
+    setFailure(undefined)
     void reannounce.reannounce(torrent)
   }
 
@@ -122,7 +123,7 @@ export function TorrentActionsSheet({
     onTitlePage()
   }
   const isDesktop = useIsDesktop()
-  const errors = failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>
+  const errors = failure && <Banner tone="error">{qbtFailedText(t, failure.error)}</Banner>
 
   if (isDesktop && anchor) {
     return (

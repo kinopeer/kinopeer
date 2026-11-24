@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { qbittorrentDown, saying } from '../test/render'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { STATE_LAG_MARGIN_MS, resetStateLag } from '../torrents/stateLag'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -101,7 +102,7 @@ describe('usePauseResume', () => {
   })
 
   it('says a failure in a toast, which the next try takes back', async () => {
-    stopTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
+    stopTorrents.mockRejectedValueOnce(qbittorrentDown()).mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => usePauseResume(), { wrapper: Providers })
     await act(() => result.current.toggle(DUNE))
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
@@ -111,13 +112,13 @@ describe('usePauseResume', () => {
   })
 
   it('leaves how it went to the place that shows the torrent, wherever it was sent from', async () => {
-    stopTorrents.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockResolvedValueOnce()
+    stopTorrents.mockRejectedValueOnce(qbittorrentDown()).mockResolvedValueOnce()
     const settled = vi.fn<ActionWatcher['settled']>()
     const { result } = renderHook(() => ({ row: usePauseResume(), menu: usePauseResume({ torrents: [DUNE], settled }) }), {
       wrapper: Providers,
     })
     expect(await act(() => result.current.row.toggle(DUNE))).toMatchObject({ ok: false, showing: true })
-    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(TypeError) }, [DUNE])
+    expect(settled).toHaveBeenLastCalledWith({ ok: false, error: expect.any(api.QbittorrentError) }, [DUNE])
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
 
     await act(() => result.current.row.toggle(DUNE))
@@ -126,4 +127,15 @@ describe('usePauseResume', () => {
     await act(() => result.current.row.toggle({ ...DUNE, added_on: 9 }))
     expect(settled).toHaveBeenCalledTimes(2)
   })
+})
+
+namesTheFailedLink('Pause and resume’s toast, when the pause fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    stopTorrents.mockRejectedValue(error)
+    const { result } = renderHook(() => usePauseResume(), { wrapper: Providers })
+    await act(() => result.current.toggle(DUNE))
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

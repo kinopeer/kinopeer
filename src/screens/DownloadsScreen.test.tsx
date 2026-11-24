@@ -811,7 +811,7 @@ describe('DownloadsScreen selection', () => {
   })
 
   it('keeps the selection and says so when qBittorrent doesn’t answer', async () => {
-    vi.mocked(api.stopTorrents).mockRejectedValue(new TypeError('Failed to fetch'))
+    vi.mocked(api.stopTorrents).mockRejectedValue(qbittorrentDown())
     renderScreen()
     await userEvent.click(await screen.findByRole('button', { name: 'Select' }))
     await userEvent.click(screen.getByRole('checkbox', { name: 'Andor.S02.1080p' }))

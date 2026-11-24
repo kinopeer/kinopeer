@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { SaveLocations, Torrent } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
-import { findToastOnPage, saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { findToastOnPage, qbittorrentDown, saying } from '../test/render'
 import { torrent } from '../test/fixtures'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -127,7 +128,7 @@ describe('useChangeCategory', () => {
     const { open, pick } = renderCategory()
     const sheet = await open()
     await pick(sheet, 'TV Shows')
-    answers[0].reject(new TypeError('Failed to fetch'))
+    answers[0].reject(qbittorrentDown())
     expect(await within(sheet).findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
 
@@ -141,8 +142,22 @@ describe('useChangeCategory', () => {
     const sheet = await open()
     await pick(sheet, 'TV Shows')
     await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
-    answers[0].reject(new TypeError('Failed to fetch'))
+    answers[0].reject(qbittorrentDown())
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+  })
+
+  it('takes the toast back on the next try, so one for another link doesn’t pile up beside it', async () => {
+    const answers = held()
+    const { open, pick } = renderCategory()
+    const sheet = await open()
+    await pick(sheet, 'TV Shows')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+    answers[0].reject(qbittorrentDown())
+    expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
+
+    await pick(await open(), 'TV Shows')
+    expect(setCategory).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
   })
 
   it('says in a toast when a change fails after its torrent went away', async () => {
@@ -151,7 +166,7 @@ describe('useChangeCategory', () => {
     await pick(await open(), 'TV Shows')
     rerender({ torrents: {} })
     expect(screen.queryByRole('dialog', { name: 'Category' })).not.toBeInTheDocument()
-    answers[0].reject(new TypeError('Failed to fetch'))
+    answers[0].reject(qbittorrentDown())
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
 
@@ -231,7 +246,7 @@ describe('useChangeCategory', () => {
     await pick(first, 'TV Shows')
     await userEvent.click(within(first).getByRole('button', { name: 'Close' }))
     const again = await open()
-    answers[0].reject(new TypeError('Failed to fetch'))
+    answers[0].reject(qbittorrentDown())
     expect(await within(again).findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
     expect(screen.queryByRole('status', { name: saying(FAILED) })).not.toBeInTheDocument()
     // A retry sends the category that failed, which the sheet opened again started from.
@@ -279,4 +294,30 @@ describe('useChangeCategory', () => {
     await userEvent.click(await within(sheet).findByRole('radio', { name: 'TV Shows' }))
     expect(within(sheet).getByRole('button', { name: 'Save' })).toBeDisabled()
   })
+})
+
+namesTheFailedLink('The category sheet, when the change fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    setCategory.mockRejectedValue(error)
+    const { open, pick } = renderCategory()
+    const sheet = await open()
+    await pick(sheet, 'TV Shows')
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('The category’s toast, when the change fails after its sheet was closed', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    const answers = held()
+    const { open, pick } = renderCategory()
+    const sheet = await open()
+    await pick(sheet, 'TV Shows')
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Close' }))
+    answers[0].reject(error)
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

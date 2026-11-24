@@ -4,6 +4,7 @@ import { reannounceTorrents, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import type { Settled } from '../torrents/torrentRequests'
+import { qbtFailedText } from '../lib/unreachable'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
@@ -31,7 +32,7 @@ export function useReannounce(watcher?: ActionWatcher): Reannounce {
       const settled = await send(torrent, true, (hashes) => reannounceTorrents(hashes))
       if (settled?.ok) toast.show(t('torrent.reannounced'))
       else if (settled && !settled.showing) {
-        toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.reannounce })
+        toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.reannounce })
       }
       return settled
     },
