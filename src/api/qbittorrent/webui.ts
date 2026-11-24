@@ -80,3 +80,22 @@ export async function storeClientData(data: ClientData): Promise<void> {
 export function isStoreFull(error: unknown): boolean {
   return error instanceof QbittorrentError && error.status === 409
 }
+
+/** How long turning Kinopeer off waits for qBittorrent's answer, as `CLIENT_DATA_TIMEOUT_MS`. */
+export const PREFERENCES_TIMEOUT_MS = 15_000
+
+/**
+ * Turns off qBittorrent's **Use alternative WebUI**, so its address answers with its own interface
+ * from the next page load, on every browser and device; the folder it names stays set, so turning
+ * the setting back on in qBittorrent's interface brings Kinopeer back. The session stays signed in.
+ * Throws as `storeClientData` does.
+ */
+export async function turnOffAlternativeWebui(): Promise<void> {
+  await withTimeout(PREFERENCES_TIMEOUT_MS, new AbortController().signal, (signal) =>
+    webuiTransport('/app/setPreferences', {
+      method: 'POST',
+      body: new URLSearchParams({ json: JSON.stringify({ alternative_webui_enabled: false }) }),
+      signal,
+    }),
+  )
+}

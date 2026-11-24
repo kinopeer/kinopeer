@@ -42,6 +42,7 @@ import { ChangePasswordForm } from './ChangePasswordForm'
 import { FoldersSheet } from './FoldersSheet'
 import { InstallSheet } from './InstallSheet'
 import { ProwlarrKeyForm } from './ProwlarrKeyForm'
+import { QbittorrentInterfaceDialog } from './QbittorrentInterfaceDialog'
 import { QbittorrentLoginForm } from './QbittorrentLoginForm'
 import { TelegramForm } from './TelegramForm'
 import { usePushDevice } from './usePushDevice'
@@ -233,6 +234,7 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
   const [editingQbittorrent, setEditingQbittorrent] = useState(false)
   const [prowlarrKeyVersion, setProwlarrKeyVersion] = useState(0)
   const [changingPassword, setChangingPassword] = useState(false)
+  const [switchingInterface, setSwitchingInterface] = useState(false)
   const [editingTelegram, setEditingTelegram] = useState(false)
   // Bumped on each token saved from the sheet, so the card checks again: a renewed token of the same bot keeps its name.
   const [telegramVersion, setTelegramVersion] = useState(0)
@@ -587,6 +589,15 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
               void clearTitleMatches().then(() => toast.show(t('settings.cacheCleared')))
             }}
           />
+          {/* Rare, so here rather than in plain view; where qBittorrent serves Kinopeer, the only way back to its own interface but its desktop app. */}
+          {__WEBUI__ && (
+            <AboutRow
+              icon="server"
+              label={t('webui.switchInterface')}
+              hint={t('webui.switchInterfaceHint')}
+              onClick={() => setSwitchingInterface(true)}
+            />
+          )}
         </ul>
         <ul className="ks-card settings-rows">
           <AboutRow href={IDEAS_URL} icon="star" label={t('settings.ideas')} hint={t('settings.ideasHint')} />
@@ -604,6 +615,8 @@ export function SettingsScreen({ signIn }: SettingsScreenProps) {
       </Section>
 
       <InstallSheet platform={installSteps} onClose={() => setInstallSteps(null)} />
+      {/* The build reads first, so the server's leaves the dialog out. */}
+      {__WEBUI__ && switchingInterface && <QbittorrentInterfaceDialog onClose={() => setSwitchingInterface(false)} />}
       <FoldersSheet open={editingFolders} onClose={() => setEditingFolders(false)} />
       <Sheet open={editingKey} onClose={() => setEditingKey(false)} title={t('tmdbKey.sheetTitle')}>
         <TmdbKeyForm

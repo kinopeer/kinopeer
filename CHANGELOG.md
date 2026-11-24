@@ -4,6 +4,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ## Unreleased
 
+### Added
+
+- As qBittorrent's Alternative WebUI, Kinopeer switches to qBittorrent's own interface from Settings → About, and from the screen saying qBittorrent is too old: after a confirmation it turns off qBittorrent's Use alternative WebUI, so qBittorrent's address opens its own interface on every device, until it's turned on again in qBittorrent's options. Before, the way back was a command in the browser's console. ([#615](https://github.com/kinopeer/kinopeer/issues/615))
+
 ### Fixed
 
 - When Kinopeer's own server doesn't answer, the torrent actions say so rather than that qBittorrent didn't: pausing and resuming, deleting, force recheck, reannouncing, changing the category, sequential download and first and last pieces first, Notify when finished, saving speed limits, and naming for a media server, its files' load and its renames. Search's banner for a next page TMDB didn't answer says "Couldn't load from TMDB" rather than "Couldn't load more". ([#611](https://github.com/kinopeer/kinopeer/issues/611))
