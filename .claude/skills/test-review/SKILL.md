@@ -198,14 +198,16 @@ trusted.
 ## 4. Report
 
 Findings first, most severe first: blocking (B, D, E with a drift, I missing, K but for the
-account alone, A without a reason), then should-fix (C, F, G, H, and K for the account alone), then
-nits. A finding holds the merge only when something would go wrong had nobody found it, since each
-one that holds it costs a round of fixes; one of H or F where nothing would is a nit:
+account alone, A without a reason), then should-fix (C, F, G, H, and K for the account alone when
+you checked the claim yourself), then nits. A finding of H or F holds the merge only when something
+would go wrong had nobody found it, since each one that holds it costs a round of fixes, and one
+where nothing would is a nit; the other checks keep the severity above:
 - **H:** show what would go wrong by naming who would read the text and the wrong step or belief
   they'd take from it (a setup or release step run as written, a variable set, a review rule
   applied, code written against a comment on code in use, a claim about security trusted).
-  Wording, a comment's place, a changelog's precision, a stale note the reader still gets right,
-  the phrasing of the description are nits.
+  Wording, a comment's place, a changelog entry's wording or detail that still names the change
+  correctly (one that claims more than the code does stays should-fix), a stale note the reader
+  still gets right, the phrasing of the description are nits.
 - **F:** duplication and structure (a literal, a fixture or a block written twice, cases that
   could be one `it.each`, a comment's wording or place, a setting that does nothing) are nits. An
   assertion weaker than its claim stays should-fix: a count of calls or elements where the
