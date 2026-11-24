@@ -8,7 +8,10 @@
  * video, whose largest is a sample ("sample" as a word in its path), with another video that isn't
  * one over a quarter of the main one's size (parts of a movie, versions of it) or with a disc's
  * folders (BDMV, VIDEO_TS) isn't named, and says why: the word never moves naming to a smaller
- * video (docs/SPEC.md's decision log, 2026-11-23). Every
+ * video (docs/SPEC.md's decision log, 2026-11-23). Neither is one with files split between the
+ * movie's folder (with a TMDB id or without, any id) and another place, as a rename that stopped
+ * partway leaves them (`splitFromFolder`); a folder named for the title as it was then (another TMDB
+ * language, a fixed match) isn't recognised (docs/SPEC.md's decision log, 2026-11-24). Every
  * other file (samples, extras, a release's .nfo) keeps its name and moves into the movie's folder
  * with it, where it was under the torrent's own folder.
  */

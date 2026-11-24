@@ -116,9 +116,13 @@ describe('movieNames', () => {
     expect(movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune.2021.srt')], 'Dune', 2021)).toEqual(split)
     expect(movieNames([file('Dune (2021) {tmdb-438631}/Dune (2021) {tmdb-438631}.mkv', 8 * GB), file('Dune (2021)/Dune (2021).srt')], 'Dune', 2021, 438631)).toEqual(split)
     expect(movieNames([file('Dune (2021) {tmdb-438631}/Dune (2021) {tmdb-438631}.mkv', 8 * GB), file('Dune.2021/Dune.2021.srt')], 'Dune', 2021)).toEqual(split)
+    // The switch turned since: the earlier naming was plain, the title now has its id.
+    expect(movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune.2021/Dune.2021.srt')], 'Dune', 2021, 438631)).toEqual(split)
     // All in the movie’s folder, with the id or without it, is named as before: nothing to rename.
     const whole = movieNames([file('Dune (2021)/Dune (2021).mkv', 8 * GB), file('Dune (2021)/Dune (2021).srt')], 'Dune', 2021)
     expect(whole.named && whole.renames).toEqual([])
+    const wholeWithId = movieNames([file('Dune (2021) {tmdb-438631}/Dune (2021) {tmdb-438631}.mkv', 8 * GB), file('Dune (2021) {tmdb-438631}/Dune (2021) {tmdb-438631}.srt')], 'Dune', 2021, 438631)
+    expect(wholeWithId.named && wholeWithId.renames).toEqual([])
   })
 
   it('renames nothing when the files are named already', () => {
