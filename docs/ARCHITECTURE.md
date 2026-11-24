@@ -36,4 +36,4 @@ Each is written in its file; this list only names them, for a plan made before t
 
 ## Keeping it current
 
-A new file goes into the `paths` of its area's file. A new section goes into its area's file and into the table above. A section changes in the same PR as the behavior it describes.
+A new file goes into the `paths` of its area's file. A new section goes into its area's file and into the table above. A section changes in the same PR as the behavior it describes. `architecture.test.ts` checks that every glob in `paths` matches a file, that every code file under `src/` and `server/` is in an area, and that the table names every area's file.
