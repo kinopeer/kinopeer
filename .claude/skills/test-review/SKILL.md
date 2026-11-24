@@ -70,7 +70,7 @@ trusted.
   route that a client in `src/api/*` calls needs a test in `server/integration/`, and its service's
   fake the new request, in the same PR; a route no client calls needs its layer-4 test. Ask the
   neighbours of the change too (`docs/TESTING.md` → Choosing a layer: another place, later,
-  meanwhile, the next poll, the edges), and check the PR's `Neighbours` lines against them: one left
+  meanwhile, the next poll, the edges; and a heuristic's scope, `CLAUDE.md` → Conventions), and check the PR's `Neighbours` lines against them: one left
   blank, or answered with a test that doesn't run that case, is a finding. Another place is checked
   by a grep for what the diff changes (the function, the text's key, the component, the route), not
   for its words (#310), and a place the PR leaves as it is needs a reason that holds against the
@@ -183,9 +183,10 @@ trusted.
   at the commit the round reviews (a survivor new since the `Mutants` line is accounted for in the
   author's `Fixes for round <n>`): while the run is going, check the rest first and judge the
   survivors once it's there, since the round is posted only with it (the `deputy` skill → 2. Wait
-  for CI). Run `npm run test:mutants`
-  locally only when no report can come for that commit (Actions out of minutes, the job failed), and
-  say so in the round. An `equivalent` that only a test's own reset keeps alive isn't one. The
+  for CI). When a report the round waits for doesn't come, that section says what
+  is posted and what the round reads instead (the author's run quoted in the `Mutants` line with
+  the commit it ran at, once a `CI at` review named the report as one that can't come); on a branch with no PR, run `npm run test:mutants`
+  locally. An `equivalent` that only a test's own reset keeps alive isn't one. The
   `Broken by hand` line covers what the changed lines hold of the list in `docs/TESTING.md` → A test
   that can fail (a dependency array, one operand of a condition, `&&` chains included, a selector's
   alternatives, which value a guard reads, a prop passed down, a text's key, which Stryker never

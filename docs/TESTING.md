@@ -10,7 +10,7 @@ screenshot tests and the smoke journeys. Running and releasing are in
 The rules here that any project could use (choosing a layer and the neighbours of a change, a
 test that can fail, the accepted reasons for something uncovered, what to do with a bug and its
 seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests and tagging its
-findings) are also the quality system's testing component, **version 2.2 (2026-11-20)**, which other
+findings) are also the quality system's testing component, **version 2.3 (2026-11-24)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
 `quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
@@ -49,10 +49,12 @@ Layers 1–5 run on every `npm test` in two Vitest projects (`vite.config.ts`): 
 cleanup, a no-op `window.scrollTo` since jsdom only logs "not implemented" for it); `server` is
 plain Node for the tests its `include` there names: the server's, the integration tests included,
 the TMDB proxy's, the scripts' and those at the root. Tests sit next to the code as
-`*.test.ts(x)` and query by role and accessible name. Two kinds of test don't follow the table's
+`*.test.ts(x)` and query by role and accessible name. Three kinds of test don't follow the table's
 "Where" column. The service worker: its routing rules are plain logic in `src/pwa/swRoutes.ts`
 (layer 1), and `src/sw.test.ts` is a smoke test of `src/sw.ts` with workbox mocked, compiled with
-the worker's `tsconfig.sw.json` rather than the app's. And a check that reads a source file as
+the worker's `tsconfig.sw.json` rather than the app's, layer 3 as a module's wiring with what it
+calls mocked (#570). A test of a function that imports no React, DOM or Node API is layer 1
+wherever its module is: a helper in `server/` (#515) or one a hook's module exports (#571). And a check that reads a source file as
 text (the tokens and the raw px values, colors, shadows and motion in the stylesheets, and the custom properties they use, `src/styles/tokens.test.ts`; the poll ring's
 keyframes, in `PollRing.test.tsx`) is layer 1 wherever it sits, although it reads the file through
 `node:fs`: it asserts what the file says, and how that looks is layer 6's (#241). So is a lint
@@ -83,7 +85,7 @@ here, and a layer named wrong keeps the review from checking that it's the lowes
 
 ## Choosing a layer
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 A change is every new behavior and every new branch, error paths included: a status mapped to a
 message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
@@ -328,8 +330,11 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 (`gh api 'repos/{owner}/{repo}/commits/<sha>/check-runs?check_name=Mutants%20report' --jq
 '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and is posted only
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
-for CI). The reviewer runs `npm run test:mutants` locally only when no report can
-come for that commit (Actions out of minutes, the job failed), and says so in the round. A branch
+for CI). When a report the round waits for doesn't come (the job failed, timed out, or is still
+missing after that wait), that section says what is posted and what the round reads instead,
+the author's own run quoted in the `Mutants` line with its commit once a `CI at` review named the
+report as one that can't come; a
+branch with no PR runs `npm run test:mutants` locally. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
 Stryker runs with (`package.json`, the lockfile, `stryker.config.mjs`, `checks.json`, `vite.config.ts`, the
@@ -445,10 +450,16 @@ of these:
   with a bogus credential that the service refuses only after the tool has resolved its target
   (#258's `wrangler secret put` with a bogus token named the worker each matrix entry reaches), so
   a missing credential isn't a reason on its own. A run that can only come later (at the next
-  tag, on a day with steps of its own) is named in the PR as the check of that change, with what
+  tag, on a day with steps of its own, a platform's behavior only a deploy shows, as Workers Cache
+  keeping one answer per origin for #565, or a build's wiring that no stand runs until the issue
+  adding one lands, as #567's entry module before #563's journeys) is named in the PR as the check
+  of that change, with what
   stays in place until it's green: the old token and the old deploy key stay until the first run
   through the `deploy` environment passed, since "can't run here" holds for the PR and not for the
   day it hands the run to (#291). "CI and config" is what decides nothing.
+- **The tests' own code:** a stand, a fake or a fixture a test runs on is checked by the tests
+  that run on it; a branch of it that none of them takes is run once by hand, and the PR says how
+  (#576's WebUI stand). A fake's agreement with the real service is check E's, not this reason's.
 
 A behavior removed on purpose isn't uncovered: the PR's What and SPEC's decision log name it, and
 the review finds it there rather than in a test that still asserts it (#231's rail tooltip).
@@ -460,7 +471,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
@@ -548,7 +559,7 @@ journey now presses the real Escape it had skipped.
 
 ## Known blind spots
 
-*The rule in this section's first paragraph is the testing component's, version 2.2 ([above](#testing)); the table is Kinopeer's.*
+*The rule in this section's first paragraph is the testing component's, version 2.3 ([above](#testing)); the table is Kinopeer's.*
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
@@ -751,7 +762,7 @@ here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 Three steps, each by whoever can do it best:
 
@@ -774,7 +785,10 @@ Three steps, each by whoever can do it best:
    since a claim by meaning has no name to grep (#257's Search paragraph still said "as in
    Downloads, on both layouts"). Each claim is checked against what it describes:
    the code and the tree; the service's own documentation page, opened rather than remembered
-   (#299's social preview rule, #300's name of a GitHub option); the words the UI shows (#287's
+   (#299's social preview rule, #300's name of a GitHub option), with each statement the diff
+   makes about another system listed in the PR's Docs section beside where it was checked, the run
+   or the page (#513's, #524's and #577's install docs drew about 65 findings in the 2026-11-24
+   batch, many of them claims about Docker, Unraid, its app catalog or qBittorrent); the words the UI shows (#287's
    alt text named the filters otherwise); the doc it points at (README against SPEC); and a step
    in a checklist, whose pointer resolves and whose check can pass as written (#300 pointed at
    "steps 3 to 6" of a five-step description). The changelog's entry names every change a user sees
@@ -787,7 +801,15 @@ Three steps, each by whoever can do it best:
    #379 a size measured over a stale `node_modules`). A dated record (SPEC's decision log, a retro's row, a trial's report) keeps its numbers as
    of its date. Each list the change adds to gets the new item (SPEC's decision log,
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
-   meant to write.
+   meant to write. So once the work is done, before the PR is marked ready, `/code-review`
+   runs on the branch in a fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
+   the context that calls it), each bug it finds in the PR's own change fixed, red test first
+   (below), and any other finding fixed or declined in the PR's `Code review` line, which names the commit
+   it ran at, with why: in the batch the retro of 2026-11-24 read, the
+   deputy's rounds found 63 blocking `A·clear` findings, mostly bugs in PRs' own changes (an edge, a
+   case named in Neighbours that no test ran, a request that outlives its screen), many of them through its
+   `/code-review`, and each cost a round of CI, mutants and review that a run before the first
+   round can save.
 2. **The deputy reviews**: a cloud routine that acts as the owner's GitHub account, the one
    reviewer and approver of every PR, woken when the PR is marked ready for review. How it reviews,
    posts its rounds, judges the checks guard's marks, and what it leaves to the coordinator and the
@@ -868,7 +890,7 @@ before it.
 
 ## Improving the system
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 The rules in this file, the skill and the PR template are a system that should need less and less
 correcting. Every review finding says something about it: either the author slipped on a clear

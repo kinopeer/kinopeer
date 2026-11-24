@@ -85,11 +85,22 @@ report and another after it would split the round in two.
   author's turn, and a full round over a red head would be repeated.
 - **Still missing after its wait:** the same, naming the checks you didn't see finish. The
   author marks the PR ready again once they have.
+- **A `Mutants report` that can't come** for a reason no fix of the branch answers (the job timed
+  out on a big diff, Actions can't run it): the `CI at` review above names the report as one that
+  can't come, and why, and asks for the author's own run. The author runs `npm run test:mutants` at
+  the head and quotes its output in the PR's `Mutants` line, with the commit it ran at. Only after
+  such a `CI at` review of this PR, at this head or an earlier one, does this bullet take the place of the two
+  above for the `Mutants report`, once the quote names the head: the round doesn't wait for the
+  report, checks the quote's commit against the head, and judges K's survivors from the quote,
+  saying so. A quote of another commit is still missing, and a `Mutants report` that is there at
+  the head as the round is posted wins over the quote.
 
 ## 3. The round
 
 **Round 1** is `/test-review <n>` and `/code-review` on the PR, then a read of its risky parts
-yourself: what the diff changes in the server, the bridges, the workflows and the checks.
+yourself: what the diff changes in the server, the bridges, the workflows and the checks. A
+`/code-review` finding the PR's `Code review` line already declined is judged on that reason, as
+an author's declined finding is, not raised anew.
 
 **Round 2 and later** start from the author's `Fixes for round <n>` comment. Your last round
 (see Ground rules) gives the round's number and the commit it saw. Review what changed since that
@@ -106,8 +117,9 @@ its own. For each mark it answers `sound` or `weakening`, with a line on why:
 - *An assertion rewritten or removed:* the new one is no weaker, or the behavior the old one
   checked is gone from the code too.
 - *A test gone or renamed:* what it claimed is checked elsewhere now, by a test it names.
-- *A budget raised:* the measurement holds, and the budget can't be met otherwise
-  (`docs/QUALITY.md` → the budgets).
+- *A budget raised:* the measurement holds, the budget can't be met otherwise, and the new one
+  leaves no more room than its section gives (`docs/QUALITY.md` → the budgets: about 5% for the
+  size budgets).
 - *A design value:* the tokens' scale really lacks it.
 - *Any other mark* (a threshold, a lint rule, a CI step, a condition, a config): the check still
   catches what it caught before.
