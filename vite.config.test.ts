@@ -36,10 +36,11 @@ afterEach(async () => {
 
 const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
 /**
- * Where a server listens: from a random port below every system's ephemeral range (Linux's starts at 32768,
- * macOS's at 49152), moving to the next while one is taken. Not port 0: there Vite takes an ephemeral port by
- * opening and closing a socket of its own, then listens on it, and a socket another test file's worker opens on
- * port 0 in between can be handed that port, which fails the start (#516, seen on CI's Linux).
+ * Where a server listens: from a random port below the default ephemeral ranges (Linux's starts at 32768,
+ * macOS's at 49152), so a socket another test file's worker opens on port 0 is rarely handed it, and with
+ * `strictPort` off, so a port taken between Vite's check and its bind moves it to the next one rather than
+ * failing the start. Not port 0: there Vite takes an ephemeral port by opening and closing a socket of its
+ * own, then listens on it, and throws when another socket got that port in between (#516, seen on CI's Linux).
  */
 const listening = () => ({ port: 20_000 + Math.floor(Math.random() * 10_000), host: '127.0.0.1', strictPort: false })
 
@@ -110,8 +111,22 @@ describe('vite.config.ts', () => {
 
   // What keeps a port taken by another test file's worker from failing a start (#516).
   it('starts the dev server on the next port when the one it starts from is taken', async () => {
+    // A port from the same range, not port 0, which may hand out 65535 and leave Vite no port after it.
     const taken = createNetServer()
-    await new Promise<void>((resolve) => taken.listen(0, '127.0.0.1', resolve))
+    for (;;) {
+      try {
+        await new Promise<void>((resolve, reject) => {
+          taken.once('error', reject)
+          taken.listen(listening().port, '127.0.0.1', () => {
+            taken.off('error', reject)
+            resolve()
+          })
+        })
+        break
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw error
+      }
+    }
     closers.push(() => new Promise<void>((resolve) => taken.close(() => resolve())))
     const port = (taken.address() as AddressInfo).port
     const server = await createServer({ ...options, server: { ...listening(), port, watch: null }, optimizeDeps: { noDiscovery: true } })
