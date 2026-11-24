@@ -6,6 +6,7 @@ import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { readRefreshInterval, stateLag } from '../torrents/stateLag'
 import { downloadStatus, isRunning, withRunning } from '../torrents/status'
 import type { Settled } from '../torrents/torrentRequests'
+import { qbtFailedText } from '../lib/unreachable'
 import { TOAST_KEYS } from './toastKeys'
 import { useTorrentAction, type ActionWatcher } from './useTorrentAction'
 
@@ -48,7 +49,7 @@ export function usePauseResume(watcher?: ActionWatcher): PauseResume {
         { expect: (torrent) => withRunning(torrent, running), hold: stateLag },
       )
       if (settled && !settled.ok && !settled.showing) {
-        toast.show(t('common.qbtFailed'), { icon: 'alert', key: TOAST_KEYS.pauseResume })
+        toast.show(qbtFailedText(t, settled.error), { icon: 'alert', key: TOAST_KEYS.pauseResume })
       }
       return settled
     },

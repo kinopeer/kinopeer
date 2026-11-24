@@ -62,7 +62,7 @@ export function useMediaNames({ torrents, listed = torrents, offline, matchOf }:
         neighbours={match.type === 'tv' ? torrentsIn(others, shown, folder) : []}
         offline={offline}
         pending={pending(shown.hash)}
-        failed={failure !== undefined}
+        failure={failure}
         onSend={(change) => void rename(shown, change)}
         onClose={close}
       />

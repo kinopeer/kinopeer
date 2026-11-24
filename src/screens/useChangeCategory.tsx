@@ -4,6 +4,7 @@ import { setCategory, type Torrent } from '../api/qbittorrent'
 import { useToast } from '../components/Toast'
 import { withCategory, type CategoryChange } from '../torrents/categoryChange'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
+import { qbtFailedText } from '../lib/unreachable'
 import { CategorySheet } from './CategorySheet'
 import { useTorrentSheet } from './useTorrentSheet'
 
@@ -41,7 +42,7 @@ export function useChangeCategory({ torrents, offline }: {
       if (change.kind === 'move' && change.folder) toast.show(t('move.moved', { location: change.folder }), { icon: 'folder' })
       else toast.show(t('category.changed'))
     } else if (!settled.showing) {
-      toast.show(t('common.qbtFailed'), { icon: 'alert' })
+      toast.show(qbtFailedText(t, settled.error), { icon: 'alert' })
     }
   }
 
@@ -51,7 +52,7 @@ export function useChangeCategory({ torrents, offline }: {
       torrent={torrent}
       offline={offline}
       pending={pending(torrent.hash)}
-      failed={failure !== undefined}
+      failure={failure}
       onSave={(category, change) => void save(torrent, category, change)}
       onClose={close}
     />

@@ -2,14 +2,15 @@ import { useTranslation } from 'react-i18next'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Dialog } from '../components/Dialog'
+import { qbtFailedText } from '../lib/unreachable'
 
 export interface RecheckDialogProps {
   /** What the torrent is called on screen: the TMDB title or the release name. */
   title: string
   /** A recheck for the torrent is on its way, sent from here or elsewhere. */
   busy: boolean
-  /** The last recheck failed while this showed the torrent. */
-  failed: boolean
+  /** The last recheck failed while this showed the torrent, and why. */
+  failure?: { error: unknown }
   onConfirm: () => void
   onClose: () => void
 }
@@ -19,7 +20,7 @@ export interface RecheckDialogProps {
  * checking until it's done, and pieces that fail the check are downloaded again. `useRecheck` renders
  * it and sends the recheck.
  */
-export function RecheckDialog({ title, busy, failed, onConfirm, onClose }: RecheckDialogProps) {
+export function RecheckDialog({ title, busy, failure, onConfirm, onClose }: RecheckDialogProps) {
   const { t } = useTranslation()
   return (
     <Dialog
@@ -39,7 +40,7 @@ export function RecheckDialog({ title, busy, failed, onConfirm, onClose }: Reche
       }
     >
       <p className="t-body c2">{t('torrent.recheckBody', { title })}</p>
-      {failed && <Banner tone="error">{t('common.qbtFailed')}</Banner>}
+      {failure && <Banner tone="error">{qbtFailedText(t, failure.error)}</Banner>}
     </Dialog>
   )
 }

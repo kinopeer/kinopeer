@@ -5,6 +5,7 @@ import * as api from '../api/qbittorrent'
 import type { Torrent, TorrentFile } from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { DUNE_TORRENT, duneFiles, duneTorrent, torrent } from '../test/fixtures'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { saying } from '../test/render'
 import { resetSettings, updateSettings } from '../settings/settings'
 import { readTorrentFile } from '../torrents/torrentFile'
@@ -591,4 +592,26 @@ describe('useMediaNames', () => {
     await userEvent.click(screen.getByRole('button', { name: `Open ${DUNE.hash}` }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Name for a media server, when the files can’t be loaded', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getTorrentFiles.mockRejectedValue(error)
+    const { open } = renderNames()
+    return within(await open()).findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('Name for a media server, when the renames fail', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    renameFiles.mockRejectedValue(error)
+    const { open } = renderNames()
+    const sheet = await open()
+    await userEvent.click(await within(sheet).findByRole('button', { name: 'Rename' }))
+    return within(sheet).findByRole('alert')
+  },
+  says: { kinopeer: 'Kinopeer stopped answering', service: 'qBittorrent didn’t rename every file' },
 })

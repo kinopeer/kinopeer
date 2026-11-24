@@ -1,10 +1,11 @@
 import { useId, useState, type FormEvent } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { Torrent } from '../api/qbittorrent'
+import { unreachable, type Torrent } from '../api/qbittorrent'
 import { Banner } from '../components/Banner'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Sheet } from '../components/Sheet'
+import { unreachableText } from '../lib/unreachable'
 import { changedLimit, isUnfinished, limitToField, MAX_MB, MIN_MB, ownLimits } from '../torrents/speedLimits'
 import './SpeedLimitsSheet.css'
 
@@ -22,8 +23,8 @@ export interface SpeedLimitsSheetProps {
   /** The limits being saved for this torrent, from this sheet or one closed before it opened, which
    *  this one then starts from. */
   pending?: SpeedLimitsChange
-  /** The last save failed, having sent these limits: qBittorrent may have taken some. */
-  failure?: SpeedLimitsChange
+  /** The last save failed, having sent these limits (qBittorrent may have taken some), and why. */
+  failure?: { sent: SpeedLimitsChange; error: unknown }
   /** Sends the changed limits; the screen closes the sheet once qBittorrent took them. */
   onSave: (limits: SpeedLimitsChange) => void
   /** Closed without saving: dismissed, or nothing changed. */
@@ -51,8 +52,8 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
   const saving = pending !== undefined
   // A field a failed save sent goes out again even when its text is back as it was, since
   // qBittorrent may have taken it.
-  const download = changedLimit(initial.download, text.download, failure?.download !== undefined)
-  const upload = changedLimit(initial.upload, text.upload, failure?.upload !== undefined)
+  const download = changedLimit(initial.download, text.download, failure?.sent.download !== undefined)
+  const upload = changedLimit(initial.upload, text.upload, failure?.sent.upload !== undefined)
   const limits = { download, upload }
   const valid = download !== null && upload !== null
   const invalid = t('limits.invalid', { min: MIN_MB.toLocaleString(language), max: MAX_MB })
@@ -116,7 +117,7 @@ export function SpeedLimitsSheet({ torrent, title, offline, pending, failure, on
             {t('limits.remove')}
           </Button>
         )}
-        {failure && <Banner tone="error">{t('limits.failed')}</Banner>}
+        {failure && <Banner tone="error">{t('limits.failed', { context: unreachableText(unreachable(failure.error)) })}</Banner>}
       </form>
     </Sheet>
   )

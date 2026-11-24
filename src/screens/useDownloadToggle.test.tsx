@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import { ToastProvider } from '../components/Toast'
 import { torrent } from '../test/fixtures'
-import { saying } from '../test/render'
+import { namesTheFailedLink } from '../test/failedLinks'
+import { qbittorrentDown, saying } from '../test/render'
 import { REQUEST_KINDS } from '../torrents/requestKinds'
 import { DEFAULT_REFRESH_INTERVAL_MS, STATE_LAG_MARGIN_MS, resetStateLag } from '../torrents/stateLag'
 import { TorrentRequestsProvider } from '../torrents/TorrentRequestsProvider'
@@ -189,7 +190,7 @@ describe('useDownloadToggle', () => {
   })
 
   it('says a failure in a toast, which the next try takes back', async () => {
-    toggleSequentialDownload.mockRejectedValueOnce(new TypeError('Failed to fetch')).mockReturnValueOnce(new Promise(() => {}))
+    toggleSequentialDownload.mockRejectedValueOnce(qbittorrentDown()).mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
     expect(await act(() => result.current.set(DUNE, true))).toMatchObject({ ok: false })
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
@@ -199,7 +200,7 @@ describe('useDownloadToggle', () => {
   })
 
   it('keeps one switch’s failure when the other is tried', async () => {
-    toggleSequentialDownload.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+    toggleSequentialDownload.mockRejectedValueOnce(qbittorrentDown())
     toggleFirstLastPiecePrio.mockReturnValueOnce(new Promise(() => {}))
     const { result } = renderHook(() => ({ seq: useDownloadToggle('seq_dl'), pieces: useDownloadToggle('f_l_piece_prio') }), {
       wrapper: Providers,
@@ -212,10 +213,32 @@ describe('useDownloadToggle', () => {
   })
 
   it('says a failed read of the torrent as a failure too', async () => {
-    getTorrents.mockRejectedValue(new TypeError('Failed to fetch'))
+    getTorrents.mockRejectedValue(qbittorrentDown())
     const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
     expect(await act(() => result.current.set(DUNE, true))).toMatchObject({ ok: false })
     expect(toggleSequentialDownload).not.toHaveBeenCalled()
     expect(await screen.findByRole('status', { name: saying(FAILED) })).toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('Sequential download’s toast, when the switch fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    toggleSequentialDownload.mockRejectedValue(error)
+    const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
+    await act(() => result.current.set(DUNE, true))
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
+})
+
+namesTheFailedLink('Sequential download’s toast, when reading the torrent first fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    getTorrents.mockRejectedValue(error)
+    const { result } = renderHook(() => useDownloadToggle('seq_dl'), { wrapper: Providers })
+    await act(() => result.current.set(DUNE, true))
+    return screen.findByRole('status', { name: saying(/Couldn’t reach/) })
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })

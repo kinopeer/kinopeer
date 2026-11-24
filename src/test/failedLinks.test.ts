@@ -13,6 +13,7 @@ import { parseSync } from 'vite'
 const READERS = new Set([
   'unreachable',
   'unreachableText',
+  'qbtFailedText',
   'KinopeerUnreachableError',
   'QbittorrentError',
   'TmdbError',
@@ -28,6 +29,21 @@ const READERS = new Set([
 
 /** Each place, by its module, and the test file that runs its check. */
 const PLACES: Record<string, string> = {
+  // The confirmations and sheets of torrent actions, checked through the hooks that show them.
+  'src/screens/CategorySheet.tsx': 'src/screens/useChangeCategory.test.tsx',
+  'src/screens/DeleteTorrentDialog.tsx': 'src/screens/useDeleteTorrents.test.tsx',
+  'src/screens/MediaNamesSheet.tsx': 'src/screens/useMediaNames.test.tsx',
+  'src/screens/RecheckDialog.tsx': 'src/screens/useRecheck.test.tsx',
+  'src/screens/SpeedLimitsSheet.tsx': 'src/screens/useSpeedLimits.test.tsx',
+  'src/screens/TorrentActionsSheet.tsx': 'src/screens/TorrentActionsSheet.test.tsx',
+  // The torrent actions' toasts.
+  'src/screens/useChangeCategory.tsx': 'src/screens/useChangeCategory.test.tsx',
+  'src/screens/useDeleteTorrents.tsx': 'src/screens/useDeleteTorrents.test.tsx',
+  'src/screens/useDownloadToggle.ts': 'src/screens/useDownloadToggle.test.tsx',
+  'src/screens/useNotifyToggle.ts': 'src/screens/useNotifyToggle.test.tsx',
+  'src/screens/usePauseResume.ts': 'src/screens/usePauseResume.test.tsx',
+  'src/screens/useReannounce.ts': 'src/screens/useReannounce.test.tsx',
+  'src/screens/useRecheck.tsx': 'src/screens/useRecheck.test.tsx',
   'src/components/Sidebar/SidebarStatus.tsx': 'src/components/Sidebar/Sidebar.test.tsx',
   'src/screens/AddReleaseSheet.tsx': 'src/screens/AddReleaseSheet.test.tsx',
   'src/screens/ChangeTitleSheet.tsx': 'src/screens/ChangeTitleSheet.test.tsx',
@@ -58,6 +74,7 @@ const NOT_PLACES: Record<string, string> = {
   'src/api/qbittorrent/transport.ts': 'a client: what it throws is a row of WAYS',
   'src/api/qbittorrent/webui.ts': 'a client: what it throws is a row of WAYS',
   'src/api/tmdb/transport.ts': 'a client: what it throws is a row of WAYS',
+  'src/lib/unreachable.ts': 'the reading itself (`unreachableText`, `qbtFailedText`), checked through each place that says it',
   'src/releases/addRelease.ts': 'throws what qBittorrent refused; the add sheet says it',
   'src/screens/useReleases.ts': 'reads who failed the search for ReleasesBlock, whose check runs through it',
   'src/session/useQbitSession.ts': 'reads who failed the session check for the connect screens, whose checks give them its reading',

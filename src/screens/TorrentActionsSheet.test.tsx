@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as api from '../api/qbittorrent'
 import type { Torrent } from '../api/qbittorrent'
 import { stubDesktop } from '../lib/stubDesktop'
+import { namesTheFailedLink } from '../test/failedLinks'
 import { renderWithRouter, saying } from '../test/render'
 import type { TitleMatch } from '../torrents/titleLookup'
 import * as titleMatches from '../torrents/useTitleMatches'
@@ -446,4 +447,15 @@ describe('TorrentActionsSheet on a phone', () => {
     expect(handlers.onClose).not.toHaveBeenCalled()
     expect(screen.queryByRole('status', { name: saying('Couldn’t reach qBittorrent. Try again.') })).not.toBeInTheDocument()
   })
+})
+
+namesTheFailedLink('The More menu, when an action it shows fails', {
+  service: 'qbittorrent',
+  show: async (error) => {
+    vi.mocked(api.startTorrents).mockRejectedValue(error)
+    renderActions()
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Resume' }))
+    return screen.findByRole('alert')
+  },
+  says: { kinopeer: 'Couldn’t reach Kinopeer', service: 'Couldn’t reach qBittorrent' },
 })
