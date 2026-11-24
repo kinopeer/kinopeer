@@ -197,8 +197,31 @@ trusted.
 
 ## 4. Report
 
-Findings first, most severe first: blocking (B, D, E with a drift, I missing, K, A without a
-reason), then should-fix (C, F, G, H), then nits. Each defect is one finding under one check:
+Findings first, most severe first: blocking (B, D, E with a drift, I missing, K but for an
+account alone that you checked yourself, A without a reason), then should-fix (C, F, G, H, and K for the account alone when
+you checked the claim yourself), then nits. A finding of H or F holds the merge only when something
+would go wrong had nobody found it, since each one that holds it costs a round of fixes, and one
+where nothing would is a nit; the other checks keep the severity above:
+- **H:** show what would go wrong by naming who would read the text and the wrong step or belief
+  they'd take from it (a setup or release step run as written, a variable set, a review rule
+  applied, code written against a comment on code in use, a claim about security trusted).
+  Wording, a comment's place, a changelog entry's wording or detail that still names the change
+  correctly (one that claims more than the code does stays should-fix), a stale note the reader
+  still gets right, the phrasing of the description are nits.
+- **F:** duplication and structure (a literal, a fixture or a block written twice, cases that
+  could be one `it.each`, a comment's wording or place, a setting that does nothing) are nits. An
+  assertion weaker than its claim stays should-fix: a count of calls or elements where the
+  outcome can be named, text found by text where nothing else pins its role or description, a
+  real-time wait, a title or comment that says a state is checked when it isn't.
+- **K:** what the `Tests`, `Mutants` and `Broken by hand` lines say is K's, not H's. When only
+  that account is wrong and you checked the claim yourself (the test does go red with the code
+  broken, the survivor is equivalent), it's should-fix rather than blocking, and not a nit: a
+  round with nothing but nits approves and the PR merges with the account as it is, which the
+  retro reads. A survivor or a claim with no break that leaves behavior untested stays blocking.
+
+Why, with the sample behind it: the retro of 2026-11-24's row in `docs/QUALITY.md`.
+
+Each defect is one finding under one check:
 a new sheet or state without a baseline is G, not also A. One line per finding: `file:line`, the defect,
 the rule (a few words from `docs/TESTING.md`), the fix, and the tag `[<check> · <rule>]`, or
 `[<check> · gap: <reason>]` with what the missing rule would say: the
