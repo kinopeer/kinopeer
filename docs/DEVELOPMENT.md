@@ -1,6 +1,6 @@
 # Development
 
-How to run Kinopeer locally, how the server is configured and how a release goes out. The architecture is mapped in [ARCHITECTURE.md](ARCHITECTURE.md), an area a file in [`.claude/rules/architecture/`](../.claude/rules/architecture/), the conventions in [CLAUDE.md](../CLAUDE.md).
+How to run Kinopeer locally, how the server is configured and how a release goes out. The architecture is mapped in [ARCHITECTURE.md](ARCHITECTURE.md), an area a file in [`.claude/rules/architecture/`](../.claude/rules/architecture/), the CI in [`.claude/rules/ci.md`](../.claude/rules/ci.md), the conventions in [CLAUDE.md](../CLAUDE.md).
 
 ## Requirements
 

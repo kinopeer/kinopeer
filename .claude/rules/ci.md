@@ -6,6 +6,8 @@ paths:
   - "checks.test.ts"
   - "stryker.config.mjs"
   - "package.json"
+  - "tmdb-proxy/package.json"
+  - ".oxlintrc.json"
   - "Dockerfile"
 ---
 

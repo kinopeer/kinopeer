@@ -6,11 +6,12 @@ paths:
   - "src/lib/**"
   - "src/search/**"
   - "src/logic/{sharedRequests,saves,sortOrder}*"
+  - "src/styles/base.css"
   - "src/api/settings/client.ts"
   - "server/static.ts"
 ---
 
-# Routing, the desktop Downloads, toasts and how a screen loads and saves
+# Routing, the desktop Downloads, overlays, toasts and how a screen loads and saves
 
 ## Routing
 

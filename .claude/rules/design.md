@@ -4,6 +4,7 @@ paths:
   - "src/**/*.tsx"
   - "src/lib/{breakpoints,useIsDesktop,stubDesktop}.ts"
   - "e2e/**"
+  - "src/styles/**"
 ---
 
 # Styles and layout in code
