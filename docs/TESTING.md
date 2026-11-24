@@ -715,8 +715,8 @@ own way, so one check runs every way to fail through every place (#600):
 What it doesn't see, so review does:
 
 - A place with one fixed text for every failure that imports none of `READERS`, such as most
-  torrent actions' "Couldn't reach qBittorrent" (`common.qbtFailed`): it reads no failure, so the
-  registry can't tell it shows one.
+  torrent actions' "Couldn't reach qBittorrent" (`common.qbtFailed`, #611): it reads no failure,
+  so the registry can't tell it shows one.
 - A second place in a module already listed: the registry knows modules, not each spot in them.
 - Why a service didn't answer (`failureText`'s causes) as against who: the check reads who.
 - The forms that save a connection through the settings client (`QbittorrentLoginForm`,
