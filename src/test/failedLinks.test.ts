@@ -72,9 +72,9 @@ const NOT_PLACES: Record<string, string> = {
 
 const isTest = (path: string) => /\.test\.tsx?$/.test(path) || path.startsWith('src/test/') || path === 'src/test-setup.ts'
 
-/** The names a module imports as values. */
-function importedValues(path: string): string[] {
-  const { module, errors } = parseSync(path, readFileSync(path, 'utf8'))
+/** The names a module imports as values, by the names their modules export them under. */
+function importedValues(path: string, source = readFileSync(path, 'utf8')): string[] {
+  const { module, errors } = parseSync(path, source)
   expect(errors, path).toEqual([])
   return module.staticImports.flatMap((declaration) =>
     declaration.entries.flatMap((entry) => (!entry.isType && entry.importName.kind === 'Name' ? [entry.importName.name!] : [])),
@@ -88,6 +88,22 @@ function readingModules(): string[] {
     .filter((path) => importedValues(path).some((name) => READERS.has(name)))
     .sort()
 }
+
+describe('what the registry reads as importing a reader', () => {
+  it.each([
+    ['a named import', "import { unreachable } from '../api/qbittorrent'", ['unreachable']],
+    ['a named import under another name, by the name it is exported under', "import { unreachable as who } from '../api/qbittorrent'", ['unreachable']],
+    ['a default import beside named ones, the named ones only', "import client, { TmdbError } from '../api/tmdb'", ['TmdbError']],
+    ['a type-only import', "import type { QbittorrentError } from '../api/qbittorrent'", []],
+    ['a type-only name among values', "import { type QbittorrentError, unreachable } from '../api/qbittorrent'", ['unreachable']],
+    ['a re-export, which is no import', "export { unreachable } from '../api/qbittorrent'", []],
+    // The blind spots (docs/TESTING.md → Places that name a failed link): none in src/ today.
+    ['a namespace import', "import * as api from '../api/qbittorrent'", []],
+    ['a dynamic import', "const api = await import('../api/qbittorrent')", []],
+  ])('%s: %s', (_spelling, source, names) => {
+    expect(importedValues('src/screens/Planted.tsx', source)).toEqual(names)
+  })
+})
 
 describe('the places that name a failed link', () => {
   it('lists every module that reads who failed, as a place with its check or with why it has none, and nothing else', () => {
