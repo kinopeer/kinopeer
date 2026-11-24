@@ -174,6 +174,17 @@ describe('useDeleteTorrents', () => {
     expect(within(dialog).getByRole('button', { name: 'Delete' })).toHaveAttribute('aria-busy', 'true')
   })
 
+  it('opens again without the failure it showed when closed', async () => {
+    deleteTorrents.mockRejectedValue(qbittorrentDown())
+    const { open } = renderScreens()
+    const dialog = await open('Selection')
+    await confirmIn(dialog)
+    expect(await within(dialog).findByRole('alert', { name: saying(FAILED) })).toBeInTheDocument()
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }))
+
+    expect(within(await open('Selection')).queryByRole('alert')).not.toBeInTheDocument()
+  })
+
   it('says a failure in a toast once its confirmation closed, which the next try takes back', async () => {
     let fail = (_error: unknown) => {}
     deleteTorrents
