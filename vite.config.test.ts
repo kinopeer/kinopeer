@@ -41,12 +41,16 @@ const options = { configFile: 'vite.config.ts', logLevel: 'silent' } as const
  * `strictPort` off, so a port taken between Vite's check and its bind moves it to the next one rather than
  * failing the start. Not port 0: there Vite takes an ephemeral port by opening and closing a socket of its
  * own, then listens on it, and throws when another socket got that port in between (#516, seen on CI's Linux).
+ * On Windows a port Hyper-V or WinNAT reserves throws EACCES, which Vite doesn't move past; no CI runs there.
  */
 const listening = () => ({ port: 20_000 + Math.floor(Math.random() * 10_000), host: '127.0.0.1', strictPort: false })
 
-/** `npm run dev` from this config; resolves to its port. `allowedHosts: true` turns Vite's own host check off. */
-async function startDev(base?: string, allowedHosts?: true): Promise<number> {
-  const server = await createServer({ ...options, base, server: { ...listening(), watch: null, allowedHosts }, optimizeDeps: { noDiscovery: true } })
+/**
+ * `npm run dev` from this config; resolves to its port. `allowedHosts: true` turns Vite's own host check off,
+ * and `port` is where it starts looking for a free one.
+ */
+async function startDev({ base, allowedHosts, port }: { base?: string; allowedHosts?: true; port?: number } = {}): Promise<number> {
+  const server = await createServer({ ...options, base, server: { ...listening(), ...(port === undefined ? {} : { port }), watch: null, allowedHosts }, optimizeDeps: { noDiscovery: true } })
   closers.push(() => server.close())
   await server.listen()
   return (server.httpServer!.address() as AddressInfo).port
@@ -92,7 +96,7 @@ describe('vite.config.ts', () => {
 
   // Vite's own allowedHosts refuses such a host first; with it off, the server's check is still there.
   it('runs the server’s host check on the dev and preview servers too', async () => {
-    for (const [server, port] of [['dev', await startDev(undefined, true)], ['preview', await startPreview(true)]] as const) {
+    for (const [server, port] of [['dev', await startDev({ allowedHosts: true })], ['preview', await startPreview(true)]] as const) {
       const rebound = await getWithHost(`http://127.0.0.1:${port}`, '/', { host: 'rebound.example' })
       expect(rebound.status, server).toBe(403)
       expect(rebound.body, server).toBe(refusal('rebound.example'))
@@ -129,11 +133,8 @@ describe('vite.config.ts', () => {
     }
     closers.push(() => new Promise<void>((resolve) => taken.close(() => resolve())))
     const port = (taken.address() as AddressInfo).port
-    const server = await createServer({ ...options, server: { ...listening(), port, watch: null }, optimizeDeps: { noDiscovery: true } })
-    closers.push(() => server.close())
-    await server.listen()
-    const moved = (server.httpServer!.address() as AddressInfo).port
-    expect(moved).not.toBe(port)
+    const moved = await startDev({ port })
+    expect(moved).toBeGreaterThan(port)
     expect((await fetch(`http://127.0.0.1:${moved}/`)).status).toBe(200)
   })
 
@@ -231,7 +232,7 @@ describe('vite.config.ts', () => {
 
   // Vite prefixes public paths with the base when it processes the HTML; the icon is read before that.
   it('inlines the touch icon under a base too', async () => {
-    const page = await (await fetch(`http://127.0.0.1:${await startDev('/sub/')}/sub/`)).text()
+    const page = await (await fetch(`http://127.0.0.1:${await startDev({ base: '/sub/' })}/sub/`)).text()
     expect(/<link rel="apple-touch-icon" href="([^"]+)"/.exec(page)?.[1]).toMatch(/^data:image\/png;base64,/)
   })
 
