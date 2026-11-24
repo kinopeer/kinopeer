@@ -7,6 +7,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 ### Fixed
 
 - When Kinopeer's own server doesn't answer, Move files and Settings → qBittorrent folders say so, as the rest of the app does, rather than that qBittorrent didn't answer. ([#610](https://github.com/kinopeer/kinopeer/issues/610))
+- Naming a movie for a media server no longer nests a subtitle in the movie's folder when an earlier naming stopped partway and left the torrent's files split between the movie's folder and another: it says nothing, as for a series. ([#597](https://github.com/kinopeer/kinopeer/issues/597))
 
 ## 1.3.0 - 2026-11-24
 

@@ -30,6 +30,7 @@ import {
   movieNames,
   parent,
   rootFolder,
+  splitFromFolder,
   stem,
   titleName,
   type FileRename,
@@ -163,18 +164,7 @@ export function seriesNames(files: readonly NamedFile[], title: string, year?: n
   // The id names the show's folder alone: both servers' docs show the episodes without it.
   const show = titleName(title, year, 'tv', tmdbId)
   const episodes = titleName(title, year, 'tv')
-  // Some files in the show's folder and some not, as a rename that stopped partway leaves them:
-  // naming them again would put the show's folder in itself. The folder counts with an id and
-  // without one, since the switch may have turned since (with it off, the id isn't known here), and
-  // files in both are split too.
-  const plain = episodes.toLowerCase()
-  const showFolder = (path: string) => {
-    const first = path.includes('/') ? path.split('/')[0].toLowerCase() : undefined
-    if (first === undefined) return undefined
-    const withId = `${plain} {tmdb-`
-    return first === plain || (first.startsWith(withId) && /^\d+\}$/.test(first.slice(withId.length))) ? first : undefined
-  }
-  if (new Set(files.map((file) => showFolder(file.name))).size > 1) return { named: false, reason: 'split' }
+  if (splitFromFolder(files, episodes)) return { named: false, reason: 'split' }
   const season = single([...read.values()].map((episode) => episode.season))
   // A torrent of one season keeps its other files in that season's folder, so seasons that share
   // the show's folder don't share them; a season's folder of the torrent's becomes naming's own.

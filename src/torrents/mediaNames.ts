@@ -8,7 +8,10 @@
  * video, whose largest is a sample ("sample" as a word in its path), with another video that isn't
  * one over a quarter of the main one's size (parts of a movie, versions of it) or with a disc's
  * folders (BDMV, VIDEO_TS) isn't named, and says why: the word never moves naming to a smaller
- * video (docs/SPEC.md's decision log, 2026-11-23). Every
+ * video (docs/SPEC.md's decision log, 2026-11-23). Neither is one with files split between the
+ * movie's folder (with a TMDB id or without, any id) and another place, as a rename that stopped
+ * partway leaves them (`splitFromFolder`); a folder named for the title as it was then (another TMDB
+ * language, a fixed match) isn't recognised (docs/SPEC.md's decision log, 2026-11-24). Every
  * other file (samples, extras, a release's .nfo) keeps its name and moves into the movie's folder
  * with it, where it was under the torrent's own folder.
  */
@@ -115,6 +118,23 @@ export const belowRoot = (path: string, root: string | undefined) => (root !== u
 
 
 /**
+ * Whether the files are split between a title's folder and another place, as a rename that stopped
+ * partway leaves them: naming them again would put the title's folder in itself. The folder counts
+ * with an id and without one, since the switch may have turned since (with it off, the id isn't known
+ * here), and files in both are split too. `plain` is the folder's name without the id.
+ */
+export function splitFromFolder(files: readonly NamedFile[], plain: string): boolean {
+  const lower = plain.toLowerCase()
+  const withId = `${lower} {tmdb-`
+  const folderOf = (path: string) => {
+    const first = path.includes('/') ? path.split('/')[0].toLowerCase() : undefined
+    if (first === undefined) return undefined
+    return first === lower || (first.startsWith(withId) && /^\d+\}$/.test(first.slice(withId.length))) ? first : undefined
+  }
+  return new Set(files.map((file) => folderOf(file.name))).size > 1
+}
+
+/**
  * The renames that name a movie's files for a media server, from the torrent's files as qBittorrent
  * lists them (its content layout decides whether they're in a folder), or why they aren't named.
  */
@@ -127,6 +147,8 @@ export function movieNames(files: readonly NamedFile[], title: string, year?: nu
   if (!main || SAMPLE.test(main.name)) return { named: false, reason: 'no-video' }
   const second = others.find((file) => !SAMPLE.test(file.name))
   if (second && second.size >= main.size * SECOND_VIDEO_SHARE) return { named: false, reason: 'several-videos' }
+
+  if (splitFromFolder(files, titleName(title, year))) return { named: false, reason: 'split' }
 
   // The video is named as its folder, the id included, as both servers' docs show it.
   const name = titleName(title, year, 'movie', tmdbId)
