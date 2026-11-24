@@ -25,7 +25,8 @@ Not covered: <!-- each part of the diff without a test: the part — an accepted
      the stand or measured, the blind spot and every environment it runs in, the `it` that covers
      it. Or "nothing". -->
 
-Neighbours: <!-- docs/TESTING.md → Choosing a layer. Answer each with the `it` that covers it and
+Neighbours: <!-- docs/TESTING.md → Choosing a layer, and for a heuristic's scope CLAUDE.md →
+     Conventions. Answer each with the `it` that covers it and
      what you broke for exactly that case to see it red, a reason from Not covered, or "doesn't
      apply" and why. A test that stays green with that case broken doesn't answer it. Another
      place: what a grep for the changed function, text key, component or route finds, not for its
@@ -58,8 +59,9 @@ Broken by hand: <!-- what Stryker leaves alone in the changed lines (docs/TESTIN
      diff adds or moves (Stryker leaves strings alone) — and the `it` that failed. Or "none in the
      diff". -->
 
-Code review: <!-- /code-review on the branch at the commit you mark ready, in a subagent that
-     hasn't seen the work (docs/TESTING.md → Reviewing a PR's tests): the count, then each finding you declined and why. Or "no findings". -->
+Code review: <!-- /code-review on the branch before you mark it ready, in a subagent that hasn't
+     seen the work (docs/TESTING.md → Reviewing a PR's tests): the commit it ran at, the count, then
+     each finding you declined and why. Its fixes come after that commit. Or "no findings". -->
 
 Baselines: <!-- each changed or new PNG — what changed and why, intended or a side effect — diff
      looked at | re-rendered with --update-snapshots=all | new, opened. Or "none". A side effect

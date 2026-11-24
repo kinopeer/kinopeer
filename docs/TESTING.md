@@ -10,7 +10,7 @@ screenshot tests and the smoke journeys. Running and releasing are in
 The rules here that any project could use (choosing a layer and the neighbours of a change, a
 test that can fail, the accepted reasons for something uncovered, what to do with a bug and its
 seven `test-gap` classes, keeping a list of blind spots, reviewing a PR's tests and tagging its
-findings) are also the quality system's testing component, **version 2.2 (2026-11-20)**, which other
+findings) are also the quality system's testing component, **version 2.3 (2026-11-24)**, which other
 projects copy. This file is that component's source, not a copy: the component was written from
 it, in project-neutral words, and lives in the owner's private repository (`ai-workspace`,
 `quality-system/testing.md`), which outside contributors can't open, so everything needed to work in
@@ -85,7 +85,7 @@ here, and a layer named wrong keeps the review from checking that it's the lowes
 
 ## Choosing a layer
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 A change is every new behavior and every new branch, error paths included: a status mapped to a
 message, a `.catch` that swallows or reports, an action disabled offline or while busy, a fallback
@@ -331,7 +331,8 @@ comment for a later head, is a review finding. A round reads CI's report at the 
 '.check_runs | max_by(.completed_at) | .output.summary // "no report yet"'`), and is posted only
 once it's there, the rest of the round done while the run is going (the `deputy` skill → 2. Wait
 for CI). When a report the round waits for doesn't come (the job failed, timed out, or is still
-missing after that wait), that section says what is posted and what the round reads instead; a
+missing after that wait), that section says what is posted and what the round reads instead,
+the author's own run quoted in the `Mutants` line with its commit where the report can't come; a
 branch with no PR runs `npm run test:mutants` locally. A branch
 with no production line changed gets Stryker's dry run instead (`--dryRunOnly`: every test once,
 through Stryker's sandbox and instrumenter, nothing mutated), and the workflow also starts on what
@@ -469,7 +470,7 @@ checks the reasons before it looks for missing tests.
 
 ## When we find a bug
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 A bug is two defects: one in the code and one in the tests that let it through. A `fix:` PR answers
 three questions: why it broke, why the tests didn't catch it, and what changes so this class of miss
@@ -557,7 +558,7 @@ journey now presses the real Escape it had skipped.
 
 ## Known blind spots
 
-*The rule in this section's first paragraph is the testing component's, version 2.2 ([above](#testing)); the table is Kinopeer's.*
+*The rule in this section's first paragraph is the testing component's, version 2.3 ([above](#testing)); the table is Kinopeer's.*
 
 What no layer sees. Each is either checked by hand before a release ([RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)
 → Before every release) or knowingly not checked; a bug from one of them is an `environment` miss,
@@ -760,7 +761,7 @@ here after three new calls in one batch (#309, #323, #334).
 
 ## Reviewing a PR's tests
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 Three steps, each by whoever can do it best:
 
@@ -799,10 +800,11 @@ Three steps, each by whoever can do it best:
    #379 a size measured over a stale `node_modules`). A dated record (SPEC's decision log, a retro's row, a trial's report) keeps its numbers as
    of its date. Each list the change adds to gets the new item (SPEC's decision log,
    newest first, the blind spots). Rereading one's own tests for judgment finds little: the author sees what they
-   meant to write. So `/code-review` runs on the branch at the commit to be marked ready in a
+   meant to write. So `/code-review` runs on the branch before it's marked ready, in a
    fresh context, a subagent started for it that hasn't seen the work (`/code-review high` reads in
    the context that calls it), each bug it finds in the PR's own change fixed, red test first
-   (below), and any other finding fixed or declined in the PR's `Code review` line with why: in the batch the retro of 2026-11-24 read, the
+   (below), and any other finding fixed or declined in the PR's `Code review` line, which names the commit
+   it ran at, with why: in the batch the retro of 2026-11-24 read, the
    deputy's rounds found 63 blocking `A·clear` findings, mostly bugs in PRs' own changes (an edge, a
    case named in Neighbours that no test ran, a request that outlives its screen), many of them through its
    `/code-review`, and each cost a round of CI, mutants and review that a run before the first
@@ -887,7 +889,7 @@ before it.
 
 ## Improving the system
 
-*The testing component's rules, version 2.2, in Kinopeer's words ([above](#testing)).*
+*The testing component's rules, version 2.3, in Kinopeer's words ([above](#testing)).*
 
 The rules in this file, the skill and the PR template are a system that should need less and less
 correcting. Every review finding says something about it: either the author slipped on a clear
