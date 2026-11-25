@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import worker, { handle, limitKey, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
@@ -154,18 +154,15 @@ describe('TMDB proxy worker', () => {
   // TMDB's configuration without CORS (#617); a later Last-Modified replaces it.
   it('passes none of TMDB’s validators on and dates the answer by when it was made', async () => {
     vi.useFakeTimers({ now: new Date('2026-11-25T10:00:00Z'), toFake: ['Date'] })
-    try {
-      const { call, tmdb } = setup()
-      tmdb.mockResolvedValueOnce(
-        new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
-      )
-      const response = await call('/3/configuration')
+    onTestFinished(() => void vi.useRealTimers())
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(
+      new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
+    )
+    const response = await call('/3/configuration')
 
-      expect(response.headers.has('etag')).toBe(false)
-      expect(response.headers.get('last-modified')).toBe('Wed, 25 Nov 2026 10:00:00 GMT')
-    } finally {
-      vi.useRealTimers()
-    }
+    expect(response.headers.has('etag')).toBe(false)
+    expect(response.headers.get('last-modified')).toBe('Wed, 25 Nov 2026 10:00:00 GMT')
   })
 
   it('dates no answer it keeps out of the cache: an error or a HEAD', async () => {

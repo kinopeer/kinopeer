@@ -197,8 +197,10 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)
   // The time the answer was made, not when TMDB's content last changed: with no ETag, a refresh with a
-  // later Last-Modified replaces the cached entry, the case Cloudflare's Revalidation page documents,
-  // and a browser that keeps the answer still gets a 304 from the cache until it's refreshed.
+  // later Last-Modified replaces the cached entry, the case Cloudflare's Revalidation page documents.
+  // A browser could keep an answer that has one fresh by heuristic (RFC 9111 §4.2.2), for a tenth of
+  // its time since then; one that calls the proxy itself (the WebUI build) gets the cache's Age with
+  // a kept answer, which is always more, and Kinopeer's server passes it on to none (server/tmdb.ts).
   if (cacheable) headers.set('Last-Modified', new Date().toUTCString())
   if (request.method === 'HEAD') {
     // Released rather than left unread, which holds the connection to TMDB until it's collected.
