@@ -199,7 +199,8 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
   // A new ETag for every answer made, so a refresh replaces the cached entry, the case Cloudflare's
   // Revalidation page documents. Not a Last-Modified, which would serve as well: with no max-age, a
   // browser keeps an answer that has one fresh for a tenth of its time since then (RFC 9111 §4.2.2,
-  // Chromium, Firefox and WebKit alike), and the servers of 1.3.0 and before pass it on with no Age.
+  // Chromium, Firefox and WebKit alike), and Kinopeer's server passes it on with no Age, its released
+  // versions too.
   if (cacheable) headers.set('ETag', `W/"${Date.now().toString(36)}"`)
   if (request.method === 'HEAD') {
     // Released rather than left unread, which holds the connection to TMDB until it's collected.

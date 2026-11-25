@@ -165,7 +165,7 @@ describe('TMDB proxy worker', () => {
     expect(response.headers.get('etag')).toBe(`W/"${Date.parse('2026-11-25T10:00:00Z').toString(36)}"`)
     expect(response.headers.has('last-modified')).toBe(false)
     vi.setSystemTime(new Date('2026-11-25T10:00:01Z'))
-    expect((await call('/3/configuration')).headers.get('etag')).not.toBe(response.headers.get('etag'))
+    expect((await call('/3/configuration')).headers.get('etag')).toBe(`W/"${Date.parse('2026-11-25T10:00:01Z').toString(36)}"`)
   })
 
   it('gives no ETag to an answer it keeps out of the cache: an error or a HEAD', async () => {
