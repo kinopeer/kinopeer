@@ -21,6 +21,7 @@
  * (docs/SPEC.md's decision log, 2026-11-22).
  */
 import { isPrivateOrigin } from '../src/logic/privateOrigin.ts'
+import { retryAfterSeconds } from '../src/logic/retryAfter.ts'
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
 export interface Env {
@@ -65,30 +66,13 @@ const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'gues
 
 /**
  * TMDB's response headers passed on as sent; its own Cache-Control is replaced by the proxy's, and
- * its Retry-After goes through `retryAfter`. Not its
+ * its Retry-After goes through `retryAfterSeconds`, since released clients take it as sent. Not its
  * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
  * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
  * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
  * gives its answers an ETag of its own instead (`answer`).
  */
 const RESPONSE_HEADERS = ['content-type']
-
-/**
- * The longest wait of TMDB's passed on, in seconds: the title lookups' own longest
- * (src/torrents/useTitleMatches.ts), as main's client caps it too (src/api/tmdb/transport.ts).
- */
-const MAX_RETRY_AFTER_S = 600
-
-/**
- * How long TMDB's own 429 asks to wait (#619), which the title lookups stop for: whole seconds, at
- * most MAX_RETRY_AFTER_S, or none. Released clients take it as sent, and every install on the
- * proxy's key shares it, so a day or Infinity from TMDB would stall them all; anything that isn't a
- * positive count of seconds (a date, a fraction) is left out, and they wait their own 10 seconds.
- */
-function retryAfter(value: string | null): string | undefined {
-  const seconds = value && /^\d+$/.test(value) ? Number(value) : 0
-  return seconds > 0 ? String(Math.min(seconds, MAX_RETRY_AFTER_S)) : undefined
-}
 
 /** TMDB's terms ask that an application doesn't hide who it is. */
 const USER_AGENT = 'Kinopeer-TMDB-proxy'
@@ -209,8 +193,8 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
     const value = upstream.headers.get(name)
     if (value) headers.set(name, value)
   }
-  const wait = retryAfter(upstream.headers.get('retry-after'))
-  if (wait) headers.set('Retry-After', wait)
+  const wait = retryAfterSeconds(upstream.headers.get('retry-after'))
+  if (wait) headers.set('Retry-After', String(wait))
   // s-maxage, not max-age: Workers Cache is a shared cache and keeps the answer, a browser behind
   // Kinopeer's server doesn't, so the Settings check still asks the proxy. GET and HEAD share a cache
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.

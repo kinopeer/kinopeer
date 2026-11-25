@@ -205,15 +205,12 @@ describe('TMDB proxy worker', () => {
   })
 
   // Released clients take a Retry-After as sent (1.3.0's transport), and every install on the
-  // proxy's key shares TMDB's wait: a day would stop all their lookups for a day, and Infinity would
-  // never end their pause (#619).
+  // proxy's key shares TMDB's wait (#619). The rule itself is retryAfterSeconds'
+  // (src/logic/retryAfter.test.ts); this holds that the worker uses it, for a wait and for none.
   it.each([
     ['a day', '86400', '600'],
-    ['Infinity', 'Infinity', null],
-    ['a date', 'Wed, 25 Nov 2026 10:00:00 GMT', null],
-    ['zero', '0', null],
-    ['a fraction', '1.5', null],
-  ])('passes TMDB’s Retry-After of %s on as at most ten minutes, or not at all', async (_, sent, passed) => {
+    ['the date form', 'Wed, 25 Nov 2026 10:00:00 GMT', null],
+  ])('passes TMDB’s Retry-After of %s on as the shared rule reads it', async (_, sent, passed) => {
     const { call, tmdb } = setup()
     tmdb.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': sent } }))
 

@@ -189,11 +189,9 @@ describe('errors', () => {
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
   })
 
-  // TMDB's own Retry-After reaches every install on the proxy's key (#619): a day would stop the
-  // title lookups for a day, and Infinity would make every later 429 a no-op, since the pause would
-  // never end.
-  it.each(['86400', 'Infinity'])('caps a 429’s wait of %s at ten minutes', async (value) => {
-    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': value, [BRIDGE_HEADER]: '1' } }))
+  // The rule itself is retryAfterSeconds' (src/logic/retryAfter.test.ts); this holds that the client uses it.
+  it('takes a 429’s wait for ten minutes at most', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '86400', [BRIDGE_HEADER]: '1' } }))
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: 600_000 })
   })
 

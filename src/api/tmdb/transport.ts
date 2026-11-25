@@ -7,6 +7,7 @@ import { BRIDGE_HEADER } from '../qbittorrent/transport'
 import { getWebuiSettings, sharedTmdbAvailable } from '../settings/webui'
 import { TMDB_API, authorize } from './direct'
 import { TmdbError, TmdbKeyError, TmdbKeyReadError } from './errors'
+import { retryAfterSeconds } from '../../logic/retryAfter'
 
 /**
  * Sends a GET to `path` under TMDB's API (`/search/multi?query=…`) and resolves with the answer when
@@ -19,19 +20,10 @@ export type TmdbTransport = (path: string, signal?: AbortSignal) => Promise<Resp
 /** Same-origin prefix proxied to the TMDB API; the proxy adds the API key. */
 export const TMDB_BASE = '/tmdb'
 
-/**
- * The longest wait a Retry-After is taken for: TMDB's own reaches every install on the proxy's key
- * (#619), and a day, or Infinity, which would never end the title lookups' pause, isn't one to keep.
- */
-const MAX_RETRY_AFTER_S = 600
-
-/**
- * Retry-After in seconds (Kinopeer's proxy's form; TMDB's docs name none), in milliseconds, at most
- * MAX_RETRY_AFTER_S. The date form reads as none, so the caller's own wait applies.
- */
+/** A 429's Retry-After (`retryAfterSeconds`, one rule with the TMDB proxy), in milliseconds. */
 function retryAfter(response: Response): number | undefined {
-  const seconds = Number(response.headers.get('retry-after') ?? Number.NaN)
-  return seconds > 0 ? Math.min(seconds, MAX_RETRY_AFTER_S) * 1000 : undefined
+  const seconds = retryAfterSeconds(response.headers.get('retry-after'))
+  return seconds === undefined ? undefined : seconds * 1000
 }
 
 function isJson(response: Response): boolean {
