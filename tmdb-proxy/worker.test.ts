@@ -151,8 +151,9 @@ describe('TMDB proxy worker', () => {
   })
 
   // A refresh that repeats the cached ETag may keep the old entry, headers included, which kept
-  // TMDB's configuration without CORS (#617); a later Last-Modified replaces it.
-  it('passes none of TMDB’s validators on and dates the answer by when it was made', async () => {
+  // TMDB's configuration without CORS (#617); a new ETag replaces it. A Last-Modified would let a
+  // browser keep the answer by heuristic, so there's none.
+  it('passes none of TMDB’s validators on and gives each answer an ETag of its own, by when it was made', async () => {
     vi.useFakeTimers({ now: new Date('2026-11-25T10:00:00Z'), toFake: ['Date'] })
     onTestFinished(() => void vi.useRealTimers())
     const { call, tmdb } = setup()
@@ -161,13 +162,15 @@ describe('TMDB proxy worker', () => {
     )
     const response = await call('/3/configuration')
 
-    expect(response.headers.has('etag')).toBe(false)
-    expect(response.headers.get('last-modified')).toBe('Wed, 25 Nov 2026 10:00:00 GMT')
+    expect(response.headers.get('etag')).toBe(`W/"${Date.parse('2026-11-25T10:00:00Z').toString(36)}"`)
+    expect(response.headers.has('last-modified')).toBe(false)
+    vi.setSystemTime(new Date('2026-11-25T10:00:01Z'))
+    expect((await call('/3/configuration')).headers.get('etag')).not.toBe(response.headers.get('etag'))
   })
 
-  it('dates no answer it keeps out of the cache: an error or a HEAD', async () => {
-    expect((await setup({ status: 404 }).call('/3/movie/550')).headers.has('last-modified')).toBe(false)
-    expect((await setup().call('/3/movie/550', { method: 'HEAD' })).headers.has('last-modified')).toBe(false)
+  it('gives no ETag to an answer it keeps out of the cache: an error or a HEAD', async () => {
+    expect((await setup({ status: 404 }).call('/3/movie/550')).headers.has('etag')).toBe(false)
+    expect((await setup().call('/3/movie/550', { method: 'HEAD' })).headers.has('etag')).toBe(false)
   })
 
   it('leaves out a content type TMDB didn’t send', async () => {

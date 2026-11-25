@@ -130,26 +130,6 @@ describe('tmdbMiddleware', () => {
     expect(tmdb.seen[0].url).toBe('/t/p/w342/poster.jpg')
   })
 
-  // A browser keeps an answer with a Last-Modified and no max-age fresh for a while by heuristic
-  // (RFC 9111 §4.2.2), and the bridge passes on no Age that would count the proxy cache's time
-  // against it: the browser would answer Settings' check itself while the proxy fails (#617).
-  it('passes an API answer’s Last-Modified on to no browser, an image’s still', async () => {
-    const proxy = await listen((_request, response) => {
-      response.setHeader('Content-Type', 'application/json')
-      response.setHeader('Cache-Control', 'public, s-maxage=86400')
-      response.setHeader('Last-Modified', 'Wed, 25 Nov 2026 10:00:00 GMT')
-      response.end('{}')
-    })
-    const app = await kinopeer({ proxyBase: `${proxy}/3`, imageBase: `${proxy}/t/p` })
-
-    const api = await fetch(`${app}/tmdb/configuration`)
-    const image = await fetch(`${app}/tmdb-img/w342/poster.jpg`)
-
-    expect(api.headers.get('cache-control')).toBe('public, s-maxage=86400')
-    expect(api.headers.get('last-modified')).toBeNull()
-    expect(image.headers.get('last-modified')).toBe('Wed, 25 Nov 2026 10:00:00 GMT')
-  })
-
   // Passed on as sent, a page in another type would open as Kinopeer's own: HTML, or an SVG (TMDB's
   // logos, uploaded by its users), which can carry a script.
   describe('passes on only the content types the app reads', () => {

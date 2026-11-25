@@ -68,7 +68,7 @@ const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'gues
  * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
  * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
  * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
- * dates its answers itself instead (`answer`).
+ * gives its answers an ETag of its own instead (`answer`).
  */
 const RESPONSE_HEADERS = ['content-type']
 
@@ -196,12 +196,11 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)
-  // The time the answer was made, not when TMDB's content last changed: with no ETag, a refresh with a
-  // later Last-Modified replaces the cached entry, the case Cloudflare's Revalidation page documents.
-  // A browser could keep an answer that has one fresh by heuristic (RFC 9111 §4.2.2), for a tenth of
-  // its time since then; one that calls the proxy itself (the WebUI build) gets the cache's Age with
-  // a kept answer, which is always more, and Kinopeer's server passes it on to none (server/tmdb.ts).
-  if (cacheable) headers.set('Last-Modified', new Date().toUTCString())
+  // A new ETag for every answer made, so a refresh replaces the cached entry, the case Cloudflare's
+  // Revalidation page documents. Not a Last-Modified, which would serve as well: with no max-age, a
+  // browser keeps an answer that has one fresh for a tenth of its time since then (RFC 9111 §4.2.2,
+  // Chromium, Firefox and WebKit alike), and the servers of 1.3.0 and before pass it on with no Age.
+  if (cacheable) headers.set('ETag', `W/"${Date.now().toString(36)}"`)
   if (request.method === 'HEAD') {
     // Released rather than left unread, which holds the connection to TMDB until it's collected.
     await upstream.body?.cancel()

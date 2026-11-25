@@ -43,13 +43,6 @@ const IMAGE_PREFIX = '/tmdb-img/'
 /** Upstream response headers passed on to the browser; the content type goes through `contentType`. */
 // retry-after: how long a 429 (TMDB's, or the proxy's over its limit per IP) asks the client to wait.
 const RESPONSE_HEADERS = ['cache-control', 'last-modified', 'etag', 'expires', 'retry-after']
-/**
- * Passed on only with an image: the proxy dates each answer, with no max-age a browser obeys, and
- * with the Age of its cache left behind here a browser would keep the answer fresh by heuristic
- * (RFC 9111 §4.2.2), answering Settings' check itself while the proxy fails (#617). An image keeps
- * it: its own max-age says how long it's fresh.
- */
-const IMAGE_ONLY_HEADER = 'last-modified'
 
 /**
  * The content types passed on: JSON from the API, raster images from the images. Anything else is
@@ -109,7 +102,7 @@ async function forward(
   response.setHeader('Content-Type', contentType(upstream.headers.get('content-type'), isApi))
   for (const name of RESPONSE_HEADERS) {
     const value = upstream.headers.get(name)
-    if (value && !(isApi && name === IMAGE_ONLY_HEADER)) response.setHeader(name, value)
+    if (value) response.setHeader(name, value)
   }
   if (!upstream.body) return void response.end()
   Readable.fromWeb(upstream.body as ReadableStream<Uint8Array>)
