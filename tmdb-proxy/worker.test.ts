@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, onTestFinished, vi } from 'vitest'
 import worker, { handle, limitKey, type Env } from './worker.ts'
 
 const ORIGIN = 'https://kinopeer-tmdb.example.workers.dev'
@@ -143,21 +143,42 @@ describe('TMDB proxy worker', () => {
     expect((await call('/3/movie/550/recommendations')).headers.get('cache-control')).toBe('public, s-maxage=86400')
   })
 
-  it('passes TMDB’s content type and validators on', async () => {
+  it('passes TMDB’s content type on', async () => {
     const { call } = setup()
     const response = await call('/3/movie/550')
 
     expect(response.headers.get('content-type')).toBe('application/json;charset=utf-8')
-    expect(response.headers.get('etag')).toBe('W/"1"')
   })
 
-  it('leaves out a header TMDB didn’t send', async () => {
+  // A refresh that repeats the cached ETag may keep the old entry, headers included, which kept
+  // TMDB's configuration without CORS (#617); a new ETag replaces it. A Last-Modified would let a
+  // browser keep the answer by heuristic, so there's none.
+  it('passes none of TMDB’s validators on and gives each answer an ETag of its own, by when it was made', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-25T10:00:00Z'), toFake: ['Date'] })
+    onTestFinished(() => void vi.useRealTimers())
     const { call, tmdb } = setup()
-    tmdb.mockResolvedValueOnce(new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
+    tmdb.mockResolvedValueOnce(
+      new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
+    )
+    const response = await call('/3/configuration')
+
+    expect(response.headers.get('etag')).toBe(`W/"${Date.parse('2026-11-25T10:00:00Z').toString(36)}"`)
+    expect(response.headers.has('last-modified')).toBe(false)
+    vi.setSystemTime(new Date('2026-11-25T10:00:01Z'))
+    expect((await call('/3/configuration')).headers.get('etag')).toBe(`W/"${Date.parse('2026-11-25T10:00:01Z').toString(36)}"`)
+  })
+
+  it('gives no ETag to an answer it keeps out of the cache: an error or a HEAD', async () => {
+    expect((await setup({ status: 404 }).call('/3/movie/550')).headers.has('etag')).toBe(false)
+    expect((await setup().call('/3/movie/550', { method: 'HEAD' })).headers.has('etag')).toBe(false)
+  })
+
+  it('leaves out a content type TMDB didn’t send', async () => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(new Response(new Blob(['{}']).stream()))
     const response = await call('/3/movie/550')
 
-    expect(response.headers.has('etag')).toBe(false)
-    expect(response.headers.has('last-modified')).toBe(false)
+    expect(response.headers.has('content-type')).toBe(false)
   })
 
   it('passes TMDB’s error on and keeps it out of the cache', async () => {

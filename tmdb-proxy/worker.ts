@@ -63,8 +63,14 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
  */
 const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'guest_session_id']
 
-/** TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. */
-const RESPONSE_HEADERS = ['content-type', 'etag', 'last-modified']
+/**
+ * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Not its
+ * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
+ * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
+ * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
+ * gives its answers an ETag of its own instead (`answer`).
+ */
+const RESPONSE_HEADERS = ['content-type']
 
 /** TMDB's terms ask that an application doesn't hide who it is. */
 const USER_AGENT = 'Kinopeer-TMDB-proxy'
@@ -190,6 +196,12 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)
+  // A new ETag for every answer made, so a refresh replaces the cached entry, the case Cloudflare's
+  // Revalidation page documents. Not a Last-Modified, which would serve as well: with no max-age, a
+  // browser keeps an answer that has one fresh for a tenth of its time since then (RFC 9111 §4.2.2,
+  // Chromium, Firefox and WebKit alike), and Kinopeer's server passes it on with no Age, its released
+  // versions too.
+  if (cacheable) headers.set('ETag', `W/"${Date.now().toString(36)}"`)
   if (request.method === 'HEAD') {
     // Released rather than left unread, which holds the connection to TMDB until it's collected.
     await upstream.body?.cancel()

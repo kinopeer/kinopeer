@@ -6,7 +6,8 @@
 // - cache: Workers Cache in front of the worker keeps TMDB's answers by the worker's Cache-Control
 //   and runs it only on a miss. Unlike the Cache API, it works on workers.dev too. Shared across worker
 //   versions, since every deploy makes one and a cold cache each time would send every call
-//   to TMDB; a change to what an answer looks like reaches cached ones within their time, a day.
+//   to TMDB; a change to what an answer looks like reaches cached ones within their time, a day,
+//   since the worker passes on no ETag of TMDB's and gives each answer one of its own (worker.ts, #617).
 // - observability off: no request logs, since the proxy sees each install's IP and its searches.
 // - secrets: a deploy fails unless the worker has TMDB_API_KEY, there already or in the deploy's
 //   --secrets-file (.github/workflows/tmdb-proxy.yml), so a worker never goes out without the key.
