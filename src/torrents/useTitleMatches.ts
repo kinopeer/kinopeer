@@ -125,7 +125,7 @@ export const LOOKUP_TIMEOUT_MS = 15_000
  * shared proxy over its limit per IP.
  */
 export const RETRY_DELAYS_MS = [30_000, 120_000, 600_000]
-/** How long a 429 without Retry-After stops the lookups; Kinopeer's proxy asks for 10 s. */
+/** How long a 429 without a Retry-After in whole seconds (`retryAfterSeconds`) stops the lookups; Kinopeer's proxy asks for 10 s. */
 export const RATE_LIMIT_WAIT_MS = 10_000
 
 interface LookupRun {

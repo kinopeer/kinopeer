@@ -189,6 +189,12 @@ describe('errors', () => {
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
   })
 
+  // The rule itself is retryAfterSeconds' (src/logic/retryAfter.test.ts); this holds that the client uses it.
+  it('takes a 429’s wait for ten minutes at most', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': '86400', [BRIDGE_HEADER]: '1' } }))
+    await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: 600_000 })
+  })
+
   it('tells a failure of TMDB, which the server’s bridge answers for, from one that never reached the server', async () => {
     respond({ status_message: 'TMDB is unreachable' }, 502)
     const tmdbFailed = await getMovie(1).catch((error: unknown) => error)

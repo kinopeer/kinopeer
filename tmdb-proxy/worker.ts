@@ -21,6 +21,7 @@
  * (docs/SPEC.md's decision log, 2026-11-22).
  */
 import { isPrivateOrigin } from '../src/logic/privateOrigin.ts'
+import { retryAfterSeconds } from '../src/logic/retryAfter.ts'
 
 /** The worker's bindings (wrangler.jsonc) and secrets. */
 export interface Env {
@@ -64,7 +65,8 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
 const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'guest_session_id']
 
 /**
- * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Not its
+ * TMDB's response headers passed on as sent; its own Cache-Control is replaced by the proxy's, and
+ * its Retry-After goes through `retryAfterSeconds`, since released clients take it as sent. Not its
  * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
  * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
  * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
@@ -191,6 +193,8 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
     const value = upstream.headers.get(name)
     if (value) headers.set(name, value)
   }
+  const wait = retryAfterSeconds(upstream.headers.get('retry-after'))
+  if (wait) headers.set('Retry-After', String(wait))
   // s-maxage, not max-age: Workers Cache is a shared cache and keeps the answer, a browser behind
   // Kinopeer's server doesn't, so the Settings check still asks the proxy. GET and HEAD share a cache
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.

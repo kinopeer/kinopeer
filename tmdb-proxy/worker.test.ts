@@ -189,6 +189,34 @@ describe('TMDB proxy worker', () => {
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 
+  // TMDB limits calls per IP, and every install without a key of its own reaches it from the worker's
+  // addresses: its wait is what the title lookups should stop for, not their fallback (#619).
+  it('passes TMDB’s own 429 on with its Retry-After, kept out of the cache', async () => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(
+      new Response('{}', { status: 429, headers: { 'Retry-After': '30', 'Content-Type': 'application/json' } }),
+    )
+    const response = await call('/3/search/multi?query=alien')
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('30')
+    expect(response.headers.get('content-type')).toBe('application/json')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
+  // Released clients take a Retry-After as sent (1.3.0's transport), and every install on the
+  // proxy's key shares TMDB's wait (#619). The rule itself is retryAfterSeconds'
+  // (src/logic/retryAfter.test.ts); this holds that the worker uses it, for a wait and for none.
+  it.each([
+    ['a day', '86400', '600'],
+    ['the date form', 'Wed, 25 Nov 2026 10:00:00 GMT', null],
+  ])('passes TMDB’s Retry-After of %s on as the shared rule reads it', async (_, sent, passed) => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': sent } }))
+
+    expect((await call('/3/search/multi?query=alien')).headers.get('retry-after')).toBe(passed)
+  })
+
   // A 429 kept by Workers Cache would answer every install, not the IP over its limit.
   it.each([
     ['404', '/3/account', { TMDB_API_KEY: 'v3key', LIMITER: allow }],

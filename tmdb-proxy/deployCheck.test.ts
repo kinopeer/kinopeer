@@ -84,6 +84,14 @@ describe('shouldDeploy', () => {
       expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
     })
 
+    it('leaves the worker when main changed only the Retry-After rule the worker imports from src', () => {
+      const { cwd, commit, at, first } = repo()
+      const newer = commit({ 'src/logic/retryAfter.ts': 'v2' })
+      at(first, newer)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+    })
+
     it('leaves the worker when main has a newer Wrangler config', () => {
       const { cwd, commit, at, first } = repo()
       const newer = commit({ 'tmdb-proxy/wrangler.jsonc': '{ "limit": 50 }' })
