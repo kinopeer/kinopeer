@@ -1,9 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { compareVersionTags, shouldDeploy } from './deployCheck.ts'
+import { PROXY_CODE, compareVersionTags, shouldDeploy } from './deployCheck.ts'
 
 const repos: string[] = []
 
@@ -79,6 +80,14 @@ describe('shouldDeploy', () => {
     it('leaves the worker when main changed only the origin rule the worker imports from src', () => {
       const { cwd, commit, at, first } = repo()
       const newer = commit({ 'src/logic/privateOrigin.ts': 'v2' })
+      at(first, newer)
+
+      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('leaves the worker when main changed only the Retry-After rule the worker imports from src', () => {
+      const { cwd, commit, at, first } = repo()
+      const newer = commit({ 'src/logic/retryAfter.ts': 'v2' })
       at(first, newer)
 
       expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
@@ -216,5 +225,25 @@ describe('compareVersionTags', () => {
     expect(compareVersionTags('v0.7.0-zeta', 'v0.7.0')).toBeLessThan(0)
     expect(compareVersionTags('v0.7.0-rc.10', 'v0.7.0-rc.2')).toBeGreaterThan(0)
     expect(compareVersionTags('v0.7.0-rc.2', 'v0.7.0-rc.10')).toBeLessThan(0)
+  })
+})
+
+// A file the worker imports from outside tmdb-proxy/ that PROXY_CODE leaves out would let a re-run of
+// an older push or tag put its older version back unseen (#619's review). The worker's code is what
+// worker.ts imports, followed through tmdb-proxy/; the folder's scripts (fingerprint.ts) aren't in it.
+describe('PROXY_CODE', () => {
+  it('names every file the worker imports from outside tmdb-proxy/', () => {
+    const folder = dirname(fileURLToPath(import.meta.url))
+    const outside = new Set<string>()
+    const walk = (name: string) => {
+      for (const [, path] of readFileSync(join(folder, name), 'utf8').matchAll(/from '(\.\.?\/[^']+)'/g)) {
+        if (path.startsWith('../')) outside.add(path.slice(3))
+        else walk(path.slice(2))
+      }
+    }
+    walk('worker.ts')
+
+    expect([...outside]).toContain('src/logic/privateOrigin.ts')
+    expect(PROXY_CODE).toEqual(expect.arrayContaining([...outside]))
   })
 })

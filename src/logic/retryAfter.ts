@@ -7,7 +7,7 @@
  * src/torrents/useTitleMatches.ts). A day from TMDB would stop every install's lookups for a day,
  * and Infinity would end their pause at once and leave it open, so later 429s backed off no more.
  */
-export const MAX_RETRY_AFTER_S = 600
+const MAX_RETRY_AFTER_S = 600
 
 /**
  * The wait in `value`, a positive whole number of seconds (Kinopeer's proxy's form; TMDB's docs name

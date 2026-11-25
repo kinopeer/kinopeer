@@ -14,10 +14,15 @@ import { pathToFileURL } from 'node:url'
 
 /**
  * What goes into the worker: `tmdb-proxy/` without its tests, and what it imports from the app's
- * code, the origin rule it shares with the WebUI build. A new import from outside `tmdb-proxy/` goes
- * here too.
+ * code, the origin rule it shares with the WebUI build and the Retry-After rule it shares with the
+ * client. A new import from outside `tmdb-proxy/` goes here too, as a test checks.
  */
-const PROXY_CODE = ['tmdb-proxy', ':(exclude)tmdb-proxy/*.test.ts', 'src/logic/privateOrigin.ts']
+export const PROXY_CODE = [
+  'tmdb-proxy',
+  ':(exclude)tmdb-proxy/*.test.ts',
+  'src/logic/privateOrigin.ts',
+  'src/logic/retryAfter.ts',
+]
 
 /** A version tag, v1.2.3 or v1.2.3-rc.1; other tags starting with v are left out. */
 const VERSION_TAG = /^v(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/
