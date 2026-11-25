@@ -189,6 +189,18 @@ describe('TMDB proxy worker', () => {
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 
+  // TMDB limits calls per IP, and every install without a key of its own reaches it from the worker's
+  // addresses: its wait is what the title lookups should stop for, not their fallback (#619).
+  it('passes TMDB’s own 429 on with its Retry-After, kept out of the cache', async () => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '30' } }))
+    const response = await call('/3/search/multi?query=alien')
+
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('30')
+    expect(response.headers.get('cache-control')).toBe('no-store')
+  })
+
   // A 429 kept by Workers Cache would answer every install, not the IP over its limit.
   it.each([
     ['404', '/3/account', { TMDB_API_KEY: 'v3key', LIMITER: allow }],

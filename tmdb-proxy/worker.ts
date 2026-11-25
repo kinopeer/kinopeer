@@ -64,13 +64,14 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
 const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'guest_session_id']
 
 /**
- * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Not its
+ * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Retry-After is
+ * how long TMDB's own 429 asks to wait, which the title lookups stop for (#619). Not its
  * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
  * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
  * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
  * gives its answers an ETag of its own instead (`answer`).
  */
-const RESPONSE_HEADERS = ['content-type']
+const RESPONSE_HEADERS = ['content-type', 'retry-after']
 
 /** TMDB's terms ask that an application doesn't hide who it is. */
 const USER_AGENT = 'Kinopeer-TMDB-proxy'
