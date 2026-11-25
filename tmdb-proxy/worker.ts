@@ -63,8 +63,14 @@ const ROUTES: readonly (readonly [RegExp, number])[] = [
  */
 const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'guest_session_id']
 
-/** TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. */
-const RESPONSE_HEADERS = ['content-type', 'etag', 'last-modified']
+/**
+ * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Not its
+ * validators: Cloudflare keeps a cached entry whose refresh answers 200 with the same ETag, headers
+ * included, so an entry would keep the headers an older worker gave it for as long as TMDB's ETag
+ * holds (#617). They saved nothing else: the worker asks TMDB for the whole answer every time, and
+ * browsers don't keep the proxy's answers.
+ */
+const RESPONSE_HEADERS = ['content-type']
 
 /** TMDB's terms ask that an application doesn't hide who it is. */
 const USER_AGENT = 'Kinopeer-TMDB-proxy'

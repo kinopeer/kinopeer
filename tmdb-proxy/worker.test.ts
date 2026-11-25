@@ -143,21 +143,32 @@ describe('TMDB proxy worker', () => {
     expect((await call('/3/movie/550/recommendations')).headers.get('cache-control')).toBe('public, s-maxage=86400')
   })
 
-  it('passes TMDB’s content type and validators on', async () => {
+  it('passes TMDB’s content type on', async () => {
     const { call } = setup()
     const response = await call('/3/movie/550')
 
     expect(response.headers.get('content-type')).toBe('application/json;charset=utf-8')
-    expect(response.headers.get('etag')).toBe('W/"1"')
   })
 
-  it('leaves out a header TMDB didn’t send', async () => {
+  // Cloudflare keeps a cached entry, headers included, when its refresh answers 200 with the same
+  // ETag, so with TMDB's validators an entry kept the headers an older worker gave it (#617).
+  it('passes none of TMDB’s validators on, so a refreshed entry replaces the cached one whole', async () => {
     const { call, tmdb } = setup()
-    tmdb.mockResolvedValueOnce(new Response('{}', { headers: { 'Content-Type': 'application/json' } }))
-    const response = await call('/3/movie/550')
+    tmdb.mockResolvedValueOnce(
+      new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
+    )
+    const response = await call('/3/configuration')
 
     expect(response.headers.has('etag')).toBe(false)
     expect(response.headers.has('last-modified')).toBe(false)
+  })
+
+  it('leaves out a content type TMDB didn’t send', async () => {
+    const { call, tmdb } = setup()
+    tmdb.mockResolvedValueOnce(new Response(new Blob(['{}']).stream()))
+    const response = await call('/3/movie/550')
+
+    expect(response.headers.has('content-type')).toBe(false)
   })
 
   it('passes TMDB’s error on and keeps it out of the cache', async () => {
