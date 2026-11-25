@@ -150,17 +150,27 @@ describe('TMDB proxy worker', () => {
     expect(response.headers.get('content-type')).toBe('application/json;charset=utf-8')
   })
 
-  // Cloudflare keeps a cached entry, headers included, when its refresh answers 200 with the same
-  // ETag, so with TMDB's validators an entry kept the headers an older worker gave it (#617).
-  it('passes none of TMDB’s validators on, so a refreshed entry replaces the cached one whole', async () => {
-    const { call, tmdb } = setup()
-    tmdb.mockResolvedValueOnce(
-      new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
-    )
-    const response = await call('/3/configuration')
+  // A refresh that repeats the cached ETag may keep the old entry, headers included, which kept
+  // TMDB's configuration without CORS (#617); a later Last-Modified replaces it.
+  it('passes none of TMDB’s validators on and dates the answer by when it was made', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-25T10:00:00Z'), toFake: ['Date'] })
+    try {
+      const { call, tmdb } = setup()
+      tmdb.mockResolvedValueOnce(
+        new Response('{}', { headers: { ETag: 'W/"1"', 'Last-Modified': 'Mon, 23 Nov 2026 22:00:00 GMT' } }),
+      )
+      const response = await call('/3/configuration')
 
-    expect(response.headers.has('etag')).toBe(false)
-    expect(response.headers.has('last-modified')).toBe(false)
+      expect(response.headers.has('etag')).toBe(false)
+      expect(response.headers.get('last-modified')).toBe('Wed, 25 Nov 2026 10:00:00 GMT')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('dates no answer it keeps out of the cache: an error or a HEAD', async () => {
+    expect((await setup({ status: 404 }).call('/3/movie/550')).headers.has('last-modified')).toBe(false)
+    expect((await setup().call('/3/movie/550', { method: 'HEAD' })).headers.has('last-modified')).toBe(false)
   })
 
   it('leaves out a content type TMDB didn’t send', async () => {

@@ -65,10 +65,10 @@ const DROPPED_PARAMETERS = ['api_key', 'append_to_response', 'session_id', 'gues
 
 /**
  * TMDB's response headers passed on; its own Cache-Control is replaced by the proxy's. Not its
- * validators: Cloudflare keeps a cached entry whose refresh answers 200 with the same ETag, headers
- * included, so an entry would keep the headers an older worker gave it for as long as TMDB's ETag
- * holds (#617). They saved nothing else: the worker asks TMDB for the whole answer every time, and
- * browsers don't keep the proxy's answers.
+ * validators: a refresh that answers 200 with the cached ETag "does not reliably replace the old
+ * content" (Cloudflare's Revalidation page), and for TMDB's configuration, whose ETag doesn't change,
+ * it kept the entry an older worker had stored, headers included, past its time (#617). The proxy
+ * dates its answers itself instead (`answer`).
  */
 const RESPONSE_HEADERS = ['content-type']
 
@@ -196,6 +196,10 @@ async function answer(request: Request, env: Env, deps: Deps): Promise<Response>
   // entry, so a HEAD's empty answer isn't kept, and neither is an error.
   const cacheable = upstream.ok && request.method === 'GET'
   headers.set('Cache-Control', cacheable ? `public, s-maxage=${ttl}` : NO_STORE)
+  // The time the answer was made, not when TMDB's content last changed: with no ETag, a refresh with a
+  // later Last-Modified replaces the cached entry, the case Cloudflare's Revalidation page documents,
+  // and a browser that keeps the answer still gets a 304 from the cache until it's refreshed.
+  if (cacheable) headers.set('Last-Modified', new Date().toUTCString())
   if (request.method === 'HEAD') {
     // Released rather than left unread, which holds the connection to TMDB until it's collected.
     await upstream.body?.cancel()
