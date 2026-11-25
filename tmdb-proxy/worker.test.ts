@@ -193,11 +193,14 @@ describe('TMDB proxy worker', () => {
   // addresses: its wait is what the title lookups should stop for, not their fallback (#619).
   it('passes TMDB’s own 429 on with its Retry-After, kept out of the cache', async () => {
     const { call, tmdb } = setup()
-    tmdb.mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '30' } }))
+    tmdb.mockResolvedValueOnce(
+      new Response('{}', { status: 429, headers: { 'Retry-After': '30', 'Content-Type': 'application/json' } }),
+    )
     const response = await call('/3/search/multi?query=alien')
 
     expect(response.status).toBe(429)
     expect(response.headers.get('retry-after')).toBe('30')
+    expect(response.headers.get('content-type')).toBe('application/json')
     expect(response.headers.get('cache-control')).toBe('no-store')
   })
 

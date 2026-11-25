@@ -19,10 +19,19 @@ export type TmdbTransport = (path: string, signal?: AbortSignal) => Promise<Resp
 /** Same-origin prefix proxied to the TMDB API; the proxy adds the API key. */
 export const TMDB_BASE = '/tmdb'
 
-/** Retry-After in seconds (TMDB's and Kinopeer's proxy's form), in milliseconds. */
+/**
+ * The longest wait a Retry-After is taken for: TMDB's own reaches every install on the proxy's key
+ * (#619), and a day, or Infinity, which would never end the title lookups' pause, isn't one to keep.
+ */
+const MAX_RETRY_AFTER_S = 600
+
+/**
+ * Retry-After in seconds (Kinopeer's proxy's form; TMDB's docs name none), in milliseconds, at most
+ * MAX_RETRY_AFTER_S. The date form reads as none, so the caller's own wait applies.
+ */
 function retryAfter(response: Response): number | undefined {
   const seconds = Number(response.headers.get('retry-after') ?? Number.NaN)
-  return seconds > 0 ? seconds * 1000 : undefined
+  return seconds > 0 ? Math.min(seconds, MAX_RETRY_AFTER_S) * 1000 : undefined
 }
 
 function isJson(response: Response): boolean {

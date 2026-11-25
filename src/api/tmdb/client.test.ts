@@ -189,6 +189,14 @@ describe('errors', () => {
     await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: undefined })
   })
 
+  // TMDB's own Retry-After reaches every install on the proxy's key (#619): a day would stop the
+  // title lookups for a day, and Infinity would make every later 429 a no-op, since the pause would
+  // never end.
+  it.each(['86400', 'Infinity'])('caps a 429’s wait of %s at ten minutes', async (value) => {
+    fetchMock.mockResolvedValueOnce(Response.json({ status_message: 'Too many requests' }, { status: 429, headers: { 'Retry-After': value, [BRIDGE_HEADER]: '1' } }))
+    await expect(getMovie(1)).rejects.toMatchObject({ status: 429, retryAfterMs: 600_000 })
+  })
+
   it('tells a failure of TMDB, which the server’s bridge answers for, from one that never reached the server', async () => {
     respond({ status_message: 'TMDB is unreachable' }, 502)
     const tmdbFailed = await getMovie(1).catch((error: unknown) => error)
