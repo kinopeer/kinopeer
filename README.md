@@ -9,6 +9,8 @@ A qBittorrent web UI for movies and TV series. Find a movie or a series, pick a 
 > [!NOTE]
 > Kinopeer installs [on umbrelOS](#install-on-umbrel), [with Docker Compose](#install-with-docker-compose) beside qBittorrent and Prowlarr, [next to the qBittorrent and Prowlarr you already run](#install-next-to-your-own-qbittorrent-and-prowlarr), TrueNAS, CasaOS and Unraid among them, or [as qBittorrent's Alternative WebUI](#install-as-qbittorrents-alternative-webui), with no server of its own. [Ways to install](#ways-to-install) compares them. What's planned is in the [milestones](https://github.com/kinopeer/kinopeer/milestones).
 
+<p align="center"><img src="docs/demo.gif" width="360" alt="On a phone: searching for Shōgun, opening the series, finding its releases, leaving out three episodes and downloading the rest, which then shows in Downloads with its poster"></p>
+
 <img src="docs/screenshots/desktop-title.png" alt="A series page on a computer, with its releases under the overview: filters for resolution, audio, source, minimum seeds and indexer over a table of releases">
 
 <details>
