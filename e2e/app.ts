@@ -85,6 +85,8 @@ export interface AppOptions {
   releaseFilters?: unknown
   /** Leaves /tmdb and /tmdb-img to the server, for real titles and posters (the README screenshots). */
   realTmdb?: boolean
+  /** A torrent qBittorrent lists only once the app has added one (`torrents/add`): the README demo's. */
+  addsTorrent?: Torrent
   /** TMDB fails the search's second page, which it otherwise answers with nothing new. */
   searchMoreFails?: boolean
   /**
@@ -118,7 +120,7 @@ const json = (route: Route, body: unknown, status = 200) =>
  * /src/api/tmdb/ are left alone.
  */
 async function mockServer(page: Page, options: AppOptions): Promise<void> {
-  const torrents = options.torrents ?? TORRENTS
+  let torrents = options.torrents ?? TORRENTS
   let polls = 0
   // The Dune movie's files as qBittorrent has them now: its renames go into them.
   let duneNow = duneFiles()
@@ -147,6 +149,7 @@ async function mockServer(page: Page, options: AppOptions): Promise<void> {
         const hashes = new URL(route.request().url()).searchParams.get('hashes')?.split('|')
         return json(route, hashes ? torrents.filter((torrent) => hashes.includes(torrent.hash)) : torrents)
       }
+      if (pathname === '/qbt/api/v2/torrents/add' && options.addsTorrent) torrents = [options.addsTorrent, ...torrents]
       if (pathname === '/qbt/api/v2/app/defaultSavePath') return route.fulfill({ body: '/downloads' })
       // Automatic management on, so new torrents go to their category's folder, as the add sheet shows.
       if (pathname === '/qbt/api/v2/app/preferences') return json(route, { auto_tmm_enabled: true, save_path: '/downloads' })

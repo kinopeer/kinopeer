@@ -14,6 +14,8 @@ export default defineConfig({
   use: { ...base.use, baseURL: 'http://localhost:5173', deviceScaleFactor: 2 },
   webServer: {
     command: 'npm run dev -- --port 5173 --strictPort',
+    // TMDB goes through the server, which would hold it back behind Kinopeer's own login (server/auth.ts).
+    env: { KINOPEER_AUTH: 'off' },
     url: 'http://localhost:5173',
     reuseExistingServer: false,
     timeout: 120_000,

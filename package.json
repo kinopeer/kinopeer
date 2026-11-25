@@ -22,7 +22,8 @@
     "test:smoke": "playwright test --config playwright.smoke.config.ts",
     "test:smoke:webui": "scripts/test-smoke-webui.sh",
     "test:requests": "playwright test --config playwright.performance.config.ts",
-    "screenshots:readme": "scripts/readme-screenshots.sh"
+    "screenshots:readme": "scripts/readme-screenshots.sh",
+    "demo:readme": "scripts/readme-demo.sh"
   },
   "dependencies": {
     "@fontsource-variable/onest": "^5.3.1",
