@@ -86,7 +86,7 @@ const MAX_RETRY_AFTER_S = 600
  * positive count of seconds (a date, a fraction) is left out, and they wait their own 10 seconds.
  */
 function retryAfter(value: string | null): string | undefined {
-  const seconds = value && /^\d+$/.test(value.trim()) ? Number(value.trim()) : 0
+  const seconds = value && /^\d+$/.test(value) ? Number(value) : 0
   return seconds > 0 ? String(Math.min(seconds, MAX_RETRY_AFTER_S)) : undefined
 }
 
