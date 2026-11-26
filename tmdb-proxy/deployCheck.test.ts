@@ -304,6 +304,12 @@ describe('proxyCode', () => {
       { inputs: { 'worker.ts': { imports: [{ path: './55ca6286-page.html', kind: 'import-statement', external: true }] } } },
       "worker.ts imports ./55ca6286-page.html, which Wrangler uploads beside the bundle without naming its file",
     ],
+    ['names the folder above the repository', inputs('worker.ts', '../..'), "names ../.., which isn't a file"],
+    [
+      'has a module that only starts like the runtime’s',
+      { inputs: { 'worker.ts': { imports: [{ path: '<runtime>-page.html', kind: 'import-statement', external: true }] } } },
+      'worker.ts imports <runtime>-page.html',
+    ],
     [
       'has a module that only reads like the runtime’s',
       { inputs: { 'worker.ts': { imports: [{ path: './<runtime>', kind: 'import-statement', external: true }] } } },
