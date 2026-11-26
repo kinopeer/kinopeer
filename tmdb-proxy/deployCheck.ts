@@ -34,10 +34,12 @@ import { BUILD_FILES } from './fingerprint.ts'
  * worker needs only skips a run that a newer one replaces. A package the worker imports is an input
  * under tmdb-proxy/node_modules, which git doesn't track: its version is in package-lock.json, one
  * of `BUILD_FILES`. A metafile that names no input, or an input that isn't a file in the
- * repository, fails the check rather than comparing less than the worker is built from. So does any
- * module Wrangler uploads beside the bundle (an .html, .txt, .bin or .wasm import, wherever it
- * sits), since the metafile names it only by a hash and the check can't tell which file it is: a
- * worker that needs one changes this check first, to name the file.
+ * repository, fails the check rather than comparing less than the worker is built from. So does a
+ * module a bundled file imports that Wrangler uploads beside the bundle (by its module rules, such as
+ * an .html, .txt, .sql, .bin or .wasm import, wherever it sits), since the metafile names it only by
+ * a hash and the check can't tell which file it is: a worker that needs one changes this check
+ * first, to name the file. Nor does the metafile name the modules `find_additional_modules` would
+ * upload without an import, which wrangler.jsonc doesn't set.
  */
 export function proxyCode(metafile: string, root = process.cwd()): string[] {
   let inputs: unknown

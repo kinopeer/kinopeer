@@ -46,13 +46,8 @@ function repo() {
   return { cwd, commit, at, tag, metafile, first }
 }
 
-/** What a run passes as the proxy's code (proxyCode, below, derives it from the bundle). */
-const CODE = [
-  'tmdb-proxy',
-  ':(exclude)tmdb-proxy/*.test.ts',
-  ':(literal)src/logic/privateOrigin.ts',
-  ':(literal).github/workflows/tmdb-proxy.yml',
-]
+/** A sample of the pathspecs a run passes as the proxy's code (proxyCode, below, derives the whole list). */
+const CODE = ['tmdb-proxy', ':(exclude)tmdb-proxy/*.test.ts', ':(literal)src/logic/privateOrigin.ts']
 
 afterEach(() => {
   for (const cwd of repos.splice(0)) rmSync(cwd, { recursive: true, force: true })
