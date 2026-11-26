@@ -24,18 +24,20 @@ import { BUILD_FILES } from './fingerprint.ts'
  *   where Wrangler runs), so an import from `src/` counts without anyone listing it, each taken by
  *   its name alone (`:(literal)`), since a name can hold a pattern's characters;
  * - `tmdb-proxy/` without its tests, for what the bundler reads there without listing it as an
- *   input: a module Wrangler uploads beside the bundle (an .html, .txt, .bin or .wasm import, which
- *   the metafile names only by a hash), the folder's package.json, a tsconfig.json of its own;
- * - the root tsconfig.json, which esbuild reads for every file without one nearer;
+ *   input: the folder's package.json, a tsconfig.json of its own;
+ * - the root tsconfig.json and package.json, which esbuild reads for every file without one nearer
+ *   (a package.json's `sideEffects` and `imports`);
  * - the files that say how the worker is deployed, which its fingerprint counts too (`BUILD_FILES`),
  *   the workflow among them.
  *
  * Each of these starts an Edge run when it changes (edge.yml's `paths`), so counting more than the
  * worker needs only skips a run that a newer one replaces. A package the worker imports is an input
  * under tmdb-proxy/node_modules, which git doesn't track: its version is in package-lock.json, one
- * of `BUILD_FILES`. A metafile that names no input, an input that isn't a file in the repository, or
- * a module the bundle takes from outside it (other than the runtime's own) fails the check rather
- * than comparing less than the worker is built from.
+ * of `BUILD_FILES`. A metafile that names no input, or an input that isn't a file in the
+ * repository, fails the check rather than comparing less than the worker is built from. So does any
+ * module Wrangler uploads beside the bundle (an .html, .txt, .bin or .wasm import, wherever it
+ * sits), since the metafile names it only by a hash and the check can't tell which file it is: a
+ * worker that needs one changes this check first, to name the file.
  */
 export function proxyCode(metafile: string, root = process.cwd()): string[] {
   let inputs: unknown
@@ -70,6 +72,7 @@ export function proxyCode(metafile: string, root = process.cwd()): string[] {
     'tmdb-proxy',
     ':(exclude)tmdb-proxy/*.test.ts',
     ':(literal)tsconfig.json',
+    ':(literal)package.json',
     ...bundled,
     ...BUILD_FILES.map((file) => `:(literal)${fromRoot(file)}`),
   ]

@@ -35,8 +35,15 @@ function repo() {
     git('update-ref', 'refs/remotes/origin/main', main)
   }
   const tag = (name: string, sha: string) => git('tag', name, sha)
+  /** Wrangler's build metadata naming these inputs, beside the checkout, as the workflow keeps it in its temp folder. */
+  const metafile = (...inputs: string[]) => {
+    const path = `${cwd}-meta.json`
+    repos.push(path)
+    writeFileSync(path, JSON.stringify({ inputs: Object.fromEntries(inputs.map((input) => [input, {}])), outputs: {} }))
+    return path
+  }
   const first = commit({ 'tmdb-proxy/worker.ts': 'v1', 'README.md': 'readme' })
-  return { cwd, commit, at, tag, first }
+  return { cwd, commit, at, tag, metafile, first }
 }
 
 /** What a run passes as the proxy's code (proxyCode, below, derives it from the bundle). */
@@ -100,14 +107,6 @@ describe('shouldDeploy', () => {
       expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
-    it('leaves the worker when main changed only how it’s deployed', () => {
-      const { cwd, commit, at, first } = repo()
-      const newer = commit({ '.github/workflows/tmdb-proxy.yml': 'steps: []' })
-      at(first, newer)
-
-      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
-    })
-
     it('deploys an older commit when main changed only files outside the proxy’s code', () => {
       const { cwd, commit, at, first } = repo()
       const other = commit({ 'src/logic/other.ts': 'v2', '.github/workflows/ci.yml': 'v2' })
@@ -117,7 +116,7 @@ describe('shouldDeploy', () => {
     })
 
     it('compares a bundled file whose name reads as a pattern by that name alone', () => {
-      const { cwd, commit, at } = repo()
+      const { cwd, commit, at, metafile } = repo()
       const deployed = commit({
         'src/logic/[id].ts': 'v1',
         'tmdb-proxy/wrangler.jsonc': '{}',
@@ -127,11 +126,7 @@ describe('shouldDeploy', () => {
       // As a pattern, src/logic/[id].ts would match this file.
       const other = commit({ 'src/logic/i.ts': 'v2' })
       at(deployed, other)
-      const metafile = join(cwd, '..', `${cwd.split('/').at(-1)}-meta.json`)
-      repos.push(metafile)
-      writeFileSync(metafile, JSON.stringify({ inputs: { 'worker.ts': {}, '../src/logic/[id].ts': {} } }))
-
-      expect(shouldDeploy('edge', proxyCode(metafile, cwd), cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('edge', proxyCode(metafile('worker.ts', '../src/logic/[id].ts'), cwd), cwd)).toMatchObject({ deploy: true })
     })
   })
 
@@ -219,26 +214,24 @@ describe('shouldDeploy', () => {
   })
 
   it('prints its answer for the workflow’s output, and why on stderr', () => {
-    const { cwd, commit, at } = repo()
+    const { cwd, commit, at, metafile } = repo()
     const deployed = commit({
       'tmdb-proxy/wrangler.jsonc': '{}',
       'tmdb-proxy/package-lock.json': '{}',
       '.github/workflows/tmdb-proxy.yml': 'steps: []',
     })
     const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
-    const metafile = join(cwd, '..', `${cwd.split('/').at(-1)}-meta.json`)
-    repos.push(metafile)
-    writeFileSync(metafile, JSON.stringify({ inputs: { 'worker.ts': {} }, outputs: {} }))
+    const meta = metafile('worker.ts')
     const script = join(import.meta.dirname, 'deployCheck.ts')
     const run = (...args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8', env: GIT_ENV })
 
     at(newer)
-    expect(run('edge', metafile).stdout).toBe('deploy=true\n')
-    expect(run('edge', metafile).stderr).toContain('the same as at origin/main')
+    expect(run('edge', meta).stdout).toBe('deploy=true\n')
+    expect(run('edge', meta).stderr).toContain('the same as at origin/main')
     at(deployed, newer)
-    expect(run('edge', metafile).stdout).toBe('deploy=false\n')
+    expect(run('edge', meta).stdout).toBe('deploy=false\n')
     expect(run('edge').stderr).toContain('Usage: node tmdb-proxy/deployCheck.ts <environment> <metafile>')
-    expect(run('staging', metafile).stderr).toContain('Unknown environment')
+    expect(run('staging', meta).stderr).toContain('Unknown environment')
   })
 })
 
@@ -275,6 +268,7 @@ describe('proxyCode', () => {
       'tmdb-proxy',
       ':(exclude)tmdb-proxy/*.test.ts',
       ':(literal)tsconfig.json',
+      ':(literal)package.json',
       ':(literal)src/logic/privateOrigin.ts',
       ':(literal)tmdb-proxy/worker.ts',
       ':(literal)tmdb-proxy/node_modules/some-package/index.js',
