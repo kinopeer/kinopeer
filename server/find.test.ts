@@ -1,5 +1,5 @@
 import { getEventListeners } from 'node:events'
-import { createServer, isIPv4 } from 'node:net'
+import { createServer, isIPv4, type LookupFunction } from 'node:net'
 import type { networkInterfaces } from 'node:os'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -220,6 +220,28 @@ describe('opens', () => {
     const abort = new AbortController()
     const pending = opens('192.0.2.1', 80, 60_000, abort.signal)
     abort.abort()
+    expect(await settlesWithin(pending, 1000)).toBe(true)
+    expect(await pending).toBe(false)
+  })
+
+  /** A lookup that answers 127.0.0.1 after `ms`, or never, as getaddrinfo does stuck behind slower lookups (#625). */
+  function slowLookup(ms?: number): LookupFunction {
+    return ((_host: string, options: { all?: boolean }, callback: (...answer: unknown[]) => void) => {
+      if (ms === undefined) return
+      setTimeout(() => (options.all ? callback(null, [{ address: '127.0.0.1', family: 4 }]) : callback(null, '127.0.0.1', 4)), ms)
+    }) as LookupFunction
+  }
+
+  it('starts the connect’s time limit once the name has resolved (#625)', async () => {
+    const server = createServer(() => {})
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
+    const { port } = server.address() as { port: number }
+    expect(await opens('qbittorrent.test', port, 200, new AbortController().signal, { lookupName: slowLookup(400) })).toBe(true)
+    server.close()
+  })
+
+  it('gives a name that doesn’t resolve up after the lookup’s own time limit', async () => {
+    const pending = opens('qbittorrent.test', 80, 60_000, new AbortController().signal, { lookupName: slowLookup(), lookupMs: 50 })
     expect(await settlesWithin(pending, 1000)).toBe(true)
     expect(await pending).toBe(false)
   })
