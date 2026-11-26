@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { join, relative, resolve, sep } from 'node:path'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { BUILD_FILES } from './fingerprint.ts'
 
@@ -18,13 +18,24 @@ import { BUILD_FILES } from './fingerprint.ts'
  */
 
 /**
- * The proxy's code, as paths from the repository's root: every file Wrangler bundled into the
- * worker (the metafile's inputs, relative to tmdb-proxy/, where Wrangler runs), so a new import is
- * in it without anyone listing it, and the files that say how the worker is deployed, which its
- * fingerprint counts too (`BUILD_FILES`), the workflow among them. A package the worker imports is
- * an input under tmdb-proxy/node_modules, which git doesn't track: its version is in
- * package-lock.json, one of `BUILD_FILES`. A metafile that names no input, or one that isn't there,
- * fails the check rather than comparing less than the worker is built from.
+ * What a change to counts as newer proxy code, as git pathspecs from the repository's root:
+ *
+ * - every file Wrangler bundled into the worker (the metafile's inputs, relative to tmdb-proxy/,
+ *   where Wrangler runs), so an import from `src/` counts without anyone listing it, each taken by
+ *   its name alone (`:(literal)`), since a name can hold a pattern's characters;
+ * - `tmdb-proxy/` without its tests, for what the bundler reads there without listing it as an
+ *   input: a module Wrangler uploads beside the bundle (an .html, .txt, .bin or .wasm import, which
+ *   the metafile names only by a hash), the folder's package.json, a tsconfig.json of its own;
+ * - the root tsconfig.json, which esbuild reads for every file without one nearer;
+ * - the files that say how the worker is deployed, which its fingerprint counts too (`BUILD_FILES`),
+ *   the workflow among them.
+ *
+ * Each of these starts an Edge run when it changes (edge.yml's `paths`), so counting more than the
+ * worker needs only skips a run that a newer one replaces. A package the worker imports is an input
+ * under tmdb-proxy/node_modules, which git doesn't track: its version is in package-lock.json, one
+ * of `BUILD_FILES`. A metafile that names no input, an input that isn't a file in the repository, or
+ * a module the bundle takes from outside it (other than the runtime's own) fails the check rather
+ * than comparing less than the worker is built from.
  */
 export function proxyCode(metafile: string, root = process.cwd()): string[] {
   let inputs: unknown
@@ -37,15 +48,35 @@ export function proxyCode(metafile: string, root = process.cwd()): string[] {
     throw new Error(`Wrangler's build metadata at ${metafile} names no input.`)
   }
   const proxy = join(root, 'tmdb-proxy')
-  return [...Object.keys(inputs), ...BUILD_FILES].map((input) => {
-    const path = resolve(proxy, input)
-    const fromRoot = relative(root, path)
-    if (fromRoot.startsWith('..') || !existsSync(path)) {
-      throw new Error(`Wrangler's build metadata names ${input}, which isn't a file in the repository.`)
-    }
-    return fromRoot.split(sep).join('/')
-  })
+  const fromRoot = (path: string) => relative(root, resolve(proxy, path)).split(sep).join('/')
+  const bundled = Object.entries(inputs as Record<string, { imports?: { path: string; external?: boolean }[] }>).map(
+    ([input, { imports = [] }]) => {
+      const path = resolve(proxy, input)
+      const outside = relative(root, path)
+      if (outside === '..' || outside.startsWith(`..${sep}`) || isAbsolute(outside) || !existsSync(path)) {
+        throw new Error(`Wrangler's build metadata names ${input}, which isn't a file in the repository.`)
+      }
+      const untraced = imports.find(({ path, external }) => external && !RUNTIME_MODULE.test(path))
+      if (untraced) {
+        throw new Error(
+          `${input} imports ${untraced.path}, which Wrangler uploads beside the bundle without naming its file; ` +
+            'the deploy check can\'t compare it (tmdb-proxy/deployCheck.ts).',
+        )
+      }
+      return `:(literal)${fromRoot(input)}`
+    },
+  )
+  return [
+    'tmdb-proxy',
+    ':(exclude)tmdb-proxy/*.test.ts',
+    ':(literal)tsconfig.json',
+    ...bundled,
+    ...BUILD_FILES.map((file) => `:(literal)${fromRoot(file)}`),
+  ]
 }
+
+/** What a bundle imports from the runtime rather than from a file: esbuild's helpers, Node's and Workers' modules. */
+const RUNTIME_MODULE = /^(<runtime>$|node:|cloudflare:)/
 
 /** A version tag, v1.2.3 or v1.2.3-rc.1; other tags starting with v are left out. */
 const VERSION_TAG = /^v(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/

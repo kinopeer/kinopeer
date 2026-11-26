@@ -40,7 +40,12 @@ function repo() {
 }
 
 /** What a run passes as the proxy's code (proxyCode, below, derives it from the bundle). */
-const CODE = ['tmdb-proxy/worker.ts', 'src/logic/privateOrigin.ts', 'tmdb-proxy/wrangler.jsonc', '.github/workflows/tmdb-proxy.yml']
+const CODE = [
+  'tmdb-proxy',
+  ':(exclude)tmdb-proxy/*.test.ts',
+  ':(literal)src/logic/privateOrigin.ts',
+  ':(literal).github/workflows/tmdb-proxy.yml',
+]
 
 afterEach(() => {
   for (const cwd of repos.splice(0)) rmSync(cwd, { recursive: true, force: true })
@@ -103,12 +108,30 @@ describe('shouldDeploy', () => {
       expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
-    it('deploys an older commit when main changed only proxy files the worker isn’t built from', () => {
+    it('deploys an older commit when main changed only files outside the proxy’s code', () => {
       const { cwd, commit, at, first } = repo()
-      const scripts = commit({ 'tmdb-proxy/deployCheck.ts': 'v2', 'src/logic/other.ts': 'v2' })
-      at(first, scripts)
+      const other = commit({ 'src/logic/other.ts': 'v2', '.github/workflows/ci.yml': 'v2' })
+      at(first, other)
 
       expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: true })
+    })
+
+    it('compares a bundled file whose name reads as a pattern by that name alone', () => {
+      const { cwd, commit, at } = repo()
+      const deployed = commit({
+        'src/logic/[id].ts': 'v1',
+        'tmdb-proxy/wrangler.jsonc': '{}',
+        'tmdb-proxy/package-lock.json': '{}',
+        '.github/workflows/tmdb-proxy.yml': 'steps: []',
+      })
+      // As a pattern, src/logic/[id].ts would match this file.
+      const other = commit({ 'src/logic/i.ts': 'v2' })
+      at(deployed, other)
+      const metafile = join(cwd, '..', `${cwd.split('/').at(-1)}-meta.json`)
+      repos.push(metafile)
+      writeFileSync(metafile, JSON.stringify({ inputs: { 'worker.ts': {}, '../src/logic/[id].ts': {} } }))
+
+      expect(shouldDeploy('edge', proxyCode(metafile, cwd), cwd)).toMatchObject({ deploy: true })
     })
   })
 
@@ -249,13 +272,23 @@ describe('proxyCode', () => {
     const { root, metafile } = checkout(inputs('../src/logic/privateOrigin.ts', 'worker.ts', 'node_modules/some-package/index.js'))
 
     expect(proxyCode(metafile, root)).toEqual([
-      'src/logic/privateOrigin.ts',
-      'tmdb-proxy/worker.ts',
-      'tmdb-proxy/node_modules/some-package/index.js',
-      'tmdb-proxy/wrangler.jsonc',
-      'tmdb-proxy/package-lock.json',
-      '.github/workflows/tmdb-proxy.yml',
+      'tmdb-proxy',
+      ':(exclude)tmdb-proxy/*.test.ts',
+      ':(literal)tsconfig.json',
+      ':(literal)src/logic/privateOrigin.ts',
+      ':(literal)tmdb-proxy/worker.ts',
+      ':(literal)tmdb-proxy/node_modules/some-package/index.js',
+      ':(literal)tmdb-proxy/wrangler.jsonc',
+      ':(literal)tmdb-proxy/package-lock.json',
+      ':(literal).github/workflows/tmdb-proxy.yml',
     ])
+  })
+
+  it('takes the modules the runtime gives: esbuild’s helpers, Node’s and Workers’', () => {
+    const imports = ['<runtime>', 'node:buffer', 'cloudflare:workers'].map((path) => ({ path, kind: 'import-statement', external: true }))
+    const { root, metafile } = checkout({ inputs: { 'worker.ts': { imports } } })
+
+    expect(proxyCode(metafile, root)).toContain(':(literal)tmdb-proxy/worker.ts')
   })
 
   it.each([
@@ -266,6 +299,16 @@ describe('proxyCode', () => {
     ['has none in its inputs', inputs(), 'names no input'],
     ['names an input that isn’t there', inputs('worker.ts', 'gone.ts'), "names gone.ts, which isn't a file"],
     ['names an input outside the repository', inputs('worker.ts', '../../outside.ts'), "names ../../outside.ts, which isn't a file"],
+    [
+      'has a module Wrangler uploads beside the bundle, named only by a hash',
+      { inputs: { 'worker.ts': { imports: [{ path: './55ca6286-page.html', kind: 'import-statement', external: true }] } } },
+      "worker.ts imports ./55ca6286-page.html, which Wrangler uploads beside the bundle without naming its file",
+    ],
+    [
+      'has a module that only reads like the runtime’s',
+      { inputs: { 'worker.ts': { imports: [{ path: './<runtime>', kind: 'import-statement', external: true }] } } },
+      'worker.ts imports ./<runtime>',
+    ],
   ])('fails rather than comparing less when the metadata %s', (_case, meta, message) => {
     const { root, metafile } = checkout(meta)
 
@@ -276,13 +319,6 @@ describe('proxyCode', () => {
     const { root } = checkout(inputs('worker.ts'))
 
     expect(() => proxyCode(join(root, 'none.json'), root)).toThrow("Can't read Wrangler's build metadata")
-  })
-
-  it('fails when a file that says how the worker is deployed isn’t there', () => {
-    const { root, metafile } = checkout(inputs('worker.ts'))
-    rmSync(join(root, '.github/workflows/tmdb-proxy.yml'))
-
-    expect(() => proxyCode(metafile, root)).toThrow("names ../.github/workflows/tmdb-proxy.yml, which isn't a file")
   })
 })
 
