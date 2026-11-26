@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { compareVersionTags, shouldDeploy } from './deployCheck.ts'
+import { compareVersionTags, proxyCode, shouldDeploy } from './deployCheck.ts'
 
 const repos: string[] = []
 
@@ -39,6 +39,9 @@ function repo() {
   return { cwd, commit, at, tag, first }
 }
 
+/** What a run passes as the proxy's code (proxyCode, below, derives it from the bundle). */
+const CODE = ['tmdb-proxy/worker.ts', 'src/logic/privateOrigin.ts', 'tmdb-proxy/wrangler.jsonc', '.github/workflows/tmdb-proxy.yml']
+
 afterEach(() => {
   for (const cwd of repos.splice(0)) rmSync(cwd, { recursive: true, force: true })
 })
@@ -49,7 +52,7 @@ describe('shouldDeploy', () => {
       const { cwd, at, first } = repo()
       at(first)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('deploys an older commit when main moved on without touching the proxy', () => {
@@ -57,7 +60,7 @@ describe('shouldDeploy', () => {
       const docs = commit({ 'README.md': 'more' })
       at(first, docs)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('deploys an older commit when main changed only the proxy’s tests', () => {
@@ -65,7 +68,7 @@ describe('shouldDeploy', () => {
       const tests = commit({ 'tmdb-proxy/worker.test.ts': 'test' })
       at(first, tests)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('leaves the worker when main has newer proxy code', () => {
@@ -73,23 +76,15 @@ describe('shouldDeploy', () => {
       const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
       at(first, newer)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
-    it('leaves the worker when main changed only the origin rule the worker imports from src', () => {
+    it('leaves the worker when main changed only a file the worker imports from outside tmdb-proxy/', () => {
       const { cwd, commit, at, first } = repo()
       const newer = commit({ 'src/logic/privateOrigin.ts': 'v2' })
       at(first, newer)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
-    })
-
-    it('leaves the worker when main changed only the Retry-After rule the worker imports from src', () => {
-      const { cwd, commit, at, first } = repo()
-      const newer = commit({ 'src/logic/retryAfter.ts': 'v2' })
-      at(first, newer)
-
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
     it('leaves the worker when main has a newer Wrangler config', () => {
@@ -97,7 +92,23 @@ describe('shouldDeploy', () => {
       const newer = commit({ 'tmdb-proxy/wrangler.jsonc': '{ "limit": 50 }' })
       at(first, newer)
 
-      expect(shouldDeploy('edge', cwd)).toMatchObject({ deploy: false })
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('leaves the worker when main changed only how it’s deployed', () => {
+      const { cwd, commit, at, first } = repo()
+      const newer = commit({ '.github/workflows/tmdb-proxy.yml': 'steps: []' })
+      at(first, newer)
+
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: false })
+    })
+
+    it('deploys an older commit when main changed only proxy files the worker isn’t built from', () => {
+      const { cwd, commit, at, first } = repo()
+      const scripts = commit({ 'tmdb-proxy/deployCheck.ts': 'v2', 'src/logic/other.ts': 'v2' })
+      at(first, scripts)
+
+      expect(shouldDeploy('edge', CODE, cwd)).toMatchObject({ deploy: true })
     })
   })
 
@@ -109,7 +120,7 @@ describe('shouldDeploy', () => {
       tag('v0.7.0', next)
       at(next)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('leaves the worker for an older tag when the proxy changed since', () => {
@@ -118,7 +129,7 @@ describe('shouldDeploy', () => {
       tag('v0.7.0', commit({ 'tmdb-proxy/worker.ts': 'v2' }))
       at(first)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
     it('deploys an older tag when the proxy is the same as the highest one’s', () => {
@@ -127,7 +138,7 @@ describe('shouldDeploy', () => {
       tag('v0.6.2', commit({ 'README.md': 'more' }))
       at(first)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('ranks a release above its prerelease', () => {
@@ -137,9 +148,9 @@ describe('shouldDeploy', () => {
       tag('v0.7.0', release)
       at(release)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: true })
       at(first)
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: false })
     })
 
     it('compares versions by number, not as text', () => {
@@ -149,7 +160,7 @@ describe('shouldDeploy', () => {
       tag('v0.10.0', tenth)
       at(tenth)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: true })
     })
 
     it('ignores tags that aren’t versions', () => {
@@ -159,7 +170,7 @@ describe('shouldDeploy', () => {
       for (const name of ['vacation', 'vendor-v9.0.0', 'v9.0.0.1', 'v9.0', 'v9.0.0-']) tag(name, other)
       at(first)
 
-      expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: true })
+      expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: true })
     })
   })
 
@@ -167,35 +178,107 @@ describe('shouldDeploy', () => {
     const { cwd, at, first } = repo()
     at(first)
 
-    expect(shouldDeploy('release', cwd)).toMatchObject({ deploy: false })
+    expect(shouldDeploy('release', CODE, cwd)).toMatchObject({ deploy: false })
   })
 
   it('fails rather than skipping when git can’t compare', () => {
     const { cwd, first } = repo()
     execFileSync('git', ['checkout', '-q', '--detach', first], { cwd, env: GIT_ENV })
 
-    expect(() => shouldDeploy('edge', cwd)).toThrow('git diff failed')
+    expect(() => shouldDeploy('edge', CODE, cwd)).toThrow('git diff failed')
   })
 
   it('refuses an environment it doesn’t know', () => {
     const { cwd, at, first } = repo()
     at(first)
 
-    expect(() => shouldDeploy('staging', cwd)).toThrow('Unknown environment staging')
+    expect(() => shouldDeploy('staging', CODE, cwd)).toThrow('Unknown environment staging')
   })
 
   it('prints its answer for the workflow’s output, and why on stderr', () => {
-    const { cwd, commit, at, first } = repo()
+    const { cwd, commit, at } = repo()
+    const deployed = commit({
+      'tmdb-proxy/wrangler.jsonc': '{}',
+      'tmdb-proxy/package-lock.json': '{}',
+      '.github/workflows/tmdb-proxy.yml': 'steps: []',
+    })
     const newer = commit({ 'tmdb-proxy/worker.ts': 'v2' })
+    const metafile = join(cwd, '..', `${cwd.split('/').at(-1)}-meta.json`)
+    repos.push(metafile)
+    writeFileSync(metafile, JSON.stringify({ inputs: { 'worker.ts': {} }, outputs: {} }))
     const script = join(import.meta.dirname, 'deployCheck.ts')
-    const run = () => spawnSync(process.execPath, [script, 'edge'], { cwd, encoding: 'utf8', env: GIT_ENV })
+    const run = (...args: string[]) => spawnSync(process.execPath, [script, ...args], { cwd, encoding: 'utf8', env: GIT_ENV })
 
     at(newer)
-    expect(run().stdout).toBe('deploy=true\n')
-    expect(run().stderr).toContain('the same as at origin/main')
-    at(first, newer)
-    expect(run().stdout).toBe('deploy=false\n')
-    expect(spawnSync(process.execPath, [script], { cwd, encoding: 'utf8', env: GIT_ENV }).stderr).toContain('Unknown environment')
+    expect(run('edge', metafile).stdout).toBe('deploy=true\n')
+    expect(run('edge', metafile).stderr).toContain('the same as at origin/main')
+    at(deployed, newer)
+    expect(run('edge', metafile).stdout).toBe('deploy=false\n')
+    expect(run('edge').stderr).toContain('Usage: node tmdb-proxy/deployCheck.ts <environment> <metafile>')
+    expect(run('staging', metafile).stderr).toContain('Unknown environment')
+  })
+})
+
+describe('proxyCode', () => {
+  /** A checkout with the worker, a rule it imports from src/ and the files that say how it's deployed. */
+  function checkout(meta: unknown) {
+    const root = mkdtempSync(join(tmpdir(), 'kinopeer-proxy-'))
+    repos.push(root)
+    const files = [
+      'tmdb-proxy/worker.ts',
+      'tmdb-proxy/wrangler.jsonc',
+      'tmdb-proxy/package-lock.json',
+      'tmdb-proxy/node_modules/some-package/index.js',
+      '.github/workflows/tmdb-proxy.yml',
+      'src/logic/privateOrigin.ts',
+    ]
+    for (const path of files) {
+      mkdirSync(dirname(join(root, path)), { recursive: true })
+      writeFileSync(join(root, path), path)
+    }
+    const metafile = join(root, 'meta.json')
+    writeFileSync(metafile, typeof meta === 'string' ? meta : JSON.stringify(meta))
+    return { root, metafile }
+  }
+  const inputs = (...paths: string[]) => ({ inputs: Object.fromEntries(paths.map((path) => [path, {}])), outputs: {} })
+
+  it('names what the worker is bundled from, from the root, and the files that say how it’s deployed', () => {
+    const { root, metafile } = checkout(inputs('../src/logic/privateOrigin.ts', 'worker.ts', 'node_modules/some-package/index.js'))
+
+    expect(proxyCode(metafile, root)).toEqual([
+      'src/logic/privateOrigin.ts',
+      'tmdb-proxy/worker.ts',
+      'tmdb-proxy/node_modules/some-package/index.js',
+      'tmdb-proxy/wrangler.jsonc',
+      'tmdb-proxy/package-lock.json',
+      '.github/workflows/tmdb-proxy.yml',
+    ])
+  })
+
+  it.each([
+    ['isn’t JSON', 'not json', "Can't read"],
+    ['has no inputs', { outputs: {} }, 'names no input'],
+    ['has inputs that aren’t an object', { inputs: ['worker.ts'] }, 'names no input'],
+    ['has none in its inputs', inputs(), 'names no input'],
+    ['names an input that isn’t there', inputs('worker.ts', 'gone.ts'), "names gone.ts, which isn't a file"],
+    ['names an input outside the repository', inputs('worker.ts', '../../outside.ts'), "names ../../outside.ts, which isn't a file"],
+  ])('fails rather than comparing less when the metadata %s', (_case, meta, message) => {
+    const { root, metafile } = checkout(meta)
+
+    expect(() => proxyCode(metafile, root)).toThrow(message)
+  })
+
+  it('fails when the metadata isn’t there', () => {
+    const { root } = checkout(inputs('worker.ts'))
+
+    expect(() => proxyCode(join(root, 'none.json'), root)).toThrow("Can't read Wrangler's build metadata")
+  })
+
+  it('fails when a file that says how the worker is deployed isn’t there', () => {
+    const { root, metafile } = checkout(inputs('worker.ts'))
+    rmSync(join(root, '.github/workflows/tmdb-proxy.yml'))
+
+    expect(() => proxyCode(metafile, root)).toThrow("names ../.github/workflows/tmdb-proxy.yml, which isn't a file")
   })
 })
 

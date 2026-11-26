@@ -66,24 +66,30 @@ jobs:
             exit 1
           fi
 
-      # Only the newest proxy code for this worker (tmdb-proxy/deployCheck.ts says why and how).
-      - id: newest
-        name: Check this is the newest code for the worker
-        run: |
-          result="$(node tmdb-proxy/deployCheck.ts "$ENVIRONMENT")"
-          echo "$result" >> "$GITHUB_OUTPUT"
-          [ "$result" = deploy=true ] || echo "::notice::The $ENVIRONMENT worker stays as it is (the reason is in this step's log)."
-
       # Wrangler and its dependencies exactly as tmdb-proxy/package-lock.json names them.
       - name: Install Wrangler
-        if: steps.newest.outputs.deploy == 'true'
         working-directory: tmdb-proxy
         run: npm ci --no-audit --no-fund
 
-      # What a deploy would put on the worker (tmdb-proxy/fingerprint.ts: Wrangler's bundle, its config,
-      # Wrangler's version and this workflow; not the key, which tmdb-proxy-key.yml changes), against
-      # the tag of the version the worker runs: the same gets no new version, so a run that changes
-      # nothing in the proxy adds none. A worker or version that can't be read deploys anyway.
+      # What a deploy would put on the worker, without deploying it and without the Cloudflare token,
+      # and the files it's built from (esbuild's metafile, kept out of the bundle the fingerprint hashes).
+      - name: Bundle the worker
+        working-directory: tmdb-proxy
+        run: npx wrangler deploy --dry-run --env "$ENVIRONMENT" --outdir "$RUNNER_TEMP/worker" --metafile "$RUNNER_TEMP/worker-meta.json" > /dev/null
+
+      # Only the newest proxy code for this worker: what the bundle is built from and how it's deployed
+      # (tmdb-proxy/deployCheck.ts says why and how).
+      - id: newest
+        name: Check this is the newest code for the worker
+        run: |
+          result="$(node tmdb-proxy/deployCheck.ts "$ENVIRONMENT" "$RUNNER_TEMP/worker-meta.json")"
+          echo "$result" >> "$GITHUB_OUTPUT"
+          [ "$result" = deploy=true ] || echo "::notice::The $ENVIRONMENT worker stays as it is (the reason is in this step's log)."
+
+      # The bundle's fingerprint (tmdb-proxy/fingerprint.ts: Wrangler's bundle, its config, Wrangler's
+      # version and this workflow; not the key, which tmdb-proxy-key.yml changes), against the tag of
+      # the version the worker runs: the same gets no new version, so a run that changes nothing in the
+      # proxy adds none. A worker or version that can't be read deploys anyway.
       - id: deployed
         name: Compare with the version the worker runs
         if: steps.newest.outputs.deploy == 'true'
@@ -92,7 +98,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          npx wrangler deploy --dry-run --env "$ENVIRONMENT" --outdir "$RUNNER_TEMP/worker" > /dev/null
           fingerprint="$(node fingerprint.ts "$RUNNER_TEMP/worker")"
           if [[ ! "$fingerprint" =~ ^[0-9a-f]{64}$ ]]; then
             echo "::error::tmdb-proxy/fingerprint.ts gave no fingerprint: '$fingerprint'."
