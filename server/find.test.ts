@@ -240,11 +240,8 @@ describe('opens', () => {
   })
 
   it('starts the connect’s time limit once the name has resolved (#625)', async () => {
-    const server = createServer(() => {})
-    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
-    const { port } = server.address() as { port: number }
+    const port = Number(new URL(await listen((_request, response) => response.end())).port)
     expect(await opens('qbittorrent.test', port, 200, new AbortController().signal, { lookupName: slowLookup(400) })).toBe(true)
-    server.close()
   })
 
   it('gives a name that doesn’t resolve up after the lookup’s own time limit', async () => {
