@@ -200,17 +200,17 @@ Mount the folder, not the file: a file mount would keep the old file after Prowl
 
 ### TrueNAS
 
-TrueNAS Community Edition has Kinopeer in its apps catalog:
+TrueNAS Community Edition 24.10 and later has Kinopeer in its apps catalog:
 
-1. Open **Apps** → **Discover Apps**, search for **Kinopeer** and install it. The defaults open it at port 30624 and keep its data in an ixVolume. Kinopeer runs as TrueNAS's `apps` user and group (568:568).
-2. Open Kinopeer at `http://<your TrueNAS>:30624` and set its password right away; or set **Password** in the install form beforehand.
-3. Kinopeer asks for qBittorrent's address and login, then Prowlarr's address and API key, as in step 3 above. The install form also takes both addresses up front, and then the app doesn't ask for them.
+1. Open **Apps** → **Discover Apps**, search for **Kinopeer** and install it. The defaults open it at port 30624 and keep its data in an ixVolume; a host path you pick instead must be writable by TrueNAS's `apps` user. Kinopeer runs as that user and group (568:568) by default.
+2. Open Kinopeer at `http://<your TrueNAS>:30624` and set its password right away; or set **Password** in the install form beforehand, which then changes only in the app's settings on TrueNAS, not in Kinopeer.
+3. Kinopeer asks for qBittorrent's address and login, then Prowlarr's address and API key, as in step 3 of [Install next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr). The install form also takes both addresses up front: Kinopeer then asks only for qBittorrent's login and Prowlarr's key, and an address set there, like the password, changes only in the app's settings on TrueNAS.
 
 TrueNAS's own qBittorrent and Prowlarr apps answer at your TrueNAS's address with the ports they're installed with, by default `http://<your TrueNAS>:30024` for qBittorrent and `http://<your TrueNAS>:30050` for Prowlarr. The qBittorrent app writes its temporary password in its logs at first: set a password of your own in its web UI first.
 
-The catalog picks up each Kinopeer release by itself, and TrueNAS then offers the update on its **Apps** page.
+Each Kinopeer release reaches the catalog once TrueNAS's maintainers merge its automatic update, usually within days; TrueNAS then offers it on its **Apps** page.
 
-Or install the Compose file above as a custom app (24.10 and later): **Apps** → **Discover Apps**, the **⋮** menu next to **Custom App** → **Install via YAML**, `kinopeer` as the name, the Compose file under **Custom Config**, **Save**; then open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 above.
+Or install the Compose file above as a custom app (24.10 and later): **Apps** → **Discover Apps**, the **⋮** menu next to **Custom App** → **Install via YAML**, `kinopeer` as the name, the Compose file under **Custom Config**, **Save**; then open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 of [Install next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr).
 
 ### Unraid
 

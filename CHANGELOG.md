@@ -7,7 +7,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 ### Added
 
 - As qBittorrent's Alternative WebUI, Kinopeer switches to qBittorrent's own interface from Settings → About, and from the screen saying qBittorrent is too old: after a confirmation it turns off qBittorrent's Use alternative WebUI, so qBittorrent's address opens its own interface on every device, until it's turned on again in qBittorrent's options. Before, the way back was a command in the browser's console. ([#615](https://github.com/kinopeer/kinopeer/issues/615))
-- Kinopeer is in TrueNAS's apps catalog: Apps → Discover Apps → Kinopeer installs it with its password and qBittorrent's and Prowlarr's addresses in the install form, and TrueNAS offers each new release as an update. The README's TrueNAS section says how; installing the Compose file as a custom app still works.
+- Kinopeer is in TrueNAS's apps catalog, available now with 1.3.0: Apps → Discover Apps → Kinopeer installs it with its password and qBittorrent's and Prowlarr's addresses in the install form, and TrueNAS offers each new release as an update. The README's TrueNAS section says how; installing the Compose file as a custom app still works.
 
 ### Fixed
 
