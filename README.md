@@ -52,7 +52,7 @@ Every install runs the same app. They differ in what they need and in what only 
 | --- | --- | --- | --- | --- | --- | --- |
 | [Umbrel](#install-on-umbrel) | umbrelOS with its qBittorrent and Prowlarr apps | Push (over HTTPS) and Telegram | Umbrel's | Kinopeer's key, or your own | On your Umbrel | Umbrel offers it |
 | [Docker Compose](#install-with-docker-compose) | Docker with Compose; the file brings qBittorrent and Prowlarr | Push (over HTTPS) and Telegram | Kinopeer's own password | Kinopeer's key, or your own | Kinopeer's Docker volume | `docker compose pull`, then `up -d` |
-| [Next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr), [TrueNAS](#truenas), [Unraid](#unraid), [CasaOS](#casaos-and-zimaos) | Docker, qBittorrent 4.6.0 or later and Prowlarr | Push (over HTTPS) and Telegram | Kinopeer's own password | Kinopeer's key, or your own | Kinopeer's Docker volume (Unraid: its appdata folder) | Pull the image, then a new container |
+| [Next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr), [TrueNAS](#truenas), [Unraid](#unraid), [CasaOS](#casaos-and-zimaos) | Docker, qBittorrent 4.6.0 or later and Prowlarr | Push (over HTTPS) and Telegram | Kinopeer's own password | Kinopeer's key, or your own | Kinopeer's Docker volume (Unraid: its appdata folder; TrueNAS: an ixVolume or a folder you pick) | Pull the image, then a new container (TrueNAS: its Apps page offers it) |
 | [qBittorrent's Alternative WebUI](#install-as-qbittorrents-alternative-webui) | qBittorrent 5.2.0 or later and Prowlarr; no Docker | None ([qBittorrent's e-mail](#what-the-alternative-webui-doesnt-have)) | qBittorrent's | Kinopeer's key at a home-network address, else your own | In qBittorrent, shared by every browser | Unpack the new zip over the old |
 
 ## Install on Umbrel
@@ -200,13 +200,17 @@ Mount the folder, not the file: a file mount would keep the old file after Prowl
 
 ### TrueNAS
 
-TrueNAS Community Edition 24.10 and later installs a Docker Compose file as a custom app:
+TrueNAS Community Edition 24.10 and later has Kinopeer in its apps catalog:
 
-1. Open **Apps** → **Discover Apps**, then the **⋮** menu next to **Custom App** → **Install via YAML**.
-2. Enter `kinopeer` as the name, paste the Compose file above under **Custom Config** and **Save**.
-3. Open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 above.
+1. Open **Apps** → **Discover Apps**, search for **Kinopeer** and install it. The defaults open it at port 30624 and keep its data in an ixVolume; a host path you pick instead must be writable by TrueNAS's `apps` user. Kinopeer runs as that user and group (568:568) by default.
+2. Open Kinopeer at `http://<your TrueNAS>:30624` and set its password right away; or set **Password** in the install form beforehand, which then changes only in the app's settings on TrueNAS, not in Kinopeer.
+3. Kinopeer asks for qBittorrent's address and login, then Prowlarr's address and API key, as in step 3 of [Install next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr). The install form also takes both addresses up front: Kinopeer then asks only for qBittorrent's login and Prowlarr's key, and an address set there, like the password, changes only in the app's settings on TrueNAS. A variable that the sections above give for `docker run` and Compose, such as `KINOPEER_ALLOWED_HOSTS` for a name like `nas.lan`, goes under **Additional Environment Variables** in that form.
 
 TrueNAS's own qBittorrent and Prowlarr apps answer at your TrueNAS's address with the ports they're installed with, by default `http://<your TrueNAS>:30024` for qBittorrent and `http://<your TrueNAS>:30050` for Prowlarr. The qBittorrent app writes its temporary password in its logs at first: set a password of your own in its web UI first.
+
+Each Kinopeer release reaches the catalog once TrueNAS's maintainers merge its automatic update; TrueNAS then offers it on its **Apps** page.
+
+Or install the Compose file above as a custom app (24.10 and later): **Apps** → **Discover Apps**, the **⋮** menu next to **Custom App** → **Install via YAML**, `kinopeer` as the name, the Compose file under **Custom Config**, **Save**; then open Kinopeer at `http://<your TrueNAS>:8797` and go on from step 2 of [Install next to your own qBittorrent and Prowlarr](#install-next-to-your-own-qbittorrent-and-prowlarr).
 
 ### Unraid
 
