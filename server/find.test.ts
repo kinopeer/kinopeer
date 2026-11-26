@@ -224,13 +224,20 @@ describe('opens', () => {
     expect(await pending).toBe(false)
   })
 
-  /** A lookup that answers 127.0.0.1 after `ms`, or never, as getaddrinfo does stuck behind slower lookups (#625). */
-  function slowLookup(ms?: number): LookupFunction {
+  /** A lookup that answers `address` after `ms`, or never, as getaddrinfo does stuck behind slower lookups (#625). */
+  function slowLookup(ms?: number, address = '127.0.0.1'): LookupFunction {
     return ((_host: string, options: { all?: boolean }, callback: (...answer: unknown[]) => void) => {
       if (ms === undefined) return
-      setTimeout(() => (options.all ? callback(null, [{ address: '127.0.0.1', family: 4 }]) : callback(null, '127.0.0.1', 4)), ms)
+      setTimeout(() => (options.all ? callback(null, [{ address, family: 4 }]) : callback(null, address, 4)), ms)
     }) as LookupFunction
   }
+
+  it('gives a resolved name that doesn’t answer up after the connect’s time limit, not the lookup’s', async () => {
+    // The TEST-NET address of the test above; where it isn't routed, this passes on the error.
+    const pending = opens('qbittorrent.test', 80, 50, new AbortController().signal, { lookupName: slowLookup(0, '192.0.2.1'), lookupMs: 60_000 })
+    expect(await settlesWithin(pending, 1000)).toBe(true)
+    expect(await pending).toBe(false)
+  })
 
   it('starts the connect’s time limit once the name has resolved (#625)', async () => {
     const server = createServer(() => {})
