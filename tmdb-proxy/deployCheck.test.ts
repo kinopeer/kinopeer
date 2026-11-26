@@ -222,8 +222,11 @@ describe('shouldDeploy', () => {
 describe('proxyCode', () => {
   /** A checkout with the worker, a rule it imports from src/ and the files that say how it's deployed. */
   function checkout(meta: unknown) {
-    const root = mkdtempSync(join(tmpdir(), 'kinopeer-proxy-'))
-    repos.push(root)
+    // The checkout in a folder of its own, beside a file outside it that a metafile could name.
+    const folder = mkdtempSync(join(tmpdir(), 'kinopeer-proxy-'))
+    repos.push(folder)
+    writeFileSync(join(folder, 'outside.ts'), 'outside')
+    const root = join(folder, 'checkout')
     const files = [
       'tmdb-proxy/worker.ts',
       'tmdb-proxy/wrangler.jsonc',
@@ -258,6 +261,7 @@ describe('proxyCode', () => {
   it.each([
     ['isn’t JSON', 'not json', "Can't read"],
     ['has no inputs', { outputs: {} }, 'names no input'],
+    ['has null for its inputs', { inputs: null }, 'names no input'],
     ['has inputs that aren’t an object', { inputs: ['worker.ts'] }, 'names no input'],
     ['has none in its inputs', inputs(), 'names no input'],
     ['names an input that isn’t there', inputs('worker.ts', 'gone.ts'), "names gone.ts, which isn't a file"],
