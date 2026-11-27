@@ -1,5 +1,5 @@
 import { lookup } from 'node:dns/promises'
-import { connect, isIPv4 } from 'node:net'
+import { connect, isIP, isIPv4, type LookupFunction } from 'node:net'
 import { networkInterfaces } from 'node:os'
 import { answersAsProwlarr } from './prowlarr.ts'
 import { answersAsQbittorrent } from './qbittorrent.ts'
@@ -25,6 +25,8 @@ export const USUAL: Record<FindService, { names: string[]; ports: number[] }> = 
 export const MAX_SUBNETS = 4
 /** How long a host may take to take a connection: on a LAN an answer comes in milliseconds. */
 export const CONNECT_TIMEOUT_MS = 300
+/** How long a name may take to resolve, apart from the connect's limit (#625). */
+export const LOOKUP_TIMEOUT_MS = 2_000
 /** How long a host that took one may take to answer as the service. */
 export const IDENTIFY_TIMEOUT_MS = 3_000
 /** How many connections are tried at once. */
@@ -35,7 +37,7 @@ export interface FindSystem {
   interfaces: () => ReturnType<typeof networkInterfaces>
   /** A name's IPv4 address, or undefined when it doesn't resolve. */
   resolve: (host: string) => Promise<string | undefined>
-  /** Whether something at `host`:`port` takes a TCP connection within `ms`. */
+  /** Whether something at `host`:`port` takes a TCP connection within `ms` once its name has resolved. */
   opens: (host: string, port: number, ms: number, signal: AbortSignal) => Promise<boolean>
   /** Whether `base` answers as `service`, without a login or a key. */
   identifies: (service: FindService, base: string, signal: AbortSignal) => Promise<boolean>
@@ -115,10 +117,22 @@ export async function findService(
   return found.filter(({ host, port }) => !named.has(`${host}:${port}`)).map(({ base }) => base)
 }
 
-/** Whether something at `host`:`port` takes a TCP connection within `ms` (the name's lookup included). */
-export function opens(host: string, port: number, ms: number, signal: AbortSignal): Promise<boolean> {
+/**
+ * Whether something at `host`:`port` takes a TCP connection within `ms` once its name has resolved,
+ * the lookup having `lookupMs` of its own (`lookupName` in tests). A lookup waits for a thread of
+ * libuv's pool, four by default, which lookups of the usual names may hold for half a second each
+ * where the resolver is slow to say a name doesn't exist, so a limit that counted the lookup would
+ * miss localhost on a busy server (#625).
+ */
+export function opens(
+  host: string,
+  port: number,
+  ms: number,
+  signal: AbortSignal,
+  { lookupName, lookupMs = LOOKUP_TIMEOUT_MS }: { lookupName?: LookupFunction; lookupMs?: number } = {},
+): Promise<boolean> {
   return new Promise((resolve) => {
-    const socket = connect({ host, port })
+    const socket = connect({ host, port, lookup: lookupName })
     // Each step is harmless twice, so a second outcome (the timer after an error) changes nothing.
     const done = (open: boolean) => {
       clearTimeout(timer)
@@ -127,7 +141,12 @@ export function opens(host: string, port: number, ms: number, signal: AbortSigna
       resolve(open)
     }
     const abort = () => done(false)
-    const timer = setTimeout(() => done(false), ms)
+    // An IP address isn't looked up, so it emits no `lookup` and has the connect's limit from the start.
+    let timer = setTimeout(() => done(false), isIP(host) ? ms : lookupMs)
+    socket.once('lookup', () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => done(false), ms)
+    })
     signal.addEventListener('abort', abort)
     socket.once('connect', () => done(true))
     socket.once('error', () => done(false))
