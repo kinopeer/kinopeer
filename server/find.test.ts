@@ -1,7 +1,7 @@
 import { getEventListeners } from 'node:events'
 import { createServer, isIPv4, type LookupFunction } from 'node:net'
 import type { networkInterfaces } from 'node:os'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   MAX_SUBNETS,
   PARALLEL,
@@ -239,15 +239,45 @@ describe('opens', () => {
     expect(await pending).toBe(false)
   })
 
-  it('starts the connect’s time limit once the name has resolved (#625)', async () => {
-    const port = Number(new URL(await listen((_request, response) => response.end())).port)
-    expect(await opens('qbittorrent.test', port, 200, new AbortController().signal, { lookupName: slowLookup(400) })).toBe(true)
-  })
+  describe('on a fake clock, the sockets real', () => {
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
 
-  it('gives a name that doesn’t resolve up after the lookup’s own time limit', async () => {
-    const pending = opens('qbittorrent.test', 80, 60_000, new AbortController().signal, { lookupName: slowLookup(), lookupMs: 50 })
-    expect(await settlesWithin(pending, 1000)).toBe(true)
-    expect(await pending).toBe(false)
+    /** A server's port on 127.0.0.1, taken before the clock is faked. */
+    async function listening(): Promise<number> {
+      vi.useRealTimers()
+      const port = Number(new URL(await listen((_request, response) => response.end())).port)
+      vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+      return port
+    }
+
+    it('starts the connect’s time limit once the name has resolved (#625)', async () => {
+      const pending = opens('qbittorrent.test', await listening(), 200, new AbortController().signal, { lookupName: slowLookup(400) })
+      await vi.advanceTimersByTimeAsync(400)
+      expect(await pending).toBe(true)
+    })
+
+    it('lets the lookup’s own time limit go once the name has resolved', async () => {
+      const pending = opens('qbittorrent.test', await listening(), 300, new AbortController().signal, { lookupName: slowLookup(1_900), lookupMs: 2_000 })
+      // Both at once, so the lookup's limit passes after the connect has started and before it can finish.
+      vi.advanceTimersByTime(1_900)
+      vi.advanceTimersByTime(100)
+      expect(await pending).toBe(true)
+    })
+
+    it('gives a name that doesn’t resolve up after the lookup’s own time limit', async () => {
+      let settled: boolean | undefined
+      const pending = opens('qbittorrent.test', 80, 60_000, new AbortController().signal, { lookupName: slowLookup(), lookupMs: 50 }).then((open) => (settled = open))
+      await vi.advanceTimersByTimeAsync(49)
+      expect(settled).toBeUndefined()
+      await vi.advanceTimersByTimeAsync(1)
+      await pending
+      expect(settled).toBe(false)
+    })
   })
 })
 
