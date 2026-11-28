@@ -11,7 +11,7 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 
 ### Changed
 
-- Kinopeer's server names itself and its version to TMDB and to Kinopeer's TMDB proxy (`User-Agent: Kinopeer/1.4.0`, say), so the proxy can tell which versions still call it; nothing about your install goes with it. ([#627](https://github.com/kinopeer/kinopeer/pull/627))
+- Kinopeer's server names itself and its version to TMDB and to Kinopeer's TMDB proxy (`User-Agent: Kinopeer/1.4.0`, say), so Cloudflare's request counts for the proxy show which versions still call it; nothing about your install goes with it. ([#627](https://github.com/kinopeer/kinopeer/pull/627))
 
 ### Fixed
 
