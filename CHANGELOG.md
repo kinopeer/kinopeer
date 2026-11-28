@@ -9,6 +9,10 @@ Kinopeer follows [semantic versioning](https://semver.org). Before 1.0, minor ve
 - As qBittorrent's Alternative WebUI, Kinopeer switches to qBittorrent's own interface from Settings → About, and from the screen saying qBittorrent is too old: after a confirmation it turns off qBittorrent's Use alternative WebUI, so qBittorrent's address opens its own interface on every device, until it's turned on again in qBittorrent's options. Before, the way back was a command in the browser's console. ([#615](https://github.com/kinopeer/kinopeer/issues/615))
 - Kinopeer is in TrueNAS's apps catalog: Apps → Discover Apps → Kinopeer installs it with its password and qBittorrent's and Prowlarr's addresses in the install form, and TrueNAS offers each new release as an update. The README's TrueNAS section says how; installing the Compose file as a custom app still works.
 
+### Changed
+
+- Kinopeer's server names itself and its version to TMDB and to Kinopeer's TMDB proxy (`User-Agent: Kinopeer/1.4.0`, say), so the proxy can tell which versions still call it; nothing about your install goes with it. ([#627](https://github.com/kinopeer/kinopeer/pull/627))
+
 ### Fixed
 
 - Find no longer misses qBittorrent or Prowlarr on `localhost` when Kinopeer runs outside a container on a machine slow to say a name doesn't exist, as macOS is: the time a probe waits for a connection now starts once the name has resolved. ([#625](https://github.com/kinopeer/kinopeer/issues/625))
