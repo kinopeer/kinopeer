@@ -7,7 +7,7 @@
 // image is built for.
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { build } from 'vite'
 import { filesUnder, hashParts, type Part } from './parts.ts'
 
@@ -25,7 +25,8 @@ export function dockerfileInstructions(text: string): string {
 
 /**
  * What of package.json the image's server uses: `type`, which tells Node its `.ts` files are ES
- * modules, and `version`, which it reads for `/healthz`. The rest (scripts, dependencies) only builds.
+ * modules, and `version`, which it imports (server/version.ts) for its startup log and the TMDB
+ * bridge's User-Agent. The rest (scripts, dependencies) only builds.
  */
 export function runtimePackage(text: string): string {
   const { type, version } = JSON.parse(text) as { type?: unknown; version?: unknown }
@@ -34,9 +35,11 @@ export function runtimePackage(text: string): string {
 
 /**
  * The server as it runs, minified: Vite bundles `entry` and what it imports into one file, without
- * comments, formatting or local names, so a change to those alone gives the same bundle. Only for the
- * hash: the image runs the sources as they are, which the tests run too. It builds into a folder of
- * its own under `temp`, removed when it's done.
+ * comments, formatting or local names, so a change to those alone gives the same bundle. package.json
+ * stays out of it, imported as it is, since Vite would take it in whole, scripts and dev dependencies
+ * included; what of it runs counts through `runtimePackage`. Only for the hash: the image runs the
+ * sources as they are, which the tests run too. It builds into a folder of its own under `temp`,
+ * removed when it's done.
  */
 export async function serverBundle(root: string, entry: string, temp = tmpdir()): Promise<Part[]> {
   const outDir = mkdtempSync(join(temp, 'kinopeer-server-'))
@@ -47,7 +50,7 @@ export async function serverBundle(root: string, entry: string, temp = tmpdir())
       root,
       // The bundle alone: public/ goes into the image through dist/, which the fingerprint has.
       publicDir: false,
-      build: { ssr: entry, minify: true, outDir, write: true },
+      build: { ssr: entry, minify: true, outDir, write: true, rollupOptions: { external: (id) => basename(id) === 'package.json' } },
     })
     return filesUnder(outDir, 'server')
   } finally {

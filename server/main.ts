@@ -1,4 +1,3 @@
-import { readFile } from 'node:fs/promises'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -29,6 +28,7 @@ import {
 import { staticMiddleware } from './static.ts'
 import { telegramChannel } from './telegramChannel.ts'
 import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
+import { VERSION } from './version.ts'
 
 /**
  * The production server: the built app plus the same /api/settings, /api/matches, /qbt, /prowlarr,
@@ -280,10 +280,9 @@ async function main() {
   const kinopeer = kinopeerServer(env, stores)
   const server = createApp(root, kinopeer)
   const stopJobs = kinopeer.startJobs()
-  const { version } = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
 
   server.listen(port, host, () => {
-    console.log(`[kinopeer] ${version} listening on http://${host}:${port}`)
+    console.log(`[kinopeer] ${VERSION} listening on http://${host}:${port}`)
     const missing = missingSettings(env, stores.settings)
     if (missing.length) console.warn(`[kinopeer] not set: ${missing.join(', ')}`)
     const ignored = ignoredSettings(env)
