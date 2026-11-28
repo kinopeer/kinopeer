@@ -45,11 +45,12 @@ describe('runtimePackage', () => {
   })
 })
 
-// A small server in the shape of the real one: an entry that imports a module and a Node built-in,
-// in a package of ES modules.
+// A small server in the shape of the real one: an entry that imports a module, a Node built-in and
+// package.json for its version (server/version.ts), in a package of ES modules.
 const server = {
   'package.json': JSON.stringify({ type: 'module' }),
-  'server/main.ts': "import { join } from 'node:path'\nimport { greeting } from './greeting.ts'\n\nconsole.log(join('a', greeting('b')))\n",
+  'server/main.ts':
+    "import { join } from 'node:path'\nimport pkg from '../package.json' with { type: 'json' }\nimport { greeting } from './greeting.ts'\n\nconsole.log(join('a', greeting(pkg.version)))\n",
   'server/greeting.ts': '/** Says hello. */\nexport function greeting(name: string): string {\n  const words = `hello ${name}`\n  return words\n}\n',
 }
 
@@ -109,7 +110,8 @@ describe('fingerprint', () => {
       await of({
         ...project,
         Dockerfile: `# Another comment\n${project.Dockerfile}`,
-        'package.json': JSON.stringify({ version: '1.0.0', type: 'module', scripts: { test: 'vitest run' } }),
+        // The server imports package.json, which the bundle mustn't take in whole.
+        'package.json': JSON.stringify({ version: '1.0.0', type: 'module', scripts: { test: 'vitest run' }, devDependencies: { vite: '^8' } }),
       }),
     ).toBe(hash)
   })
