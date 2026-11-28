@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { afterEach, describe, expect, it } from 'vitest'
-import { tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
+import { checkTmdbKey, tmdbJson, tmdbMiddleware, type TmdbConfig } from './tmdb.ts'
 import { abandon, closeServers, fakeTmdb, listen, serve, settlesWithin, silentService } from './test/fakes.ts'
 
 /** Kinopeer's side: the middleware under test. */
@@ -109,6 +110,25 @@ describe('tmdbMiddleware', () => {
 
     expect(proxy.seen.map((request) => request.url)).toEqual(['/3/movie/771'])
     expect(tmdb.seen.map((request) => request.url)).toEqual(['/3/movie/771?api_key=saved'])
+  })
+
+  it('names Kinopeer and its version on every call, to the proxy, TMDB and its images alike, never the browser', async () => {
+    const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string }
+    const tmdb = await fakeTmdb()
+    const proxy = await fakeTmdb()
+    let key: string | undefined
+    const app = await kinopeer({ apiKey: () => key, apiBase: tmdb.apiBase, proxyBase: proxy.apiBase, imageBase: `${tmdb.base}/t/p` })
+    const browser = { headers: { 'User-Agent': 'Mozilla/5.0 (a browser)' } }
+
+    await fetch(`${app}/tmdb/movie/771`, browser)
+    await fetch(`${app}/tmdb-img/w342/poster.jpg`, browser)
+    key = 'saved'
+    await fetch(`${app}/tmdb/movie/771`, browser)
+    await tmdbJson({ apiKey: 'saved', apiBase: tmdb.apiBase }, 'movie/693134')
+    await checkTmdbKey('good-key', tmdb.apiBase)
+
+    expect(proxy.agents).toEqual([`Kinopeer/${version}`])
+    expect(tmdb.agents).toEqual(Array(4).fill(`Kinopeer/${version}`))
   })
 
   it('reports an unreachable proxy as TMDB being unreachable, not as a missing key', async () => {

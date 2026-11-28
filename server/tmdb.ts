@@ -4,6 +4,7 @@ import type { ReadableStream } from 'node:stream/web'
 import { abandoned } from './abandoned.ts'
 import type { Middleware } from './prowlarr.ts'
 import { BRIDGE_HEADER } from './qbittorrent.ts'
+import { VERSION } from './version.ts'
 
 /**
  * Same-origin bridge to TMDB that adds the key server-side, so it never reaches the browser:
@@ -38,6 +39,12 @@ const API_BASE = 'https://api.themoviedb.org/3'
  * title lookups wait (LOOKUP_TIMEOUT_MS), so a hung TMDB or proxy holds no connection for longer.
  */
 export const TMDB_TIMEOUT_MS = 15_000
+/**
+ * Sent on every call to TMDB and Kinopeer's proxy, in place of Node's own `node`: the proxy's zone
+ * can tell which released versions still call it, since a path stays while one does (tmdb-proxy/).
+ * The version alone, nothing about the install.
+ */
+export const USER_AGENT = `Kinopeer/${VERSION}`
 const API_PREFIX = '/tmdb/'
 const IMAGE_PREFIX = '/tmdb-img/'
 /** Upstream response headers passed on to the browser; the content type goes through `contentType`. */
@@ -80,7 +87,7 @@ function authorize(key: string, url: string): { url: string; headers: Record<str
 /** Whether TMDB accepts `key`. Rejects when TMDB can't be reached, or `signal` aborts first. */
 export async function checkTmdbKey(key: string, apiBase = API_BASE, signal?: AbortSignal): Promise<boolean> {
   const { url, headers } = authorize(key, `${apiBase}/authentication`)
-  const response = await fetch(url, { headers: { ...headers, Accept: 'application/json' }, signal })
+  const response = await fetch(url, { headers: { ...headers, Accept: 'application/json', 'User-Agent': USER_AGENT }, signal })
   if (response.status === 401) return false
   if (!response.ok) throw new Error(`TMDB responded ${response.status}`)
   return true
@@ -96,6 +103,8 @@ async function forward(
   answered: () => void,
 ) {
   if (request.headers.accept) headers.Accept = request.headers.accept
+  // Never the browser's own: the proxy's zone reads which versions call it.
+  headers['User-Agent'] = USER_AGENT
   const upstream = await fetch(url, { method: request.method === 'HEAD' ? 'HEAD' : 'GET', headers, signal })
   answered()
   response.statusCode = upstream.status
@@ -138,7 +147,7 @@ export async function tmdbJson(config: TmdbConfig, rest: string): Promise<unknow
   let response: Response
   try {
     response = await fetch(target.url, {
-      headers: { ...target.headers, Accept: 'application/json' },
+      headers: { ...target.headers, Accept: 'application/json', 'User-Agent': USER_AGENT },
       signal: AbortSignal.timeout(config.timeoutMs ?? TMDB_TIMEOUT_MS),
     })
     if (response.ok) return await response.json()

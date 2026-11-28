@@ -546,9 +546,12 @@ const TMDB_BAD_KEYS = new Set(['bad-key', 'Bearer eyJbad'])
  */
 export async function fakeTmdb() {
   const seen: TmdbRequest[] = []
+  /** The User-Agent of each request, in the order of `seen`. */
+  const agents: (string | undefined)[] = []
   const base = await listen((request, response) => {
     const url = request.url ?? ''
     seen.push({ url, authorization: request.headers.authorization, cookie: request.headers.cookie })
+    agents.push(request.headers['user-agent'])
     if (url.startsWith('/t/p/')) {
       response.setHeader('Content-Type', 'image/jpeg')
       response.setHeader('Cache-Control', 'max-age=31536000')
@@ -580,7 +583,7 @@ export async function fakeTmdb() {
     response.setHeader('Set-Cookie', 'tracking=1')
     response.end(JSON.stringify({ results: [] }))
   })
-  return { base, apiBase: `${base}/3`, seen }
+  return { base, apiBase: `${base}/3`, seen, agents }
 }
 
 // Prowlarr
