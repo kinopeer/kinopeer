@@ -7,7 +7,7 @@
 // image is built for.
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 import { build } from 'vite'
 import { filesUnder, hashParts, type Part } from './parts.ts'
 
@@ -50,7 +50,7 @@ export async function serverBundle(root: string, entry: string, temp = tmpdir())
       root,
       // The bundle alone: public/ goes into the image through dist/, which the fingerprint has.
       publicDir: false,
-      build: { ssr: entry, minify: true, outDir, write: true, rollupOptions: { external: (id) => /(^|[/\\])package\.json$/.test(id) } },
+      build: { ssr: entry, minify: true, outDir, write: true, rollupOptions: { external: (id) => basename(id) === 'package.json' } },
     })
     return filesUnder(outDir, 'server')
   } finally {
